@@ -7,10 +7,7 @@ import com.example.generic_shop.entity.User;
 import com.example.generic_shop.service.Impl.UserServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -32,5 +29,10 @@ public class UserController {
     @PostMapping("/change-password")
     public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request){
         return userService.changePassword(request);
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> getProfile() {
+        return userService.getUserProfile();
     }
 }

@@ -32,6 +32,10 @@ public class UserServiceImpl {
         }
 
         user.setPassword(passwordEncoder.encode(user.getPassword()));
+        
+        if (user.getRole() == null || user.getRole().isEmpty()) {
+            user.setRole("USER");
+        }
 
         userRepository.save(user);
 
@@ -99,4 +103,12 @@ public class UserServiceImpl {
         return ResponseEntity.ok("Password changed successfully");
     }
 
+    public ResponseEntity<?> getUserProfile() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+                
+        user.setPassword(null); // Do not return password to the client
+        return ResponseEntity.ok(user);
+    }
 }

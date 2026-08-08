@@ -14,9 +14,14 @@ import org.springframework.web.bind.annotation.*;
 public class OrderController {
     private final OrderServiceImpl orderService;
 
-    @PostMapping
-    public ResponseEntity<?> create(@RequestBody Order order){
-        return orderService.createOrder(order);
+    @PostMapping("/checkout")
+    public ResponseEntity<?> checkout(@RequestBody java.util.Map<String, String> request){
+        return orderService.checkout(request);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getOrderById(@PathVariable Long id){
+        return orderService.getOrderById(id);
     }
 
     @GetMapping("/my")

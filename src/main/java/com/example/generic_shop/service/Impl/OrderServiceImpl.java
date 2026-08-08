@@ -19,22 +19,54 @@ public class OrderServiceImpl {
 
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final CartServiceImpl cartService;
 
-    public ResponseEntity<?> createOrder(Order order){
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<?> checkout(java.util.Map<String, String> request){
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
-
         User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
 
-        order.setCustomer(user);
-        order.setOrderStatus(OrderStatus.NEW);
-
-        if (order.getItems() != null){
-            order.getItems().forEach(item -> item.setOrder(order));
+        com.example.generic_shop.entity.Cart cart = cartService.getCart(email);
+        if (cart.getItems() == null || cart.getItems().isEmpty()) {
+            return ResponseEntity.badRequest().body("Cart is empty");
         }
 
+        Order order = new Order();
+        order.setCustomer(user);
+        order.setOrderStatus(OrderStatus.NEW);
+        order.setShippingAddress(request.get("shippingAddress"));
+
+        double totalPrice = 0;
+        java.util.List<com.example.generic_shop.entity.OrderItem> orderItems = new java.util.ArrayList<>();
+        for (com.example.generic_shop.entity.CartItem cartItem : cart.getItems()) {
+            com.example.generic_shop.entity.OrderItem orderItem = new com.example.generic_shop.entity.OrderItem();
+            orderItem.setOrder(order);
+            orderItem.setProduct(cartItem.getProduct());
+            orderItem.setQuantity(cartItem.getQuantity());
+            orderItem.setPrice(cartItem.getProduct().getPrice()); // Assuming Product has getPrice()
+            totalPrice += cartItem.getQuantity() * cartItem.getProduct().getPrice();
+            orderItems.add(orderItem);
+        }
+        order.setItems(orderItems);
+        order.setTotalPrice(totalPrice);
+
         orderRepository.save(order);
+        cartService.clearCart(email);
 
         return ResponseEntity.ok("Order created successfully");
+    }
+
+    public ResponseEntity<?> getOrderById(Long id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+        
+        Order order = orderRepository.findById(id).orElseThrow(() -> new RuntimeException("Order not found"));
+        
+        if (!order.getCustomer().getId().equals(user.getId()) && !user.getRole().equals("ADMIN")) {
+            return ResponseEntity.status(403).body("Access denied");
+        }
+        
+        return ResponseEntity.ok(order);
     }
 
     public ResponseEntity<?> getMyOrders(){

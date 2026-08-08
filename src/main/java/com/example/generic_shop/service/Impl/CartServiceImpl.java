@@ -84,6 +84,11 @@ public class CartServiceImpl {
         cartItemRepository.deleteById(itemId);
     }
 
+    @org.springframework.transaction.annotation.Transactional
+    public void clearCart(String email) {
+        Cart cart = getCart(email);
+        cartItemRepository.deleteByCart(cart);
+    }
 
 }
 
