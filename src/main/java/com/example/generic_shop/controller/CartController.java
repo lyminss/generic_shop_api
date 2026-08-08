@@ -9,12 +9,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import com.example.generic_shop.service.CartService;
+
 @RestController
 @RequestMapping("/api/cart")
 @RequiredArgsConstructor
 public class CartController {
 
-    private final CartServiceImpl cartService;
+    private final CartService cartService;
 
     private String getEmail(Authentication authentication){
         return authentication.getName();

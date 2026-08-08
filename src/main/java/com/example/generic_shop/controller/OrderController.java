@@ -8,11 +8,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.example.generic_shop.service.OrderService;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/orders")
 public class OrderController {
-    private final OrderServiceImpl orderService;
+    private final OrderService orderService;
 
     @PostMapping("/checkout")
     public ResponseEntity<?> checkout(@RequestBody java.util.Map<String, String> request){

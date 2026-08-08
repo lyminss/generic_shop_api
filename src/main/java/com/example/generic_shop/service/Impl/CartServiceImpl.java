@@ -12,9 +12,11 @@ import com.example.generic_shop.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import com.example.generic_shop.service.CartService;
+
 @Service
 @RequiredArgsConstructor
-public class CartServiceImpl {
+public class CartServiceImpl implements CartService {
 
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
@@ -28,6 +30,7 @@ public class CartServiceImpl {
 
 
     //get cart
+    @Override
     public Cart getCart(String email){
 
         User user = getCurrentUser(email);
@@ -40,6 +43,7 @@ public class CartServiceImpl {
     }
 
     //add to cart
+    @Override
     public Cart addToCart(String email, Long productId, int quantity){
 
         User user = getCurrentUser(email);
@@ -64,6 +68,7 @@ public class CartServiceImpl {
     }
 
     //update cart
+    @Override
     public Cart updateCart(String email, Long productId, int quantity){
 
         Cart cart = getCart(email);
@@ -80,11 +85,13 @@ public class CartServiceImpl {
     }
 
     //remove
+    @Override
     public void removeItem(Long itemId){
         cartItemRepository.deleteById(itemId);
     }
 
     @org.springframework.transaction.annotation.Transactional
+    @Override
     public void clearCart(String email) {
         Cart cart = getCart(email);
         cartItemRepository.deleteByCart(cart);

@@ -13,15 +13,19 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+import com.example.generic_shop.service.OrderService;
+import com.example.generic_shop.service.CartService;
+
 @Service
 @RequiredArgsConstructor
-public class OrderServiceImpl {
+public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
-    private final CartServiceImpl cartService;
+    private final CartService cartService;
 
     @org.springframework.transaction.annotation.Transactional
+    @Override
     public ResponseEntity<?> checkout(java.util.Map<String, String> request){
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
@@ -56,6 +60,7 @@ public class OrderServiceImpl {
         return ResponseEntity.ok("Order created successfully");
     }
 
+    @Override
     public ResponseEntity<?> getOrderById(Long id) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
@@ -69,6 +74,7 @@ public class OrderServiceImpl {
         return ResponseEntity.ok(order);
     }
 
+    @Override
     public ResponseEntity<?> getMyOrders(){
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
 
@@ -80,12 +86,14 @@ public class OrderServiceImpl {
         return ResponseEntity.ok(orders);
     }
 
+    @Override
     public ResponseEntity<?> getAllOrders(){
         List<Order> orders = orderRepository.findAll();
 
         return ResponseEntity.ok(orders);
     }
 
+    @Override
     public ResponseEntity<?> updateOrderStatus(Long id, OrderStatus status){
         Order order = orderRepository.findById(id)
                 .orElseThrow(()->new RuntimeException("Order not found"));

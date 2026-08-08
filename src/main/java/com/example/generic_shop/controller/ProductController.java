@@ -11,11 +11,13 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import com.example.generic_shop.service.ProductService;
+
 @RestController
 @RequestMapping("/api/product")
 @RequiredArgsConstructor
 public class ProductController {
-    private final ProductServiceImpl productService;
+    private final ProductService productService;
 
     @GetMapping
     public ResponseEntity<List<Product>> getAllProduct(){

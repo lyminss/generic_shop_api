@@ -7,22 +7,27 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+import com.example.generic_shop.service.ProductService;
+
 @Service
 @RequiredArgsConstructor
-public class ProductServiceImpl {
+public class ProductServiceImpl implements ProductService {
     private final ProductRepository productRepository;
 
     //Get all
+    @Override
     public List<Product> getAll(){
         return productRepository.findAll();
     }
 
     //Get by id
+    @Override
     public Product getById(Long id){
         return productRepository.findById(id).orElseThrow(() -> new RuntimeException("Not found" +id));
     }
 
     //Create
+    @Override
     public Product createProduct(Product product){
         if (product.getName() == null || product.getName().isEmpty()){
             throw new RuntimeException("Product name is required");
@@ -31,6 +36,7 @@ public class ProductServiceImpl {
     }
 
     //update
+    @Override
     public Product updateProduct(Long id, Product request){
         Product product = getById(id);
 
@@ -44,6 +50,7 @@ public class ProductServiceImpl {
     }
 
     //delete
+    @Override
     public void deleteProduct(Long id){
         Product product = getById(id);
         productRepository.delete(product);

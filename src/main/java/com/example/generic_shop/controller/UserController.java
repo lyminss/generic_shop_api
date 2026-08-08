@@ -9,12 +9,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.example.generic_shop.service.UserService;
+
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class UserController {
 
-    private final UserServiceImpl userService;
+    private final UserService userService;
 
     @PostMapping("/register")
     public ResponseEntity<?> register (@RequestBody User user){

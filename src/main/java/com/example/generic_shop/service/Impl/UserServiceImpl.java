@@ -18,14 +18,17 @@ import java.util.Map;
 import java.util.Optional;
 
 
+import com.example.generic_shop.service.UserService;
+
 @Service
 @RequiredArgsConstructor
-public class UserServiceImpl {
+public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
+    @Override
     public ResponseEntity<?> register(User user){
         if (userRepository.findByEmail(user.getEmail()).isPresent()){
             return ResponseEntity.status(400).body("Email already exists");
@@ -43,6 +46,7 @@ public class UserServiceImpl {
 
     }
 
+    @Override
     public ResponseEntity<?> login(LoginRequest request){
 
         User user = userRepository.findByEmail(request.getEmail())
@@ -59,6 +63,7 @@ public class UserServiceImpl {
         );
     }
 
+    @Override
     public ResponseEntity<?> changePassword(ChangePasswordRequest request){
 
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -103,6 +108,7 @@ public class UserServiceImpl {
         return ResponseEntity.ok("Password changed successfully");
     }
 
+    @Override
     public ResponseEntity<?> getUserProfile() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByEmail(email)
