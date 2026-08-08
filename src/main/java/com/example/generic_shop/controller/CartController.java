@@ -45,8 +45,8 @@ public class CartController {
     }
 
     @DeleteMapping("/remove/{itemId}")
-    public ResponseEntity<?> removeItem(@PathVariable Long itemId){
-        cartService.removeItem(itemId);
+    public ResponseEntity<?> removeItem(Authentication auth, @PathVariable Long itemId){
+        cartService.removeItem(getEmail(auth), itemId);
         return ResponseEntity.noContent().build();
     }
 }

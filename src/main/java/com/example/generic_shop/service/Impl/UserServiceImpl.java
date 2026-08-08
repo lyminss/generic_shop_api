@@ -117,4 +117,19 @@ public class UserServiceImpl implements UserService {
         user.setPassword(null); // Do not return password to the client
         return ResponseEntity.ok(user);
     }
+
+    @Override
+    public ResponseEntity<?> updateProfile(com.example.generic_shop.dto.UpdateProfileRequest request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (request.getFirstName() != null) user.setFirstName(request.getFirstName());
+        if (request.getLastName() != null) user.setLastName(request.getLastName());
+        if (request.getPhone() != null) user.setPhone(request.getPhone());
+
+        userRepository.save(user);
+        user.setPassword(null);
+        return ResponseEntity.ok(user);
+    }
 }

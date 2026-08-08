@@ -1,0 +1,93 @@
+.orders-container {
+  padding-bottom: 60px;
+}
+
+.orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 800px;
+}
+
+.order-card {
+  padding: 24px;
+}
+
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.order-id {
+  font-weight: 600;
+  font-size: 1.1rem;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.order-date {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.order-status {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Matches backend OrderStatus enum: NEW, PROCESSING, SHIPPING, COMPLETED, CANCEL */
+.status-new {
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--accent-color);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.status-processing {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.status-shipping {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.status-completed {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--success-color);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.status-cancel {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger-color);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.order-body p {
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+}
+
+.order-body strong {
+  color: var(--text-primary);
+}
+
+.orders-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  text-align: center;
+}

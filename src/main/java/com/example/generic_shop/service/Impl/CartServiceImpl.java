@@ -46,6 +46,10 @@ public class CartServiceImpl implements CartService {
     @Override
     public Cart addToCart(String email, Long productId, int quantity){
 
+        if (quantity <= 0) {
+            throw new RuntimeException("Quantity must be greater than 0");
+        }
+
         User user = getCurrentUser(email);
         Cart cart = getCart(email);
 
@@ -64,12 +68,18 @@ public class CartServiceImpl implements CartService {
         }
 
         cartItemRepository.save(item);
-        return cart;
+        // Reload cart from DB to ensure items list is up-to-date
+        return cartRepository.findById(cart.getId())
+                .orElseThrow(() -> new RuntimeException("Cart not found"));
     }
 
     //update cart
     @Override
     public Cart updateCart(String email, Long productId, int quantity){
+
+        if (quantity < 0) {
+            throw new RuntimeException("Quantity must not be negative");
+        }
 
         Cart cart = getCart(email);
         Product product = productRepository.findById(productId)
@@ -78,15 +88,29 @@ public class CartServiceImpl implements CartService {
         CartItem item = cartItemRepository.findByCartAndProduct(cart, product)
                 .orElseThrow(() -> new RuntimeException("Cart item not found"));
 
-        item.setQuantity(quantity);
-        cartItemRepository.save(item);
-
-        return cart;
+        if (quantity == 0) {
+            cartItemRepository.delete(item);
+        } else {
+            item.setQuantity(quantity);
+            cartItemRepository.save(item);
+        }
+        // Reload cart from DB to ensure items list is up-to-date
+        return cartRepository.findById(cart.getId())
+                .orElseThrow(() -> new RuntimeException("Cart not found"));
     }
 
     //remove
     @Override
-    public void removeItem(Long itemId){
+    public void removeItem(String email, Long itemId){
+        Cart cart = getCart(email);
+        CartItem item = cartItemRepository.findById(itemId)
+                .orElseThrow(() -> new RuntimeException("Cart item not found"));
+
+        // Kiểm tra CartItem có thuộc về giỏ hàng của user hiện tại không (chống IDOR)
+        if (!item.getCart().getId().equals(cart.getId())) {
+            throw new RuntimeException("You are not allowed to remove this item");
+        }
+
         cartItemRepository.deleteById(itemId);
     }
 
@@ -94,7 +118,11 @@ public class CartServiceImpl implements CartService {
     @Override
     public void clearCart(String email) {
         Cart cart = getCart(email);
-        cartItemRepository.deleteByCart(cart);
+        // Clear via the owning collection so orphanRemoval=true takes effect correctly
+        if (cart.getItems() != null) {
+            cart.getItems().clear();
+        }
+        cartRepository.save(cart);
     }
 
 }

@@ -37,4 +37,9 @@ public class UserController {
     public ResponseEntity<?> getProfile() {
         return userService.getUserProfile();
     }
+
+    @PutMapping("/me")
+    public ResponseEntity<?> updateProfile(@RequestBody com.example.generic_shop.dto.UpdateProfileRequest user) {
+        return userService.updateProfile(user);
+    }
 }

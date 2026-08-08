@@ -1,0 +1,96 @@
+.navbar {
+  position: sticky;
+  top: 10px;
+  z-index: 100;
+  margin: 10px 20px 30px;
+  padding: 15px 0;
+}
+
+.nav-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.brand-text {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #a5b4fc, #818cf8, #6366f1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.nav-link {
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: color var(--transition-fast);
+}
+
+.nav-link:hover {
+  color: var(--text-primary);
+}
+
+.cart-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.cart-badge {
+  position: absolute;
+  top: -8px;
+  right: -12px;
+  background: var(--accent-color);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  border: 2px solid var(--bg-primary);
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-left: 16px;
+  border-left: 1px solid var(--glass-border);
+}
+
+.user-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  transition: color var(--transition-fast);
+}
+
+.user-name:hover {
+  color: var(--accent-color);
+}
+
+.logout-btn {
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  transition: color var(--transition-fast);
+}
+
+.logout-btn:hover {
+  color: var(--danger-color);
+}
+
+.auth-links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}

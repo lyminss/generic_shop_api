@@ -6,6 +6,6 @@ public interface CartService {
     Cart getCart(String email);
     Cart addToCart(String email, Long productId, int quantity);
     Cart updateCart(String email, Long productId, int quantity);
-    void removeItem(Long itemId);
+    void removeItem(String email, Long itemId);
     void clearCart(String email);
 }
