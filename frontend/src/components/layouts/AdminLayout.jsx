@@ -7,6 +7,11 @@ import {
   LogOut,
   LayoutDashboard,
   UtensilsCrossed,
+  Boxes,
+  ChefHat,
+  FilePlus2,
+  FileDiff,
+  History,
   ClipboardList,
   Users,
   BarChart3,
@@ -23,11 +28,21 @@ const adminNavItems = [
     ],
   },
   {
-    group: 'Quản lý',
+    group: 'Quản lý Món & Đơn',
     items: [
       { icon: <UtensilsCrossed size={18} />, label: 'Quản lý Món ăn', to: '/admin/products' },
       { icon: <ClipboardList size={18} />, label: 'Quản lý Đơn hàng', to: '/admin/orders' },
       { icon: <Users size={18} />, label: 'Quản lý Thành viên', to: '/admin/users' },
+    ],
+  },
+  {
+    group: 'Quản lý Kho & Pha Chế',
+    items: [
+      { icon: <Boxes size={18} />, label: 'Tồn Kho Nguyên Liệu', to: '/admin/inventory/stock' },
+      { icon: <ChefHat size={18} />, label: 'Công Thức Pha Chế', to: '/admin/inventory/recipes' },
+      { icon: <FilePlus2 size={18} />, label: 'Phiếu Nhập Kho', to: '/admin/inventory/receipts' },
+      { icon: <FileDiff size={18} />, label: 'Kiểm Kê & Điều Chỉnh', to: '/admin/inventory/adjustments' },
+      { icon: <History size={18} />, label: 'Nhật Ký Biến Động', to: '/admin/inventory/logs' },
     ],
   },
   {

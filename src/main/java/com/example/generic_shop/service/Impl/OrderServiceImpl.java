@@ -3,11 +3,20 @@ package com.example.generic_shop.service.Impl;
 import com.example.generic_shop.dto.OrderDTO;
 import com.example.generic_shop.dto.OrderItemDTO;
 import com.example.generic_shop.dto.PosOrderRequest;
+import com.example.generic_shop.entity.Ingredient;
+import com.example.generic_shop.entity.InventoryTransaction;
 import com.example.generic_shop.entity.Order;
+import com.example.generic_shop.entity.OrderItem;
+import com.example.generic_shop.entity.Product;
+import com.example.generic_shop.entity.RecipeItem;
 import com.example.generic_shop.entity.User;
+import com.example.generic_shop.enums.InventoryTransactionType;
 import com.example.generic_shop.enums.OrderStatus;
+import com.example.generic_shop.repository.IngredientRepository;
+import com.example.generic_shop.repository.InventoryTransactionRepository;
 import com.example.generic_shop.repository.OrderRepository;
 import com.example.generic_shop.repository.ProductRepository;
+import com.example.generic_shop.repository.RecipeItemRepository;
 import com.example.generic_shop.repository.UserRepository;
 import com.example.generic_shop.service.CartService;
 import com.example.generic_shop.service.OrderService;
@@ -18,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -29,6 +39,9 @@ public class OrderServiceImpl implements OrderService {
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
     private final CartService cartService;
+    private final RecipeItemRepository recipeItemRepository;
+    private final IngredientRepository ingredientRepository;
+    private final InventoryTransactionRepository inventoryTransactionRepository;
 
     @Transactional
     @Override
@@ -41,24 +54,29 @@ public class OrderServiceImpl implements OrderService {
             return ResponseEntity.badRequest().body("Cart is empty");
         }
 
+        // 1. Kiểm tra tồn kho sản phẩm & tồn kho nguyên liệu trước
+        for (com.example.generic_shop.entity.CartItem cartItem : cart.getItems()) {
+            Product product = cartItem.getProduct();
+            if (product.getStockQuantity() < cartItem.getQuantity()) {
+                return ResponseEntity.badRequest().body(
+                        "Món '" + product.getName() + "' không đủ tồn kho sản phẩm. Tồn: "
+                                + product.getStockQuantity() + ", Yêu cầu: " + cartItem.getQuantity());
+            }
+            String recipeError = checkIngredientStockForProduct(product, cartItem.getQuantity());
+            if (recipeError != null) {
+                return ResponseEntity.badRequest().body(recipeError);
+            }
+        }
+
         Order order = new Order();
         order.setCustomer(user);
         order.setOrderStatus(OrderStatus.NEW);
         order.setShippingAddress(request.get("shippingAddress"));
 
-        // Kiểm tra tồn kho trước khi tạo đơn
-        for (com.example.generic_shop.entity.CartItem cartItem : cart.getItems()) {
-            if (cartItem.getProduct().getStockQuantity() < cartItem.getQuantity()) {
-                return ResponseEntity.badRequest().body(
-                        "Product '" + cartItem.getProduct().getName() + "' does not have enough stock. Available: "
-                                + cartItem.getProduct().getStockQuantity() + ", Requested: " + cartItem.getQuantity());
-            }
-        }
-
         double totalPrice = 0;
-        List<com.example.generic_shop.entity.OrderItem> orderItems = new ArrayList<>();
+        List<OrderItem> orderItems = new ArrayList<>();
         for (com.example.generic_shop.entity.CartItem cartItem : cart.getItems()) {
-            com.example.generic_shop.entity.OrderItem orderItem = new com.example.generic_shop.entity.OrderItem();
+            OrderItem orderItem = new OrderItem();
             orderItem.setOrder(order);
             orderItem.setProduct(cartItem.getProduct());
             orderItem.setQuantity(cartItem.getQuantity());
@@ -71,12 +89,8 @@ public class OrderServiceImpl implements OrderService {
 
         orderRepository.save(order);
 
-        // Trừ tồn kho sau khi tạo đơn thành công
-        for (com.example.generic_shop.entity.OrderItem orderItem : orderItems) {
-            com.example.generic_shop.entity.Product product = orderItem.getProduct();
-            product.setStockQuantity(product.getStockQuantity() - orderItem.getQuantity());
-            productRepository.save(product);
-        }
+        // 2. Trừ tồn kho sản phẩm & nguyên liệu pha chế
+        deductStockAndIngredients(order);
 
         cartService.clearCart(email);
 
@@ -93,6 +107,22 @@ public class OrderServiceImpl implements OrderService {
             return ResponseEntity.badRequest().body("Danh sách món ăn không được để trống");
         }
 
+        // 1. Validation kiểm tra kho nguyên liệu & kho sản phẩm trước
+        for (PosOrderRequest.PosOrderItemDTO itemDto : request.getItems()) {
+            Product product = productRepository.findById(itemDto.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Món ăn không tồn tại ID: " + itemDto.getProductId()));
+
+            if (product.getStockQuantity() < itemDto.getQuantity()) {
+                return ResponseEntity.badRequest().body("Món '" + product.getName() + "' không đủ tồn kho sản phẩm. Tồn: "
+                        + product.getStockQuantity() + ", Yêu cầu: " + itemDto.getQuantity());
+            }
+
+            String recipeError = checkIngredientStockForProduct(product, itemDto.getQuantity());
+            if (recipeError != null) {
+                return ResponseEntity.badRequest().body(recipeError);
+            }
+        }
+
         Order order = new Order();
         order.setCustomer(user);
         order.setOrderStatus(OrderStatus.NEW);
@@ -104,18 +134,12 @@ public class OrderServiceImpl implements OrderService {
         order.setShippingAddress(address);
 
         double totalPrice = 0;
-        List<com.example.generic_shop.entity.OrderItem> orderItems = new ArrayList<>();
+        List<OrderItem> orderItems = new ArrayList<>();
 
         for (PosOrderRequest.PosOrderItemDTO itemDto : request.getItems()) {
-            com.example.generic_shop.entity.Product product = productRepository.findById(itemDto.getProductId())
-                    .orElseThrow(() -> new RuntimeException("Món ăn không tồn tại ID: " + itemDto.getProductId()));
+            Product product = productRepository.findById(itemDto.getProductId()).get();
 
-            if (product.getStockQuantity() < itemDto.getQuantity()) {
-                return ResponseEntity.badRequest().body("Món '" + product.getName() + "' không đủ tồn kho. Tồn: "
-                        + product.getStockQuantity() + ", Yêu cầu: " + itemDto.getQuantity());
-            }
-
-            com.example.generic_shop.entity.OrderItem orderItem = new com.example.generic_shop.entity.OrderItem();
+            OrderItem orderItem = new OrderItem();
             orderItem.setOrder(order);
             orderItem.setProduct(product);
             orderItem.setQuantity(itemDto.getQuantity());
@@ -130,12 +154,8 @@ public class OrderServiceImpl implements OrderService {
 
         orderRepository.save(order);
 
-        // Deduct stock
-        for (com.example.generic_shop.entity.OrderItem orderItem : orderItems) {
-            com.example.generic_shop.entity.Product product = orderItem.getProduct();
-            product.setStockQuantity(product.getStockQuantity() - orderItem.getQuantity());
-            productRepository.save(product);
-        }
+        // 2. Trừ tồn kho sản phẩm & nguyên liệu pha chế
+        deductStockAndIngredients(order);
 
         return ResponseEntity.ok(toDTO(order));
     }
@@ -175,6 +195,7 @@ public class OrderServiceImpl implements OrderService {
         return ResponseEntity.ok(orders.stream().map(this::toDTO).toList());
     }
 
+    @Transactional
     @Override
     public ResponseEntity<?> updateOrderStatus(Long id, OrderStatus status) {
         Order order = orderRepository.findById(id)
@@ -185,19 +206,97 @@ public class OrderServiceImpl implements OrderService {
             return ResponseEntity.badRequest().body("Cannot update completed/cancelled order");
         }
 
-        // Hoàn trả tồn kho khi hủy đơn
+        // Hoàn trả tồn kho sản phẩm & nguyên liệu khi hủy đơn
         if (status == OrderStatus.CANCEL) {
-            for (com.example.generic_shop.entity.OrderItem item : order.getItems()) {
-                com.example.generic_shop.entity.Product product = item.getProduct();
-                product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
-                productRepository.save(product);
-            }
+            restoreStockAndIngredients(order);
         }
 
         order.setOrderStatus(status);
         orderRepository.save(order);
 
         return ResponseEntity.ok("Order status updated successfully");
+    }
+
+    private String checkIngredientStockForProduct(Product product, int orderQuantity) {
+        List<RecipeItem> recipeItems = recipeItemRepository.findByProductId(product.getId());
+        for (RecipeItem recipeItem : recipeItems) {
+            double required = recipeItem.getQuantity() * orderQuantity;
+            Ingredient ingredient = recipeItem.getIngredient();
+            if (ingredient.getCurrentStock() < required) {
+                return "Nguyên liệu '" + ingredient.getName() + "' không đủ tồn kho để pha chế '" + product.getName()
+                        + "'. Tồn: " + ingredient.getCurrentStock() + " " + ingredient.getUnit()
+                        + ", Yêu cầu: " + required + " " + ingredient.getUnit();
+            }
+        }
+        return null; // Đủ nguyên liệu
+    }
+
+    private void deductStockAndIngredients(Order order) {
+        String refCode = "ORD-" + order.getId();
+
+        for (OrderItem item : order.getItems()) {
+            Product product = item.getProduct();
+            // Trừ tồn kho sản phẩm
+            product.setStockQuantity(product.getStockQuantity() - item.getQuantity());
+            productRepository.save(product);
+
+            // Trừ tồn kho nguyên liệu công thức
+            List<RecipeItem> recipeItems = recipeItemRepository.findByProductId(product.getId());
+            for (RecipeItem recipeItem : recipeItems) {
+                Ingredient ingredient = recipeItem.getIngredient();
+                double consumed = recipeItem.getQuantity() * item.getQuantity();
+
+                double stockBefore = ingredient.getCurrentStock();
+                double stockAfter = stockBefore - consumed;
+
+                ingredient.setCurrentStock(stockAfter);
+                ingredientRepository.save(ingredient);
+
+                InventoryTransaction log = new InventoryTransaction();
+                log.setIngredient(ingredient);
+                log.setType(InventoryTransactionType.EXPORT_PREPARATION);
+                log.setQuantity(-consumed);
+                log.setStockBefore(stockBefore);
+                log.setStockAfter(stockAfter);
+                log.setReferenceCode(refCode);
+                log.setNote("Trừ nguyên liệu pha chế cho " + item.getQuantity() + " " + product.getName());
+                inventoryTransactionRepository.save(log);
+            }
+        }
+    }
+
+    private void restoreStockAndIngredients(Order order) {
+        String refCode = "ORD-" + order.getId();
+
+        for (OrderItem item : order.getItems()) {
+            Product product = item.getProduct();
+            // Hoàn tồn kho sản phẩm
+            product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
+            productRepository.save(product);
+
+            // Hoàn tồn kho nguyên liệu công thức
+            List<RecipeItem> recipeItems = recipeItemRepository.findByProductId(product.getId());
+            for (RecipeItem recipeItem : recipeItems) {
+                Ingredient ingredient = recipeItem.getIngredient();
+                double refunded = recipeItem.getQuantity() * item.getQuantity();
+
+                double stockBefore = ingredient.getCurrentStock();
+                double stockAfter = stockBefore + refunded;
+
+                ingredient.setCurrentStock(stockAfter);
+                ingredientRepository.save(ingredient);
+
+                InventoryTransaction log = new InventoryTransaction();
+                log.setIngredient(ingredient);
+                log.setType(InventoryTransactionType.RETURN);
+                log.setQuantity(refunded);
+                log.setStockBefore(stockBefore);
+                log.setStockAfter(stockAfter);
+                log.setReferenceCode(refCode);
+                log.setNote("Hoàn trả nguyên liệu do hủy đơn hàng #" + order.getId());
+                inventoryTransactionRepository.save(log);
+            }
+        }
     }
 
     private OrderDTO toDTO(Order order) {

@@ -7,9 +7,12 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
+
+    Optional<Product> findByName(String name);
 
     @Query("SELECT p FROM Product p WHERE " +
             "(:category IS NULL OR :category = '' OR p.category = :category) AND " +

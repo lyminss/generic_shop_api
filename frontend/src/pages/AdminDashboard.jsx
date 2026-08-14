@@ -6,6 +6,7 @@ import { formatPrice } from '../utils/format';
 import {
   LayoutDashboard,
   UtensilsCrossed,
+  Boxes,
   ClipboardList,
   Users,
   Plus,
@@ -24,6 +25,7 @@ import {
   ShieldAlert,
   ShieldCheck,
 } from 'lucide-react';
+import InventoryManagement from './InventoryManagement';
 import './AdminDashboard.css';
 
 const STATUS_BADGES = {
@@ -36,6 +38,7 @@ const STATUS_BADGES = {
 
 const getTabFromPath = (pathname) => {
   if (pathname.includes('/products')) return 'products';
+  if (pathname.includes('/inventory')) return 'inventory';
   if (pathname.includes('/orders')) return 'orders';
   if (pathname.includes('/users')) return 'users';
   return 'stats';
@@ -274,6 +277,12 @@ const AdminDashboard = () => {
           onClick={() => handleTabChange('products', '/admin/products')}
         >
           <UtensilsCrossed size={18} /> Quản lý Món ăn ({products.length})
+        </button>
+        <button
+          className={`admin-tab-btn ${activeTab === 'inventory' ? 'active' : ''}`}
+          onClick={() => handleTabChange('inventory', '/admin/inventory')}
+        >
+          <Boxes size={18} /> Kho & Nguyên liệu
         </button>
         <button
           className={`admin-tab-btn ${activeTab === 'orders' ? 'active' : ''}`}
@@ -843,13 +852,20 @@ const AdminDashboard = () => {
                   disabled={submittingProduct}
                   className="btn-primary"
                 >
-                  {submittingProduct ? 'Đang lưu...' : editingProduct ? 'Cập nhật món' : 'Lưu món mới'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* ================= TAB 5: KHO & NGUYÊN LIỆU ================= */}
+      {activeTab === 'inventory' && (
+        <div className="tab-content animate-fade-in">
+          <InventoryManagement />
+        </div>
+      )}
+
 
       {/* ================= ORDER DETAIL MODAL ================= */}
       {selectedOrder && (

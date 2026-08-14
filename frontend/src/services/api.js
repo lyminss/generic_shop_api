@@ -88,4 +88,45 @@ export const adminService = {
   updateUserRole: (userId, role) => api.put(`/admin/users/${userId}/role?role=${role}`),
 };
 
+// Ingredient endpoints
+export const ingredientService = {
+  getAll: () => api.get('/ingredients'),
+  getLowStock: () => api.get('/ingredients/low-stock'),
+  getById: (id) => api.get(`/ingredients/${id}`),
+  create: (data) => api.post('/ingredients', data),
+  update: (id, data) => api.put(`/ingredients/${id}`, data),
+  delete: (id) => api.delete(`/ingredients/${id}`),
+};
+
+// Recipe endpoints
+export const recipeService = {
+  getRecipeByProductId: (productId) => api.get(`/recipes/product/${productId}`),
+  saveRecipe: (data) => api.post('/recipes', data),
+  deleteRecipeItem: (id) => api.delete(`/recipes/item/${id}`),
+};
+
+// Stock Receipt endpoints (Phiếu Nhập Kho)
+export const stockReceiptService = {
+  getAll: () => api.get('/stock-receipts'),
+  getById: (id) => api.get(`/stock-receipts/${id}`),
+  create: (data) => api.post('/stock-receipts', data),
+};
+
+// Stock Adjustment endpoints (Phiếu Điều Chỉnh Kho)
+export const stockAdjustmentService = {
+  getAll: () => api.get('/stock-adjustments'),
+  getById: (id) => api.get(`/stock-adjustments/${id}`),
+  create: (data) => api.post('/stock-adjustments', data),
+};
+
+// Inventory Transaction endpoints (Nhật ký Biến Động Kho)
+export const inventoryTransactionService = {
+  getAll: (ingredientId, type) => {
+    const params = new URLSearchParams();
+    if (ingredientId) params.append('ingredientId', ingredientId);
+    if (type) params.append('type', type);
+    return api.get(`/inventory-transactions?${params.toString()}`);
+  },
+};
+
 export default api;
