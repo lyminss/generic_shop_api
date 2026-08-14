@@ -28,8 +28,12 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/product/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/reviews/product/**").permitAll()
                         .requestMatchers("/api/orders/checkout", "/api/orders/my", "/api/orders/{id}").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/orders/{id}").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/orders/**").hasRole("ADMIN")
+                        .requestMatchers("/api/addresses/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter,

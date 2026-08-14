@@ -3,6 +3,8 @@ import { Trash2, Plus, Minus, ShoppingBag, MapPin, AlertTriangle } from 'lucide-
 import { Link, useNavigate } from 'react-router-dom';
 import { orderService, addressService } from '../services/api';
 import { useState, useEffect } from 'react';
+import { useToast } from '../context/ToastContext';
+import { formatPrice } from '../utils/format';
 import './Cart.css';
 
 const Cart = () => {
@@ -11,6 +13,7 @@ const Cart = () => {
   const [addresses, setAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState('');
   const navigate = useNavigate();
+  const toast = useToast();
 
   useEffect(() => {
     fetchAddresses();
@@ -37,7 +40,7 @@ const Cart = () => {
     if (!cart?.items?.length) return;
 
     if (!selectedAddressId) {
-      alert('Vui lòng chọn địa chỉ giao hàng. Nếu chưa có, hãy cập nhật trong trang Profile.');
+      toast.error('Vui lòng chọn địa chỉ giao hàng. Nếu chưa có, hãy cập nhật trong trang Cá nhân.');
       return;
     }
 
@@ -50,10 +53,11 @@ const Cart = () => {
         shippingAddress: `${selectedAddr.recipientName} - ${selectedAddr.phone} - ${selectedAddr.fullAddress}`,
       });
       await fetchCart();
-      navigate('/orders');
+      toast.success("Đặt món thành công! Đơn hàng đang được chuẩn bị.");
+      navigate('/profile?tab=orders');
     } catch (err) {
       console.error("Checkout failed", err);
-      alert(err.response?.data || "Checkout failed. Please try again.");
+      toast.error(err.response?.data || "Đặt món thất bại. Vui lòng thử lại.");
     } finally {
       setCheckoutLoading(false);
     }
@@ -63,9 +67,9 @@ const Cart = () => {
     return (
       <div className="cart-empty animate-fade-in">
         <ShoppingBag size={64} className="empty-icon" />
-        <h2>Your cart is empty</h2>
-        <p>Looks like you haven't added anything to your cart yet.</p>
-        <Link to="/" className="btn-primary mt-4">Start Shopping</Link>
+        <h2>Giỏ hàng của bạn đang trống</h2>
+        <p>Bạn chưa thêm món ăn nào vào giỏ hàng.</p>
+        <Link to="/" className="btn-primary mt-4">Xem thực đơn ngay</Link>
       </div>
     );
   }
@@ -74,7 +78,7 @@ const Cart = () => {
 
   return (
     <div className="cart-container animate-fade-in">
-      <h1 className="page-title">Your Cart</h1>
+      <h1 className="page-title">Giỏ hàng</h1>
       
       <div className="cart-layout">
         <div className="cart-items">
@@ -84,12 +88,12 @@ const Cart = () => {
                 {item.image ? (
                   <img src={item.image} alt={item.productName} />
                 ) : (
-                  <div className="image-placeholder">No Image</div>
+                  <div className="image-placeholder">Chưa có ảnh</div>
                 )}
               </div>
               <div className="item-details">
                 <h3>{item.productName}</h3>
-                <p className="item-price">${item.price?.toFixed(2) || item.price}</p>
+                <p className="item-price">{formatPrice(item.price)}</p>
               </div>
               
               <div className="item-actions">
@@ -107,7 +111,7 @@ const Cart = () => {
                 <button 
                   className="remove-btn" 
                   onClick={() => removeItem(item.id)}
-                  title="Remove Item"
+                  title="Xóa món ăn"
                 >
                   <Trash2 size={20} />
                 </button>
@@ -117,25 +121,25 @@ const Cart = () => {
         </div>
 
         <div className="cart-summary glass-panel">
-          <h3>Order Summary</h3>
+          <h3>Tóm tắt đơn hàng</h3>
           <div className="summary-row">
-            <span>Subtotal</span>
-            <span>${total.toFixed(2)}</span>
+            <span>Tạm tính</span>
+            <span>{formatPrice(total)}</span>
           </div>
           <div className="summary-row">
-            <span>Shipping</span>
-            <span>Free</span>
+            <span>Phí giao hàng</span>
+            <span style={{ color: 'var(--success-color)' }}>Miễn phí</span>
           </div>
           <div className="summary-divider"></div>
           <div className="summary-row total">
-            <span>Total</span>
-            <span>${total.toFixed(2)}</span>
+            <span>Tổng cộng</span>
+            <span>{formatPrice(total)}</span>
           </div>
 
           {/* Shipping address display */}
           <div className="shipping-address-box">
             <div className="shipping-label">
-              <MapPin size={14} /> Shipping to
+              <MapPin size={14} /> Giao hàng đến
             </div>
             {addresses.length > 0 ? (
               <select 
@@ -152,7 +156,7 @@ const Cart = () => {
             ) : (
               <Link to="/profile" className="shipping-missing">
                 <AlertTriangle size={14} />
-                No address set — click to add
+                Chưa thiết lập địa chỉ — click để thêm
               </Link>
             )}
           </div>
@@ -162,7 +166,7 @@ const Cart = () => {
             onClick={handleCheckout}
             disabled={checkoutLoading || !selectedAddressId}
           >
-            {checkoutLoading ? 'Processing...' : 'Proceed to Checkout'}
+            {checkoutLoading ? 'Đang xử lý...' : 'Đặt món ngay'}
           </button>
         </div>
       </div>

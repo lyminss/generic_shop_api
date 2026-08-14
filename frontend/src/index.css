@@ -1,35 +1,40 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-tuctac-green: #1e5f37;
+  --color-tuctac-dark: #123e23;
+  --color-tuctac-light: #f4f9f6;
+  --color-tuctac-yellow: #e6a15c;
+  --color-tuctac-bg: #fafdfb;
+  --color-tuctac-accent: #e2efeb;
+  
+  --font-body: 'Inter', sans-serif;
+  --font-heading: 'Outfit', sans-serif;
+}
 
 :root {
-  /* Colors */
-  --bg-primary: #0f111a;
-  --bg-secondary: #161925;
-  --text-primary: #ffffff;
-  --text-secondary: #94a3b8;
-  --accent-color: #6366f1; /* Indigo */
-  --accent-hover: #4f46e5;
+  /* Túc Tắc Tea Brand Colors mapping to custom vars for CSS backwards compatibility */
+  --bg-primary: #f4f9f6;
+  --bg-secondary: #ffffff;
+  --text-primary: #123e23;
+  --text-secondary: #4a5d51;
+  --accent-color: #1e5f37;
+  --accent-hover: #123e23;
   --danger-color: #ef4444;
   --success-color: #10b981;
-  --border-color: rgba(255, 255, 255, 0.1);
+  --border-color: rgba(30, 95, 55, 0.1);
 
-  /* Glassmorphism */
-  --glass-bg: rgba(255, 255, 255, 0.03);
-  --glass-border: rgba(255, 255, 255, 0.05);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  /* Glassmorphism customized for light chill green tea theme */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(30, 95, 55, 0.12);
+  --glass-shadow: 0 8px 32px 0 rgba(30, 95, 55, 0.05);
 
-  /* Typography */
   --font-body: 'Inter', sans-serif;
   --font-heading: 'Outfit', sans-serif;
 
-  /* Transitions */
   --transition-fast: 0.2s ease;
   --transition-normal: 0.3s ease;
-}
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
 }
 
 body {
@@ -41,93 +46,62 @@ body {
   overflow-x: hidden;
 }
 
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  box-sizing: border-box;
+}
+
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
-a {
-  text-decoration: none;
-  color: inherit;
+/* Custom Tailwind Component overrides */
+@utility btn-primary {
+  @apply bg-tuctac-green text-white font-semibold py-2.5 px-6 rounded-full transition-all duration-200 shadow-md hover:bg-tuctac-dark hover:-translate-y-0.5 active:translate-y-0;
 }
 
-button {
-  cursor: pointer;
-  border: none;
-  background: none;
-  font-family: var(--font-body);
+@utility btn-secondary {
+  @apply bg-white text-tuctac-green border border-tuctac-green/20 font-semibold py-2.5 px-6 rounded-full transition-all duration-200 hover:bg-tuctac-accent/20 hover:-translate-y-0.5;
 }
 
-/* Utilities */
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px;
+@utility btn-danger {
+  @apply bg-red-50 text-red-600 border border-red-200 font-semibold py-2.5 px-6 rounded-full transition-all duration-200 hover:bg-red-600 hover:text-white hover:-translate-y-0.5;
 }
 
-.glass-panel {
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
-  border-radius: 16px;
-  box-shadow: var(--glass-shadow);
+@utility input-field {
+  @apply w-full px-4 py-3 bg-white border border-tuctac-green/10 rounded-xl text-tuctac-dark font-medium placeholder-gray-400 outline-none transition-all duration-200 focus:border-tuctac-green focus:ring-2 focus:ring-tuctac-green/10;
 }
 
-.btn-primary {
-  background: var(--accent-color);
-  color: white;
-  padding: 10px 24px;
-  border-radius: 8px;
-  font-weight: 500;
-  transition: background-color var(--transition-fast), transform var(--transition-fast);
-}
-
-.btn-primary:hover {
-  background: var(--accent-hover);
-  transform: translateY(-2px);
-}
-
-.btn-danger {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--danger-color);
-  padding: 10px 24px;
-  border-radius: 8px;
-  font-weight: 500;
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  transition: all var(--transition-fast);
-}
-
-.btn-danger:hover {
-  background: var(--danger-color);
-  color: white;
-  transform: translateY(-2px);
-}
-
-.input-field {
-  width: 100%;
-  padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  color: var(--text-primary);
-  font-family: var(--font-body);
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
-  outline: none;
-}
-
-.input-field:focus {
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+@utility glass-panel {
+  @apply bg-white/70 backdrop-blur-md border border-tuctac-green/10 rounded-2xl shadow-lg shadow-tuctac-green/5;
 }
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.4s ease forwards;
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(30, 95, 55, 0.1);
+  border-radius: 50%;
+  border-top-color: var(--accent-color);
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }

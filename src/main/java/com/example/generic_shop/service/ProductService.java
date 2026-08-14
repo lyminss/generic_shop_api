@@ -5,6 +5,8 @@ import java.util.List;
 
 public interface ProductService {
     List<Product> getAll();
+    List<Product> getFiltered(String category, String search);
+    List<String> getCategories();
     Product getById(Long id);
     Product createProduct(Product product);
     Product updateProduct(Long id, Product product);

@@ -34,6 +34,13 @@ export const authService = {
 export const productService = {
   getAll: () => api.get('/product'),
   getById: (id) => api.get(`/product/${id}`),
+  getFiltered: (category, search) => {
+    const params = new URLSearchParams();
+    if (category) params.append('category', category);
+    if (search) params.append('search', search);
+    return api.get(`/product?${params.toString()}`);
+  },
+  getCategories: () => api.get('/product/categories'),
 };
 
 // Cart endpoints
@@ -49,6 +56,7 @@ export const orderService = {
   checkout: (data) => api.post('/orders/checkout', data),
   getMyOrders: () => api.get('/orders/my'),
   getOrderById: (id) => api.get(`/orders/${id}`),
+  cancelOrder: (id) => api.put(`/orders/${id}?status=CANCEL`),
 };
 
 export const addressService = {
@@ -57,6 +65,14 @@ export const addressService = {
   updateAddress: (id, data) => api.put(`/addresses/${id}`, data),
   deleteAddress: (id) => api.delete(`/addresses/${id}`),
   setDefaultAddress: (id) => api.put(`/addresses/${id}/default`),
+};
+
+// Review endpoints
+export const reviewService = {
+  getReviews: (productId) => api.get(`/reviews/product/${productId}`),
+  createReview: (productId, rating, comment) =>
+    api.post(`/reviews/product/${productId}`, { rating, comment }),
+  canReview: (productId) => api.get(`/reviews/product/${productId}/can-review`),
 };
 
 export default api;

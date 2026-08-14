@@ -20,9 +20,19 @@ public class ProductController {
     private final ProductService productService;
 
     @GetMapping
-    public ResponseEntity<List<Product>> getAllProduct(){
+    public ResponseEntity<List<Product>> getAllProduct(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String search) {
+        if ((category != null && !category.isBlank()) || (search != null && !search.isBlank())) {
+            return ResponseEntity.ok(productService.getFiltered(category, search));
+        }
         List<Product> products = productService.getAll();
         return ResponseEntity.ok(products);
+    }
+
+    @GetMapping("/categories")
+    public ResponseEntity<List<String>> getCategories() {
+        return ResponseEntity.ok(productService.getCategories());
     }
 
     @GetMapping("/{id}")

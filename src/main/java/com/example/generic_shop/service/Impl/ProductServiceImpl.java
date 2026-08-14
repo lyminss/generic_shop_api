@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.example.generic_shop.service.ProductService;
 
@@ -18,6 +19,23 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public List<Product> getAll(){
         return productRepository.findAll();
+    }
+
+    //Get filtered (search + category)
+    @Override
+    public List<Product> getFiltered(String category, String search) {
+        return productRepository.findFiltered(category, search);
+    }
+
+    //Get distinct categories
+    @Override
+    public List<String> getCategories() {
+        return productRepository.findAll().stream()
+                .map(Product::getCategory)
+                .filter(c -> c != null && !c.isBlank())
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
     }
 
     //Get by id
@@ -61,6 +79,7 @@ public class ProductServiceImpl implements ProductService {
         product.setImage(request.getImage());
         product.setPrice(request.getPrice());
         product.setStockQuantity(request.getStockQuantity());
+        product.setCategory(request.getCategory());
 
         return productRepository.save(product);
     }

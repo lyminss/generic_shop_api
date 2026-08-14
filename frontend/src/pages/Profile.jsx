@@ -1,12 +1,17 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authService, addressService } from '../services/api';
-import { User, MapPin, Lock, CheckCircle, AlertCircle, Plus, Edit2, Trash2, Star } from 'lucide-react';
+import Orders from './Orders';
+import { User, MapPin, Lock, CheckCircle, AlertCircle, Plus, Edit2, Trash2, Star, ClipboardList } from 'lucide-react';
 import './Profile.css';
 
 const Profile = () => {
   const { user, refreshUser } = useAuth();
-  const [activeTab, setActiveTab] = useState('info');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'info';
+  const [activeTab, setActiveTab] = useState(initialTab);
+  
   const [profileData, setProfileData] = useState({
     firstName: '',
     lastName: '',
@@ -43,6 +48,19 @@ const Profile = () => {
     fetchAddresses();
   }, [user]);
 
+  // Sync state tab with query parameter
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && ['info', 'address', 'password', 'orders'].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tabName) => {
+    setActiveTab(tabName);
+    setSearchParams({ tab: tabName });
+  };
+
   const fetchAddresses = async () => {
     try {
       const res = await addressService.getMyAddresses();
@@ -63,9 +81,9 @@ const Profile = () => {
     try {
       await authService.updateProfile(profileData);
       await refreshUser();
-      showStatus('success', 'Profile updated successfully!');
+      showStatus('success', 'Cập nhật thông tin cá nhân thành công!');
     } catch (err) {
-      showStatus('error', err.response?.data?.message || 'Failed to update profile.');
+      showStatus('error', err.response?.data?.message || 'Cập nhật thông tin thất bại.');
     } finally {
       setLoading(false);
     }
@@ -98,28 +116,28 @@ const Profile = () => {
     try {
       if (editingAddressId) {
         await addressService.updateAddress(editingAddressId, addressForm);
-        showStatus('success', 'Address updated successfully!');
+        showStatus('success', 'Cập nhật địa chỉ thành công!');
       } else {
         await addressService.addAddress(addressForm);
-        showStatus('success', 'Address added successfully!');
+        showStatus('success', 'Thêm địa chỉ giao hàng thành công!');
       }
       setIsAddressFormOpen(false);
       fetchAddresses();
     } catch (err) {
-      showStatus('error', err.response?.data?.message || 'Failed to save address.');
+      showStatus('error', err.response?.data?.message || 'Lưu địa chỉ thất bại.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteAddress = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this address?')) return;
+    if (!window.confirm('Bạn có chắc chắn muốn xóa địa chỉ này không?')) return;
     try {
       await addressService.deleteAddress(id);
       fetchAddresses();
-      showStatus('success', 'Address deleted');
+      showStatus('success', 'Đã xóa địa chỉ');
     } catch (err) {
-      showStatus('error', 'Failed to delete address');
+      showStatus('error', 'Xóa địa chỉ thất bại');
     }
   };
 
@@ -127,25 +145,25 @@ const Profile = () => {
     try {
       await addressService.setDefaultAddress(id);
       fetchAddresses();
-      showStatus('success', 'Default address updated');
+      showStatus('success', 'Đã đặt làm địa chỉ mặc định');
     } catch (err) {
-      showStatus('error', 'Failed to update default address');
+      showStatus('error', 'Đặt địa chỉ mặc định thất bại');
     }
   };
 
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      showStatus('error', 'New passwords do not match.');
+      showStatus('error', 'Mật khẩu mới không trùng khớp.');
       return;
     }
     setLoading(true);
     try {
       await authService.changePassword(passwordData);
-      showStatus('success', 'Password changed successfully!');
+      showStatus('success', 'Đổi mật khẩu thành công!');
       setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err) {
-      showStatus('error', err.response?.data || 'Failed to change password.');
+      showStatus('error', err.response?.data || 'Đổi mật khẩu thất bại.');
     } finally {
       setLoading(false);
     }
@@ -161,7 +179,7 @@ const Profile = () => {
           <h1>{user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.email}</h1>
           <p className="profile-email">{user?.email}</p>
           <span className={`role-badge ${user?.role === 'ADMIN' ? 'role-admin' : 'role-user'}`}>
-            {user?.role}
+            {user?.role === 'ADMIN' ? 'Quản trị viên' : 'Khách hàng'}
           </span>
         </div>
       </div>
@@ -177,48 +195,54 @@ const Profile = () => {
         <div className="profile-tabs glass-panel">
           <button
             className={`tab-btn ${activeTab === 'info' ? 'active' : ''}`}
-            onClick={() => setActiveTab('info')}
+            onClick={() => handleTabChange('info')}
           >
-            <User size={18} /> Personal Info
+            <User size={18} /> Thông tin cá nhân
           </button>
           <button
             className={`tab-btn ${activeTab === 'address' ? 'active' : ''}`}
-            onClick={() => setActiveTab('address')}
+            onClick={() => handleTabChange('address')}
           >
-            <MapPin size={18} /> Shipping Addresses
+            <MapPin size={18} /> Địa chỉ giao hàng
+          </button>
+          <button
+            className={`tab-btn ${activeTab === 'orders' ? 'active' : ''}`}
+            onClick={() => handleTabChange('orders')}
+          >
+            <ClipboardList size={18} /> Đơn hàng của tôi
           </button>
           <button
             className={`tab-btn ${activeTab === 'password' ? 'active' : ''}`}
-            onClick={() => setActiveTab('password')}
+            onClick={() => handleTabChange('password')}
           >
-            <Lock size={18} /> Change Password
+            <Lock size={18} /> Đổi mật khẩu
           </button>
         </div>
 
         <div className="profile-content glass-panel">
           {activeTab === 'info' && (
             <div className="tab-content">
-              <h2 className="tab-title">Personal Information</h2>
+              <h2 className="tab-title">Thông tin cá nhân</h2>
               <form onSubmit={handleProfileSave} className="profile-form">
                 <div className="form-row">
                   <div className="form-group">
-                    <label>First Name</label>
+                    <label>Họ</label>
                     <input
                       type="text"
                       className="input-field"
-                      placeholder="John"
-                      value={profileData.firstName}
-                      onChange={(e) => setProfileData({ ...profileData, firstName: e.target.value })}
+                      placeholder="Nguyễn"
+                      value={profileData.lastName}
+                      onChange={(e) => setProfileData({ ...profileData, lastName: e.target.value })}
                     />
                   </div>
                   <div className="form-group">
-                    <label>Last Name</label>
+                    <label>Tên</label>
                     <input
                       type="text"
                       className="input-field"
-                      placeholder="Doe"
-                      value={profileData.lastName}
-                      onChange={(e) => setProfileData({ ...profileData, lastName: e.target.value })}
+                      placeholder="An"
+                      value={profileData.firstName}
+                      onChange={(e) => setProfileData({ ...profileData, firstName: e.target.value })}
                     />
                   </div>
                 </div>
@@ -232,17 +256,17 @@ const Profile = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Phone Number</label>
+                  <label>Số điện thoại</label>
                   <input
                     type="tel"
                     className="input-field"
-                    placeholder="+1 234 567 890"
+                    placeholder="09XXXXXXXX"
                     value={profileData.phone}
                     onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
                   />
                 </div>
                 <button type="submit" className="btn-primary save-btn" disabled={loading}>
-                  {loading ? 'Saving...' : 'Save Changes'}
+                  {loading ? 'Đang lưu...' : 'Lưu thay đổi'}
                 </button>
               </form>
             </div>
@@ -251,21 +275,21 @@ const Profile = () => {
           {activeTab === 'address' && (
             <div className="tab-content">
               <div className="address-header">
-                <h2 className="tab-title">Shipping Addresses</h2>
+                <h2 className="tab-title">Địa chỉ giao hàng</h2>
                 {!isAddressFormOpen && (
                   <button className="btn-secondary add-address-btn" onClick={() => openAddressForm()}>
-                    <Plus size={16} /> Add New Address
+                    <Plus size={16} /> Thêm địa chỉ mới
                   </button>
                 )}
               </div>
 
               {isAddressFormOpen ? (
                 <div className="address-form-container glass-panel">
-                  <h3>{editingAddressId ? 'Edit Address' : 'Add New Address'}</h3>
+                  <h3>{editingAddressId ? 'Chỉnh sửa địa chỉ' : 'Thêm địa chỉ giao nhận'}</h3>
                   <form onSubmit={handleAddressSubmit} className="profile-form">
                     <div className="form-row">
                       <div className="form-group">
-                        <label>Recipient Name</label>
+                        <label>Tên người nhận</label>
                         <input
                           type="text"
                           className="input-field"
@@ -275,7 +299,7 @@ const Profile = () => {
                         />
                       </div>
                       <div className="form-group">
-                        <label>Phone Number</label>
+                        <label>Số điện thoại nhận hàng</label>
                         <input
                           type="tel"
                           className="input-field"
@@ -286,7 +310,7 @@ const Profile = () => {
                       </div>
                     </div>
                     <div className="form-group">
-                      <label>Full Address</label>
+                      <label>Địa chỉ chi tiết (Số nhà, Tên đường, Phường/Xã, Quận/Huyện, Tỉnh/TP)</label>
                       <textarea
                         className="input-field address-textarea"
                         required
@@ -296,21 +320,21 @@ const Profile = () => {
                       />
                     </div>
                     <div className="form-group checkbox-group">
-                      <label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                         <input
                           type="checkbox"
                           checked={addressForm.default}
                           onChange={(e) => setAddressForm({ ...addressForm, default: e.target.checked })}
                         />
-                        Set as default address
+                        Đặt làm địa chỉ mặc định
                       </label>
                     </div>
                     <div className="form-actions">
                       <button type="button" className="btn-secondary" onClick={() => setIsAddressFormOpen(false)}>
-                        Cancel
+                        Hủy bỏ
                       </button>
                       <button type="submit" className="btn-primary save-btn" disabled={loading}>
-                        {loading ? 'Saving...' : 'Save Address'}
+                        {loading ? 'Đang lưu...' : 'Lưu địa chỉ'}
                       </button>
                     </div>
                   </form>
@@ -320,14 +344,14 @@ const Profile = () => {
                   {addresses.length === 0 ? (
                     <div className="address-empty">
                       <MapPin size={32} />
-                      <p>You have not saved any addresses yet.</p>
+                      <p>Bạn chưa lưu địa chỉ giao nhận nào.</p>
                     </div>
                   ) : (
                     addresses.map(addr => (
                       <div key={addr.id} className={`address-card glass-panel ${addr.default ? 'is-default' : ''}`}>
                         <div className="address-card-header">
                           <span className="address-name">{addr.recipientName}</span>
-                          {addr.default && <span className="default-badge"><Star size={12} /> Default</span>}
+                          {addr.default && <span className="default-badge"><Star size={12} /> Mặc định</span>}
                         </div>
                         <div className="address-card-body">
                           <p>{addr.phone}</p>
@@ -336,15 +360,15 @@ const Profile = () => {
                         <div className="address-card-actions">
                           {!addr.default && (
                             <button className="action-btn text-primary" onClick={() => handleSetDefaultAddress(addr.id)}>
-                              Set as Default
+                              Đặt làm mặc định
                             </button>
                           )}
                           <div className="action-group">
                             <button className="action-btn" onClick={() => openAddressForm(addr)}>
-                              <Edit2 size={16} /> Edit
+                              <Edit2 size={16} /> Sửa
                             </button>
                             <button className="action-btn text-danger" onClick={() => handleDeleteAddress(addr.id)}>
-                              <Trash2 size={16} /> Delete
+                              <Trash2 size={16} /> Xóa
                             </button>
                           </div>
                         </div>
@@ -356,12 +380,18 @@ const Profile = () => {
             </div>
           )}
 
+          {activeTab === 'orders' && (
+            <div className="tab-content">
+              <Orders />
+            </div>
+          )}
+
           {activeTab === 'password' && (
             <div className="tab-content">
-              <h2 className="tab-title">Change Password</h2>
+              <h2 className="tab-title">Đổi mật khẩu</h2>
               <form onSubmit={handlePasswordSubmit} className="profile-form">
                 <div className="form-group">
-                  <label>Current Password</label>
+                  <label>Mật khẩu hiện tại</label>
                   <input
                     type="password"
                     className="input-field"
@@ -372,11 +402,11 @@ const Profile = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>New Password</label>
+                  <label>Mật khẩu mới</label>
                   <input
                     type="password"
                     className="input-field"
-                    placeholder="••••••••"
+                    placeholder="Tối thiểu 6 ký tự"
                     value={passwordData.newPassword}
                     onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
                     required
@@ -384,7 +414,7 @@ const Profile = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Confirm New Password</label>
+                  <label>Xác nhận mật khẩu mới</label>
                   <input
                     type="password"
                     className="input-field"
@@ -396,7 +426,7 @@ const Profile = () => {
                   />
                 </div>
                 <button type="submit" className="btn-primary save-btn" disabled={loading}>
-                  {loading ? 'Updating...' : 'Update Password'}
+                  {loading ? 'Đang cập nhật...' : 'Đổi mật khẩu'}
                 </button>
               </form>
             </div>

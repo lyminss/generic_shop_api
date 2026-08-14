@@ -75,7 +75,7 @@ public class OrderServiceImpl implements OrderService {
 
         cartService.clearCart(email);
 
-        return ResponseEntity.ok("Order created successfully");
+        return ResponseEntity.ok(toDTO(order));
     }
 
     @Override
@@ -89,7 +89,7 @@ public class OrderServiceImpl implements OrderService {
             return ResponseEntity.status(403).body("Access denied");
         }
 
-        return ResponseEntity.ok(order);
+        return ResponseEntity.ok(toDTO(order));
     }
 
     @Override
@@ -99,16 +99,15 @@ public class OrderServiceImpl implements OrderService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        List<Order> orders = orderRepository.findByCustomer(user);
+        List<Order> orders = orderRepository.findByCustomerOrderByCreatedAtDesc(user);
 
-        return ResponseEntity.ok(orders);
+        return ResponseEntity.ok(orders.stream().map(this::toDTO).toList());
     }
 
     @Override
     public ResponseEntity<?> getAllOrders() {
         List<Order> orders = orderRepository.findAll();
-
-        return ResponseEntity.ok(orders);
+        return ResponseEntity.ok(orders.stream().map(this::toDTO).toList());
     }
 
     @Override
@@ -134,5 +133,35 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.save(order);
 
         return ResponseEntity.ok("Order status updated successfully");
+    }
+
+    // ============ Mapper helper ============
+
+    private com.example.generic_shop.dto.OrderDTO toDTO(Order order) {
+        com.example.generic_shop.dto.OrderDTO dto = new com.example.generic_shop.dto.OrderDTO();
+        dto.setId(order.getId());
+        dto.setOrderStatus(order.getOrderStatus());
+        dto.setTotalPrice(order.getTotalPrice());
+        dto.setShippingAddress(order.getShippingAddress());
+        dto.setCreatedAt(order.getCreatedAt());
+        dto.setUpdatedAt(order.getUpdatedAt());
+
+        if (order.getItems() != null) {
+            dto.setItems(order.getItems().stream().map(item -> {
+                com.example.generic_shop.dto.OrderItemDTO itemDTO = new com.example.generic_shop.dto.OrderItemDTO();
+                itemDTO.setId(item.getId());
+                itemDTO.setQuantity(item.getQuantity());
+                itemDTO.setPrice(item.getPrice());
+                itemDTO.setSubtotal(item.getPrice() * item.getQuantity());
+                if (item.getProduct() != null) {
+                    itemDTO.setProductId(item.getProduct().getId());
+                    itemDTO.setProductName(item.getProduct().getName());
+                    itemDTO.setProductImage(item.getProduct().getImage());
+                }
+                return itemDTO;
+            }).toList());
+        }
+
+        return dto;
     }
 }

@@ -20,4 +20,5 @@ public class Product extends BaseEntity {
     private String image;
     private long price;
     private int stockQuantity;
+    private String category;
 }
