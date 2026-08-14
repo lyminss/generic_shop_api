@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './Auth.css';
@@ -8,8 +8,18 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { user, login } = useAuth();
   const navigate = useNavigate();
+
+  // Auto redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      if (user.role === 'ADMIN') navigate('/admin');
+      else if (user.role === 'STAFF') navigate('/staff');
+      else if (user.role === 'BARISTA') navigate('/barista');
+      else navigate('/');
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -17,10 +27,19 @@ const Login = () => {
     setLoading(true);
 
     try {
-      await login(email, password);
-      navigate('/');
+      const userProfile = await login(email, password);
+      const role = userProfile?.role || 'USER';
+      if (role === 'ADMIN') {
+        navigate('/admin');
+      } else if (role === 'STAFF') {
+        navigate('/staff');
+      } else if (role === 'BARISTA') {
+        navigate('/barista');
+      } else {
+        navigate('/');
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+      setError(typeof err.response?.data === 'string' ? err.response.data : 'Đăng nhập thất bại. Vui lòng kiểm tra lại email & mật khẩu.');
     } finally {
       setLoading(false);
     }

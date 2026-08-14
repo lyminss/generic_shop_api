@@ -30,9 +30,13 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/product/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/reviews/product/**").permitAll()
-                        .requestMatchers("/api/orders/checkout", "/api/orders/my", "/api/orders/{id}").hasAnyRole("USER", "ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/orders/{id}").hasAnyRole("USER", "ADMIN")
-                        .requestMatchers("/api/orders/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/product/**").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/product/**").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/product/**").hasRole("ADMIN")
+                        .requestMatchers("/api/orders/checkout", "/api/orders/my", "/api/orders/{id}").hasAnyRole("USER", "ADMIN", "STAFF", "BARISTA")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/orders/{id}").hasAnyRole("USER", "ADMIN", "STAFF", "BARISTA")
+                        .requestMatchers("/api/orders/**").hasAnyRole("ADMIN", "STAFF", "BARISTA")
                         .requestMatchers("/api/addresses/**").authenticated()
                         .anyRequest().authenticated()
                 )
@@ -50,7 +54,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173"));
+        configuration.setAllowedOriginPatterns(Arrays.asList("http://localhost:*", "http://127.0.0.1:*"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);

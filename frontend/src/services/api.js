@@ -41,6 +41,9 @@ export const productService = {
     return api.get(`/product?${params.toString()}`);
   },
   getCategories: () => api.get('/product/categories'),
+  createProduct: (data) => api.post('/product', data),
+  updateProduct: (id, data) => api.put(`/product/${id}`, data),
+  deleteProduct: (id) => api.delete(`/product/${id}`),
 };
 
 // Cart endpoints
@@ -54,8 +57,11 @@ export const cartService = {
 // Order endpoints
 export const orderService = {
   checkout: (data) => api.post('/orders/checkout', data),
+  createPosOrder: (data) => api.post('/orders/pos', data),
   getMyOrders: () => api.get('/orders/my'),
+  getAllOrders: () => api.get('/orders'),
   getOrderById: (id) => api.get(`/orders/${id}`),
+  updateOrderStatus: (id, status) => api.put(`/orders/${id}?status=${status}`),
   cancelOrder: (id) => api.put(`/orders/${id}?status=CANCEL`),
 };
 
@@ -73,6 +79,13 @@ export const reviewService = {
   createReview: (productId, rating, comment) =>
     api.post(`/reviews/product/${productId}`, { rating, comment }),
   canReview: (productId) => api.get(`/reviews/product/${productId}/can-review`),
+};
+
+// Admin endpoints
+export const adminService = {
+  getStats: () => api.get('/admin/stats'),
+  getUsers: () => api.get('/admin/users'),
+  updateUserRole: (userId, role) => api.put(`/admin/users/${userId}/role?role=${role}`),
 };
 
 export default api;

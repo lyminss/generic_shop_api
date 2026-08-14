@@ -39,6 +39,33 @@ const Navbar = () => {
             <UtensilsCrossed size={15} /> Thực đơn
           </NavLink>
 
+          {user?.role === 'STAFF' && (
+            <NavLink
+              to="/staff"
+              className={({ isActive }) => `nav-link staff-nav-link ${isActive ? 'active' : ''}`}
+            >
+              💁 Phục Vụ (POS)
+            </NavLink>
+          )}
+
+          {user?.role === 'BARISTA' && (
+            <NavLink
+              to="/barista"
+              className={({ isActive }) => `nav-link barista-nav-link ${isActive ? 'active' : ''}`}
+            >
+              ☕ Quầy Bar (KDS)
+            </NavLink>
+          )}
+
+          {user?.role === 'ADMIN' && (
+            <NavLink
+              to="/admin"
+              className={({ isActive }) => `nav-link admin-nav-link ${isActive ? 'active' : ''}`}
+            >
+              ⚙️ Quản trị
+            </NavLink>
+          )}
+
           {user ? (
             <>
               <Link to="/cart" className="nav-link cart-link" aria-label={`Giỏ hàng: ${totalItems} sản phẩm`}>

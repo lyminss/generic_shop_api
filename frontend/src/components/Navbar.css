@@ -59,6 +59,42 @@
   font-weight: 600;
 }
 
+.admin-nav-link {
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  font-weight: 600;
+}
+
+.admin-nav-link:hover {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.admin-nav-link.active {
+  color: #78350f;
+  background: #fde68a;
+  font-weight: 700;
+}
+
+.staff-nav-link {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  font-weight: 600;
+}
+.staff-nav-link:hover { color: #1e40af; background: #dbeafe; }
+.staff-nav-link.active { color: #1e3a8a; background: #bfdbfe; font-weight: 700; }
+
+.barista-nav-link {
+  color: #047857;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  font-weight: 600;
+}
+.barista-nav-link:hover { color: #065f46; background: #d1fae5; }
+.barista-nav-link.active { color: #064e3b; background: #a7f3d0; font-weight: 700; }
+
 /* Cart */
 .cart-link {
   position: relative;

@@ -21,6 +21,11 @@ public class OrderController {
         return orderService.checkout(request);
     }
 
+    @PostMapping("/pos")
+    public ResponseEntity<?> createPosOrder(@RequestBody com.example.generic_shop.dto.PosOrderRequest request) {
+        return orderService.createPosOrder(request);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<?> getOrderById(@PathVariable Long id){
         return orderService.getOrderById(id);

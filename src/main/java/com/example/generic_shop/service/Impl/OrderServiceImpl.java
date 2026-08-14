@@ -1,20 +1,25 @@
 package com.example.generic_shop.service.Impl;
 
+import com.example.generic_shop.dto.OrderDTO;
+import com.example.generic_shop.dto.OrderItemDTO;
+import com.example.generic_shop.dto.PosOrderRequest;
 import com.example.generic_shop.entity.Order;
 import com.example.generic_shop.entity.User;
 import com.example.generic_shop.enums.OrderStatus;
 import com.example.generic_shop.repository.OrderRepository;
 import com.example.generic_shop.repository.ProductRepository;
 import com.example.generic_shop.repository.UserRepository;
+import com.example.generic_shop.service.CartService;
+import com.example.generic_shop.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
-
-import com.example.generic_shop.service.OrderService;
-import com.example.generic_shop.service.CartService;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -25,9 +30,9 @@ public class OrderServiceImpl implements OrderService {
     private final ProductRepository productRepository;
     private final CartService cartService;
 
-    @org.springframework.transaction.annotation.Transactional
+    @Transactional
     @Override
-    public ResponseEntity<?> checkout(java.util.Map<String, String> request) {
+    public ResponseEntity<?> checkout(Map<String, String> request) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -51,7 +56,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         double totalPrice = 0;
-        java.util.List<com.example.generic_shop.entity.OrderItem> orderItems = new java.util.ArrayList<>();
+        List<com.example.generic_shop.entity.OrderItem> orderItems = new ArrayList<>();
         for (com.example.generic_shop.entity.CartItem cartItem : cart.getItems()) {
             com.example.generic_shop.entity.OrderItem orderItem = new com.example.generic_shop.entity.OrderItem();
             orderItem.setOrder(order);
@@ -78,6 +83,63 @@ public class OrderServiceImpl implements OrderService {
         return ResponseEntity.ok(toDTO(order));
     }
 
+    @Transactional
+    @Override
+    public ResponseEntity<?> createPosOrder(PosOrderRequest request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (request.getItems() == null || request.getItems().isEmpty()) {
+            return ResponseEntity.badRequest().body("Danh sách món ăn không được để trống");
+        }
+
+        Order order = new Order();
+        order.setCustomer(user);
+        order.setOrderStatus(OrderStatus.NEW);
+
+        String address = request.getShippingAddress();
+        if (address == null || address.isBlank()) {
+            address = "Đơn tại quầy POS";
+        }
+        order.setShippingAddress(address);
+
+        double totalPrice = 0;
+        List<com.example.generic_shop.entity.OrderItem> orderItems = new ArrayList<>();
+
+        for (PosOrderRequest.PosOrderItemDTO itemDto : request.getItems()) {
+            com.example.generic_shop.entity.Product product = productRepository.findById(itemDto.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Món ăn không tồn tại ID: " + itemDto.getProductId()));
+
+            if (product.getStockQuantity() < itemDto.getQuantity()) {
+                return ResponseEntity.badRequest().body("Món '" + product.getName() + "' không đủ tồn kho. Tồn: "
+                        + product.getStockQuantity() + ", Yêu cầu: " + itemDto.getQuantity());
+            }
+
+            com.example.generic_shop.entity.OrderItem orderItem = new com.example.generic_shop.entity.OrderItem();
+            orderItem.setOrder(order);
+            orderItem.setProduct(product);
+            orderItem.setQuantity(itemDto.getQuantity());
+            orderItem.setPrice(product.getPrice());
+
+            totalPrice += itemDto.getQuantity() * product.getPrice();
+            orderItems.add(orderItem);
+        }
+
+        order.setItems(orderItems);
+        order.setTotalPrice(totalPrice);
+
+        orderRepository.save(order);
+
+        // Deduct stock
+        for (com.example.generic_shop.entity.OrderItem orderItem : orderItems) {
+            com.example.generic_shop.entity.Product product = orderItem.getProduct();
+            product.setStockQuantity(product.getStockQuantity() - orderItem.getQuantity());
+            productRepository.save(product);
+        }
+
+        return ResponseEntity.ok(toDTO(order));
+    }
+
     @Override
     public ResponseEntity<?> getOrderById(Long id) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -85,7 +147,10 @@ public class OrderServiceImpl implements OrderService {
 
         Order order = orderRepository.findById(id).orElseThrow(() -> new RuntimeException("Order not found"));
 
-        if (!order.getCustomer().getId().equals(user.getId()) && !user.getRole().equals("ADMIN")) {
+        if (!order.getCustomer().getId().equals(user.getId())
+                && !user.getRole().equals("ADMIN")
+                && !user.getRole().equals("STAFF")
+                && !user.getRole().equals("BARISTA")) {
             return ResponseEntity.status(403).body("Access denied");
         }
 
@@ -135,31 +200,26 @@ public class OrderServiceImpl implements OrderService {
         return ResponseEntity.ok("Order status updated successfully");
     }
 
-    // ============ Mapper helper ============
-
-    private com.example.generic_shop.dto.OrderDTO toDTO(Order order) {
-        com.example.generic_shop.dto.OrderDTO dto = new com.example.generic_shop.dto.OrderDTO();
+    private OrderDTO toDTO(Order order) {
+        OrderDTO dto = new OrderDTO();
         dto.setId(order.getId());
-        dto.setOrderStatus(order.getOrderStatus());
         dto.setTotalPrice(order.getTotalPrice());
+        dto.setOrderStatus(order.getOrderStatus());
         dto.setShippingAddress(order.getShippingAddress());
         dto.setCreatedAt(order.getCreatedAt());
-        dto.setUpdatedAt(order.getUpdatedAt());
 
         if (order.getItems() != null) {
-            dto.setItems(order.getItems().stream().map(item -> {
-                com.example.generic_shop.dto.OrderItemDTO itemDTO = new com.example.generic_shop.dto.OrderItemDTO();
+            List<OrderItemDTO> itemDTOs = order.getItems().stream().map(item -> {
+                OrderItemDTO itemDTO = new OrderItemDTO();
                 itemDTO.setId(item.getId());
+                itemDTO.setProductId(item.getProduct().getId());
+                itemDTO.setProductName(item.getProduct().getName());
                 itemDTO.setQuantity(item.getQuantity());
                 itemDTO.setPrice(item.getPrice());
-                itemDTO.setSubtotal(item.getPrice() * item.getQuantity());
-                if (item.getProduct() != null) {
-                    itemDTO.setProductId(item.getProduct().getId());
-                    itemDTO.setProductName(item.getProduct().getName());
-                    itemDTO.setProductImage(item.getProduct().getImage());
-                }
+                itemDTO.setSubtotal(item.getQuantity() * item.getPrice());
                 return itemDTO;
-            }).toList());
+            }).toList();
+            dto.setItems(itemDTOs);
         }
 
         return dto;
