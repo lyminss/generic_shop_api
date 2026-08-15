@@ -15,24 +15,25 @@ import StaffLayout from './components/layouts/StaffLayout';
 import BaristaLayout from './components/layouts/BaristaLayout';
 
 // ---- Customer Pages ----
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Cart from './pages/Cart';
-import Orders from './pages/Orders';
-import OrderDetail from './pages/OrderDetail';
-import Profile from './pages/Profile';
-import ProductDetail from './pages/ProductDetail';
-import NotFound from './pages/NotFound';
+import Home from './pages/user/Home';
+import Login from './pages/user/Login';
+import Register from './pages/user/Register';
+import Cart from './pages/user/Cart';
+import Orders from './pages/user/Orders';
+import OrderDetail from './pages/user/OrderDetail';
+import Profile from './pages/user/Profile';
+import ProductDetail from './pages/user/ProductDetail';
+import NotFound from './pages/user/NotFound';
 
 // ---- Admin Pages ----
-import AdminDashboard from './pages/AdminDashboard';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminStats from './pages/admin/AdminStats';
 
 // ---- Staff Pages ----
-import StaffDashboard from './views/staff/StaffDashboard';
+import StaffDashboard from './pages/staff/StaffDashboard';
 
 // ---- Barista Pages ----
-import BaristaKDS from './views/barista/BaristaKDS';
+import BaristaKDS from './pages/barista/BaristaKDS';
 
 // UserLayout: the existing Navbar + content
 const UserLayout = () => (
@@ -74,7 +75,8 @@ function App() {
               >
                 {/* /admin → Dashboard */}
                 <Route index element={<AdminDashboard />} />
-                {/* future sub-pages: /admin/products, /admin/orders, etc */}
+                <Route path="stats" element={<AdminStats />} />
+                {/* sub-pages: /admin/products, /admin/orders, etc */}
                 <Route path="*" element={<AdminDashboard />} />
               </Route>
 

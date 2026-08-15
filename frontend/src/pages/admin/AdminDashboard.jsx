@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { adminService, productService, orderService } from '../services/api';
-import { useToast } from '../context/ToastContext';
-import { formatPrice, formatTimeAgo } from '../utils/format';
-import { TableSkeleton, EmptyState, ErrorState } from '../components/common/StateViews';
+import { adminService, productService, orderService } from '../../services/api';
+import { useToast } from '../../context/ToastContext';
+import { formatPrice, formatTimeAgo } from '../../utils/format';
+import { TableSkeleton, EmptyState, ErrorState } from '../../components/common/StateViews';
 
 import {
   LayoutDashboard,
@@ -46,7 +46,7 @@ const getTabFromPath = (pathname) => {
   if (pathname.includes('/inventory')) return 'inventory';
   if (pathname.includes('/orders')) return 'orders';
   if (pathname.includes('/users')) return 'users';
-  return 'stats';
+  return 'dashboard';
 };
 
 const getOrderChannel = (address) => {
@@ -283,8 +283,8 @@ const AdminDashboard = () => {
   return (
     <div className="admin-container space-y-8">
 
-      {/* ================= TAB 1: TỔNG QUAN & BIỂU ĐỒ DOANH THU ================= */}
-      {activeTab === 'stats' && (() => {
+      {/* ================= TAB 1: TỔNG QUAN DASHBOARD ================= */}
+      {(activeTab === 'dashboard' || activeTab === 'stats') && (() => {
         const completedOrdersList = orders.filter((o) => o.orderStatus === 'COMPLETED');
         const posOrders = completedOrdersList.filter((o) => getOrderChannel(o.shippingAddress).isPos);
         const onlineOrders = completedOrdersList.filter((o) => !getOrderChannel(o.shippingAddress).isPos);
@@ -292,7 +292,6 @@ const AdminDashboard = () => {
         const posRev = posOrders.reduce((acc, o) => acc + (o.totalPrice || 0), 0);
         const onlineRev = onlineOrders.reduce((acc, o) => acc + (o.totalPrice || 0), 0);
         const calcTotalRev = stats?.totalRevenue || (posRev + onlineRev);
-        const aov = completedOrdersList.length > 0 ? Math.round(calcTotalRev / completedOrdersList.length) : 0;
 
         const salesMap = {};
         orders.forEach((o) => {
@@ -310,37 +309,35 @@ const AdminDashboard = () => {
         return (
           <div className="tab-content animate-fade-in space-y-7 w-full max-w-full overflow-hidden">
             {/* Main Action Header */}
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-1">
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-2">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Tổng quan</h2>
-                <p className="text-sm text-gray-500 mt-1">Chào mừng trở lại, đây là thông tin hoạt động hôm nay.</p>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-stone-900 tracking-tight">Tổng quan hệ thống</h2>
+                <p className="text-sm text-stone-500 mt-1 font-medium">Chào mừng trở lại, đây là thông tin hoạt động hôm nay.</p>
               </div>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap items-center gap-4">
                 <button
-                  onClick={() => toast.success('Đã xuất báo cáo thành công!')}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors flex items-center gap-2"
+                  onClick={() => navigate('/admin/stats')}
+                  className="px-9 sm:px-10 py-4.5 h-14 min-w-[220px] bg-purple-50 text-purple-900 border-2 border-purple-200 hover:bg-purple-100 hover:border-purple-300 rounded-2xl text-xs font-bold transition-all shadow-xs hover:shadow flex items-center justify-center text-center cursor-pointer uppercase tracking-wider"
                 >
-                  <TrendingUp size={16} />
-                  Xuất báo cáo
+                  Xem Thống Kê Doanh Thu
                 </button>
                 <button
                   onClick={handleOpenAddProduct}
-                  className="px-4 py-2 bg-stone-900 text-white rounded-xl text-sm font-semibold hover:bg-stone-800 transition-colors shadow-sm flex items-center gap-2"
+                  className="px-9 sm:px-10 py-4.5 h-14 min-w-[180px] bg-stone-900 text-white hover:bg-stone-800 rounded-2xl text-xs font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center text-center cursor-pointer uppercase tracking-wider"
                 >
-                  <Plus size={16} />
-                  Tạo đơn mới
+                  Tạo Món Mới
                 </button>
               </div>
             </div>
 
-            {/* Bento Grid Layout - Stat Cards (đồng bộ màu taro/caramel/matcha/teal) */}
+            {/* Bento Grid Layout - Stat Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
               {/* Stat Card 1 — Doanh thu */}
-              <div className="stat-tile accent-taro flex flex-col justify-between min-w-0 overflow-hidden">
+              <div className="stat-tile accent-taro flex flex-col justify-between min-w-0 overflow-hidden p-6">
                 <div className="flex justify-between items-start mb-3">
                   <p className="text-xs font-bold uppercase tracking-wider text-stone-500 truncate">Tổng doanh thu</p>
                   <div className="icon-tile ml-2">
-                    <TrendingUp size={16} />
+                    <TrendingUp size={18} />
                   </div>
                 </div>
                 <div className="min-w-0">
@@ -350,17 +347,17 @@ const AdminDashboard = () => {
                       <TrendingUp size={13} />
                       +12.5%
                     </span>
-                    <span className="text-xs text-stone-500 truncate">so với hôm qua</span>
+                    <span className="text-xs text-stone-500 truncate">hôm nay</span>
                   </div>
                 </div>
               </div>
 
               {/* Stat Card 2 — Đơn hàng */}
-              <div className="stat-tile accent-teal flex flex-col justify-between min-w-0 overflow-hidden">
+              <div className="stat-tile accent-teal flex flex-col justify-between min-w-0 overflow-hidden p-6">
                 <div className="flex justify-between items-start mb-3">
-                  <p className="text-xs font-bold uppercase tracking-wider text-stone-500 truncate">Số đơn hàng mới</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-stone-500 truncate">Số đơn hàng</p>
                   <div className="icon-tile ml-2">
-                    <ClipboardList size={16} />
+                    <ClipboardList size={18} />
                   </div>
                 </div>
                 <div className="min-w-0">
@@ -376,244 +373,210 @@ const AdminDashboard = () => {
               </div>
 
               {/* Stat Card 3 — Món bán chạy */}
-              <div className="stat-tile accent-caramel flex flex-col justify-between min-w-0 overflow-hidden">
+              <div className="stat-tile accent-caramel flex flex-col justify-between min-w-0 overflow-hidden p-6">
                 <div className="flex justify-between items-start mb-3">
-                  <p className="text-xs font-bold uppercase tracking-wider text-stone-500 truncate">Món ăn bán chạy nhất</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-stone-500 truncate">Món bán chạy nhất</p>
                   <div className="icon-tile ml-2">
-                    <UtensilsCrossed size={16} />
+                    <UtensilsCrossed size={18} />
                   </div>
                 </div>
                 <div className="min-w-0">
-                  <h3 className="stat-tile-value truncate" style={{ fontSize: '1.35rem' }} title={topProducts[0]?.name || 'Phở Bò'}>
-                    {topProducts[0]?.name || 'Phở Bò'}
+                  <h3 className="stat-tile-value truncate" style={{ fontSize: '1.35rem' }} title={topProducts[0]?.name || 'Trà Sữa'}>
+                    {topProducts[0]?.name || 'Trà Sữa'}
                   </h3>
                   <div className="flex items-center gap-2 mt-2">
                     <span className="trend-chip" style={{ color: 'var(--caramel-dark)' }}>
                       <Sparkles size={13} />
-                      {topProducts[0]?.quantity || 342}
+                      {topProducts[0]?.quantity || 0}
                     </span>
-                    <span className="text-xs text-stone-500 truncate">lượt bán hôm nay</span>
+                    <span className="text-xs text-stone-500 truncate">lượt bán</span>
                   </div>
                 </div>
               </div>
 
-              {/* Stat Card 4 — Khách hàng mới */}
-              <div className="stat-tile accent-matcha flex flex-col justify-between min-w-0 overflow-hidden">
+              {/* Stat Card 4 — Khách hàng */}
+              <div className="stat-tile accent-matcha flex flex-col justify-between min-w-0 overflow-hidden p-6">
                 <div className="flex justify-between items-start mb-3">
-                  <p className="text-xs font-bold uppercase tracking-wider text-stone-500 truncate">Khách hàng mới</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-stone-500 truncate">Khách hàng</p>
                   <div className="icon-tile ml-2">
-                    <Users size={16} />
+                    <Users size={18} />
                   </div>
                 </div>
                 <div className="min-w-0">
-                  <h3 className="stat-tile-value truncate">{usersList.length || 120}</h3>
+                  <h3 className="stat-tile-value truncate">{usersList.length || 0}</h3>
                   <div className="flex items-center gap-2 mt-2">
                     <span className="trend-chip">
                       <TrendingUp size={13} />
                       +1.1%
                     </span>
-                    <span className="text-xs text-stone-500 truncate">so với tuần trước</span>
+                    <span className="text-xs text-stone-500 truncate">tài khoản hệ thống</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Main Content Grid: Chart (2 cols) + Activities (1 col) */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-w-0">
-              {/* Chart Section (Spans 2 columns) */}
-              <div className="bento-panel lg:col-span-2 flex flex-col min-w-0">
-                <div className="bento-panel-header flex flex-wrap justify-between items-center gap-2">
-                  <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
-                    <TrendingUp size={18} className="text-stone-700" />
-                    Tăng trưởng doanh thu
-                  </h3>
-                  <div className="flex gap-1.5">
-                    <button className="px-2.5 py-1 text-xs font-medium bg-stone-100 text-stone-700 rounded border border-stone-200">
-                      1T
-                    </button>
-                    <button className="px-2.5 py-1 text-xs font-medium bg-stone-900 text-white rounded">
-                      1Th
-                    </button>
-                    <button className="px-2.5 py-1 text-xs font-medium bg-white text-stone-600 rounded border border-stone-200 hover:bg-stone-50">
-                      1N
+            {/* Main Content Grid: Top Products (2 cols) + Polished Recent Activities (1 col) - Spacious Gaps */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 sm:gap-10 min-w-0 mt-4">
+
+              {/* Table Section - Top Selling Products (Spans 2 columns) */}
+              <div className="bento-panel lg:col-span-2 min-w-0 flex flex-col justify-between rounded-3xl border border-stone-200/90 shadow-sm overflow-hidden">
+                <div>
+                  <div className="bento-panel-header px-6 py-4 bg-stone-50/90 border-b border-stone-200/80 flex flex-wrap justify-between items-center gap-3">
+                    <h3 className="text-base font-bold text-stone-900 flex items-center gap-2.5">
+                      <UtensilsCrossed size={19} className="text-stone-700" />
+                      Món ăn bán chạy nhất
+                    </h3>
+                    <button
+                      onClick={() => navigate('/admin/products')}
+                      className="px-7 py-3.5 h-12 min-w-[150px] bg-stone-100 text-stone-900 border-2 border-stone-300 hover:bg-stone-200 hover:border-stone-400 rounded-xl text-xs font-bold transition-all shadow-2xs hover:shadow flex items-center justify-center text-center cursor-pointer uppercase tracking-wider"
+                    >
+                      Quản Lý Món
                     </button>
                   </div>
-                </div>
 
-                <div className="p-5 flex-1 flex flex-col justify-between bg-stone-50/30 overflow-hidden">
-                  {/* Bounded Chart Area */}
-                  <div className="relative w-full h-[180px] my-3 overflow-hidden rounded-xl bg-white/60 border border-stone-100 p-2">
-                    {/* Grid lines */}
-                    <div className="absolute inset-x-0 bottom-2 border-t border-stone-200/50"></div>
-                    <div className="absolute inset-x-0 bottom-1/3 border-t border-stone-200/40 border-dashed"></div>
-                    <div className="absolute inset-x-0 bottom-2/3 border-t border-stone-200/40 border-dashed"></div>
+                  <div className="overflow-x-auto p-2">
+                    <table className="w-full text-left border-collapse min-w-[500px]">
+                      <thead>
+                        <tr className="border-b border-stone-200 bg-stone-50/80 h-14">
+                          <th className="px-5 py-5 text-xs font-extrabold text-stone-600 uppercase tracking-wider text-center align-middle">Tên món ăn</th>
+                          <th className="px-5 py-5 text-xs font-extrabold text-stone-600 uppercase tracking-wider text-center align-middle">Doanh thu</th>
+                          <th className="px-5 py-5 text-xs font-extrabold text-stone-600 uppercase tracking-wider text-center align-middle">Lượt bán</th>
+                          <th className="px-5 py-5 text-xs font-extrabold text-stone-600 uppercase tracking-wider text-center align-middle">Trạng thái</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-sm divide-y divide-stone-100">
+                        {topProducts.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="p-8 text-center text-stone-400 text-xs font-semibold">
+                              Chưa có dữ liệu bán hàng
+                            </td>
+                          </tr>
+                        ) : (
+                          topProducts.map((p, idx) => {
+                            const matchedProd = products.find((prod) => prod.name === p.name);
+                            const stock = matchedProd?.stockQuantity ?? 50;
+                            const isOutOfStock = stock === 0;
+                            const isLowStock = stock > 0 && stock <= 10;
 
-                    {/* SVG Curve & Area Fill (Clean Bounded Coordinates) */}
-                    <svg className="w-full h-full block" preserveAspectRatio="none" viewBox="0 0 100 100">
-                      <defs>
-                        <linearGradient id="gradientAreaClean" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#7C5C9C" stopOpacity="0.22" />
-                          <stop offset="100%" stopColor="#7C5C9C" stopOpacity="0.0" />
-                        </linearGradient>
-                      </defs>
-                      <path
-                        d="M 0 95 L 0 70 Q 20 60 40 45 T 70 55 T 100 25 L 100 95 Z"
-                        fill="url(#gradientAreaClean)"
-                      />
-                      <path
-                        d="M 0 70 Q 20 60 40 45 T 70 55 T 100 25"
-                        fill="none"
-                        stroke="#5C4174"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </div>
+                            const statusLabel = isOutOfStock ? 'Hết món' : isLowStock ? 'Sắp hết' : 'Còn món';
+                            const statusClass = isOutOfStock
+                              ? 'stock-indicator out'
+                              : isLowStock
+                              ? 'stock-indicator low'
+                              : 'stock-indicator ok';
 
-                  {/* Channel Breakdown Summary */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-stone-200/60">
-                    <div className="flex items-center justify-between p-2.5 rounded-xl border" style={{ background: 'var(--caramel-light)', borderColor: 'var(--caramel-line)' }}>
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--caramel)' }}></span>
-                        <span className="text-xs font-semibold text-stone-700">🏪 Tại quầy (POS)</span>
-                      </div>
-                      <span className="text-xs font-bold" style={{ color: 'var(--caramel-dark)' }}>{formatPrice(posRev)}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between p-2.5 rounded-xl border" style={{ background: 'var(--taro-light)', borderColor: 'var(--taro-line)' }}>
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--taro)' }}></span>
-                        <span className="text-xs font-semibold text-stone-700">🌐 Đặt Online</span>
-                      </div>
-                      <span className="text-xs font-bold" style={{ color: 'var(--taro-dark)' }}>{formatPrice(onlineRev)}</span>
-                    </div>
+                            return (
+                              <tr key={p.name} className="hover:bg-stone-50/90 transition-colors">
+                                <td className="p-4 align-middle">
+                                  <div className="flex items-center justify-center gap-3.5">
+                                    <div className="w-9 h-9 rounded-xl bg-stone-100 border border-stone-200 flex items-center justify-center font-extrabold text-xs text-stone-700 flex-shrink-0 shadow-2xs">
+                                      #{idx + 1}
+                                    </div>
+                                    <span className="text-stone-900 font-bold truncate max-w-[240px]" title={p.name}>
+                                      {p.name}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="p-4 text-center align-middle font-bold text-emerald-800">{formatPrice(p.revenue)}</td>
+                                <td className="p-4 text-center align-middle font-semibold text-stone-600">{p.quantity} ly/phần</td>
+                                <td className="p-4 text-center align-middle">
+                                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${statusClass}`}>
+                                    {statusLabel}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </div>
 
-              {/* Recent Activities Section (1 column) */}
-              <div className="bento-panel flex flex-col min-w-0">
-                <div className="bento-panel-header flex justify-between items-center">
-                  <h3 className="text-base font-bold text-stone-900">Hoạt động gần đây</h3>
+              {/* Polished Recent Activities Section (1 column) */}
+              <div className="bento-panel flex flex-col min-w-0 rounded-3xl border border-stone-200/90 shadow-sm overflow-hidden">
+                <div className="bento-panel-header px-6 py-4 bg-stone-50/90 border-b border-stone-200/80 flex justify-between items-center">
+                  <h3 className="text-base font-bold text-stone-900 flex items-center gap-2.5">
+                    <Clock size={19} className="text-stone-700" />
+                    Hoạt động gần đây
+                  </h3>
                   <button
-                    onClick={() => setActiveTab('orders')}
-                    className="text-xs font-semibold text-stone-900 hover:underline"
+                    onClick={() => handleTabChange('orders', '/admin/orders')}
+                    className="text-xs font-bold text-purple-700 hover:text-purple-900 hover:underline"
                   >
                     Xem tất cả
                   </button>
                 </div>
-                <div className="p-5 flex-1 max-h-[340px] overflow-y-auto">
-                  <ul className="space-y-4 relative before:absolute before:inset-y-0 before:left-3 before:w-px before:bg-stone-200">
+                <div className="p-5 flex-1 max-h-[420px] overflow-y-auto">
+                  <ul className="space-y-3.5">
                     {stats?.recentOrders?.slice(0, 5).map((ord) => {
                       const badge = STATUS_BADGES[ord.orderStatus] || { label: ord.orderStatus, cls: '' };
                       const channel = getOrderChannel(ord.shippingAddress);
                       const isCompleted = ord.orderStatus === 'COMPLETED';
                       const isCancel = ord.orderStatus === 'CANCEL';
-                      const dotBg = isCompleted ? 'bg-emerald-500' : isCancel ? 'bg-rose-500' : 'bg-stone-900';
+                      const iconBg = isCompleted
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : isCancel
+                        ? 'bg-rose-50 text-rose-700 border-rose-200'
+                        : 'bg-amber-50 text-amber-700 border-amber-200';
 
                       return (
-                        <li key={ord.id} className="relative pl-7 flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <span className={`absolute left-1.5 top-1.5 w-3 h-3 rounded-full ${dotBg} ring-4 ring-white`}></span>
-                            <p className="text-xs font-semibold text-stone-900 truncate">
-                              {channel.icon} Đơn <span className="font-bold">#{ord.id}</span> vừa được đặt
-                            </p>
-                            <div className="flex flex-wrap items-center gap-2 mt-1">
-                              <span className={`status-badge ${badge.cls}`}>{badge.label}</span>
-                              <span className="text-[11px] text-stone-400 font-medium">
-                                {formatTimeAgo(ord.createdAt)}
-                              </span>
+                        <li
+                          key={ord.id}
+                          className="group relative flex items-center justify-between py-3 px-3 sm:px-4 rounded-xl hover:bg-stone-50 transition-colors gap-3 border-b border-stone-100/80 last:border-b-0"
+                        >
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <div
+                              className={`w-10 h-10 rounded-2xl ${iconBg} border flex items-center justify-center font-bold text-base flex-shrink-0 shadow-2xs`}
+                            >
+                              {channel.icon}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="text-xs font-bold text-stone-900 truncate">
+                                  Đơn <span className="font-extrabold text-stone-950">#{ord.id}</span>
+                                </p>
+                                <span className={`status-badge ${badge.cls} text-[10px] px-2 py-0.5`}>
+                                  {badge.label}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-[11px] text-stone-400 font-medium flex items-center gap-1">
+                                  <Clock size={11} className="text-stone-400" />
+                                  {formatTimeAgo(ord.createdAt)}
+                                </span>
+                                {ord.totalPrice > 0 && (
+                                  <>
+                                    <span className="text-stone-300">•</span>
+                                    <span className="text-[11px] font-bold text-stone-700">
+                                      {formatPrice(ord.totalPrice)}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </div>
+
                           <button
                             onClick={() => setSelectedOrder(ord)}
-                            className="p-1 rounded text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors flex-shrink-0"
+                            className="p-2.5 rounded-xl text-stone-400 hover:text-stone-900 hover:bg-stone-100 transition-all flex-shrink-0 cursor-pointer"
+                            style={{ marginRight: '40px' }}
                             title="Xem chi tiết"
                           >
-                            <Eye size={15} />
+                            <Eye size={20} />
                           </button>
                         </li>
                       );
                     })}
 
                     {(!stats?.recentOrders || stats.recentOrders.length === 0) && (
-                      <li className="text-center text-xs text-stone-400 py-6">Chưa có hoạt động gần đây</li>
+                      <li className="text-center text-xs text-stone-400 py-8">Chưa có hoạt động gần đây</li>
                     )}
                   </ul>
                 </div>
               </div>
-            </div>
 
-            {/* Bottom Table Section - Top Selling Products */}
-            <div className="bento-panel min-w-0">
-              <div className="bento-panel-header flex flex-wrap justify-between items-center gap-2">
-                <h3 className="text-base font-bold text-stone-900">Món ăn bán chạy nhất</h3>
-                <button
-                  onClick={() => setActiveTab('products')}
-                  className="px-3 py-1.5 text-xs font-medium border border-stone-300 text-stone-700 rounded-lg hover:bg-stone-50 transition-colors flex items-center gap-1"
-                >
-                  Lọc
-                  <Plus size={14} />
-                </button>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[500px]">
-                  <thead>
-                    <tr className="border-b border-stone-200 bg-stone-50/80">
-                      <th className="p-3.5 text-xs font-semibold text-stone-500">Tên món ăn</th>
-                      <th className="p-3.5 text-xs font-semibold text-stone-500 text-right">Doanh thu</th>
-                      <th className="p-3.5 text-xs font-semibold text-stone-500 text-right">Lượt bán</th>
-                      <th className="p-3.5 text-xs font-semibold text-stone-500 text-center">Trạng thái</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-sm divide-y divide-stone-100">
-                    {topProducts.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="p-6 text-center text-stone-400 text-xs font-medium">
-                          Chưa có dữ liệu bán hàng
-                        </td>
-                      </tr>
-                    ) : (
-                      topProducts.map((p, idx) => {
-                        const matchedProd = products.find((prod) => prod.name === p.name);
-                        const stock = matchedProd?.stockQuantity ?? 50;
-                        const isOutOfStock = stock === 0;
-                        const isLowStock = stock > 0 && stock <= 10;
-
-                        const statusLabel = isOutOfStock ? 'Hết món' : isLowStock ? 'Sắp hết' : 'Còn món';
-                        const statusClass = isOutOfStock
-                          ? 'stock-indicator out'
-                          : isLowStock
-                          ? 'stock-indicator low'
-                          : 'stock-indicator ok';
-
-                        return (
-                          <tr key={p.name} className="hover:bg-stone-50/80 transition-colors">
-                            <td className="p-3.5">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-stone-100 flex items-center justify-center font-bold text-xs text-stone-700 flex-shrink-0">
-                                  #{idx + 1}
-                                </div>
-                                <span className="text-stone-900 font-medium truncate max-w-[220px]" title={p.name}>
-                                  {p.name}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="p-3.5 text-right font-semibold text-stone-900">{formatPrice(p.revenue)}</td>
-                            <td className="p-3.5 text-right text-stone-600">{p.quantity}</td>
-                            <td className="p-3.5 text-center">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs ${statusClass}`}>
-                                {statusLabel}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
             </div>
           </div>
         );

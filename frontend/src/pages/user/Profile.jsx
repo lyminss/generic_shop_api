@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { authService, addressService } from '../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { authService, addressService } from '../../services/api';
 import Orders from './Orders';
 import { User, MapPin, Lock, CheckCircle, AlertCircle, Plus, Edit2, Trash2, Star, ClipboardList } from 'lucide-react';
 import './Profile.css';

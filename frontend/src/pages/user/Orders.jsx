@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { orderService } from '../services/api';
+import { orderService } from '../../services/api';
 import { Package, ChevronRight, ShoppingBag } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { formatPrice } from '../utils/format';
+import { formatPrice } from '../../utils/format';
 import './Orders.css';
 
 const STATUS_CONFIG = {

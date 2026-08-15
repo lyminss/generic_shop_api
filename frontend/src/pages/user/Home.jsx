@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { productService } from '../services/api';
-import ProductCard from '../components/ProductCard';
+import { productService } from '../../services/api';
+import ProductCard from '../../components/ProductCard';
 import './Home.css';
 import { Search, SlidersHorizontal, X, CupSoda, Sparkles } from 'lucide-react';
 

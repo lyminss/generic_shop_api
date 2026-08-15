@@ -1,0 +1,254 @@
+/* =====================================================================
+   TÚC TẮC TEA — ADMIN STATS DESIGN SYSTEM (Dedicated Stylesheet)
+   Bảng màu trà sữa & phong cách thiết kế bento đồng bộ với Dashboard
+   ===================================================================== */
+
+.admin-stats-container {
+  box-sizing: border-box;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1.5rem 0.5rem 5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2.25rem; /* Generous spacing between main sections */
+  animation: adminStatsIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes adminStatsIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ================= Hero Banner ================= */
+.stats-hero-banner {
+  background: linear-gradient(135deg, #3b1d54 0%, #1e1822 50%, #4a2868 100%);
+  color: #ffffff;
+  padding: 2rem 2.25rem;
+  border-radius: var(--radius-lg, 24px);
+  box-shadow: 0 10px 30px -5px rgba(59, 29, 84, 0.35);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  position: relative;
+  overflow: hidden;
+}
+
+.stats-hero-banner::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, rgba(220, 201, 232, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.stats-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #e9d5f5;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  margin-bottom: 0.75rem;
+  backdrop-filter: blur(8px);
+}
+
+.stats-hero-title {
+  font-family: var(--font-display, 'Fraunces', serif);
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.stats-hero-subtitle {
+  font-size: 0.88rem;
+  color: rgba(233, 213, 245, 0.82);
+  margin-top: 0.35rem;
+  font-weight: 500;
+}
+
+.stats-filter-bar {
+  display: flex;
+  background: rgba(255, 255, 255, 0.12);
+  padding: 0.45rem;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(10px);
+  gap: 0.1rem;
+}
+
+.stats-filter-btn {
+  padding: 0.65rem 1.25rem;
+  font-size: 0.82rem;
+  font-weight: 800;
+  border-radius: 13px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+
+.stats-filter-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.stats-filter-btn.active {
+  background: #ffffff;
+  color: #221a12;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transform: scale(1.03);
+}
+
+.stats-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 1.4rem;
+  border-radius: 16px;
+  border: none;
+  background: #ffffff;
+  color: #221a12;
+  font-weight: 800;
+  font-size: 0.85rem;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  transition: all 0.2s ease;
+}
+
+.stats-action-btn:hover {
+  background: #f5edfa;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* ================= Stat Grid ================= */
+.stats-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .stats-cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .stats-cards-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* ================= Bento Grid & Panels ================= */
+.stats-main-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 2rem; /* Generous gap between chart and breakdown cards */
+}
+
+@media (min-width: 1024px) {
+  .stats-main-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.stats-bento-panel {
+  background: var(--surface, #ffffff);
+  border-radius: var(--radius-lg, 24px);
+  border: 1px solid var(--line, #e7e3db);
+  box-shadow: 0 4px 14px rgba(42, 27, 18, 0.04), 0 12px 30px -8px rgba(42, 27, 18, 0.08);
+  overflow: hidden;
+  transition: box-shadow 0.25s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.stats-bento-panel:hover {
+  box-shadow: 0 8px 24px rgba(42, 27, 18, 0.08), 0 20px 40px -10px rgba(42, 27, 18, 0.12);
+  border-color: var(--line-strong, #d6cfg0);
+}
+
+.stats-panel-header {
+  padding: 1.25rem 1.75rem;
+  background: var(--surface-alt, #f7f6f4);
+  border-bottom: 1px solid var(--line, #e7e3db);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.stats-panel-title {
+  font-family: var(--font-display, 'Fraunces', serif);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ink, #221a12);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* ================= Tables ================= */
+.stats-table-wrapper {
+  overflow-x: auto;
+  padding: 0.5rem;
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.88rem;
+}
+
+.stats-table th {
+  background: var(--surface-alt, #f7f6f4);
+  padding: 1.1rem 1.25rem;
+  height: 56px;
+  color: var(--ink-soft, #635546);
+  font-weight: 800;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1.5px solid var(--line, #e7e3db);
+  text-align: center;
+  vertical-align: middle;
+}
+
+.stats-table td {
+  padding: 1.1rem 1.25rem;
+  border-bottom: 1px solid var(--surface-sunken, #f0eeea);
+  text-align: center;
+  vertical-align: middle;
+  color: var(--ink, #221a12);
+}
+
+.stats-table tr:hover td {
+  background: var(--surface-alt, #f7f6f4);
+}
+
+/* Section Wrapper Spacing */
+.stats-section-spacing {
+  margin-top: 0.5rem;
+}

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { orderService } from '../services/api';
-import { useToast } from '../context/ToastContext';
-import { formatPrice } from '../utils/format';
+import { orderService } from '../../services/api';
+import { useToast } from '../../context/ToastContext';
+import { formatPrice } from '../../utils/format';
 import { ArrowLeft, Clock, MapPin, AlertCircle, ShoppingBag, Package, CheckCircle2, Coffee, Bike, Sparkles } from 'lucide-react';
 import './OrderDetail.css';
 

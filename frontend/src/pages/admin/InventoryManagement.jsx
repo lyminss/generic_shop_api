@@ -27,10 +27,10 @@ import {
   stockReceiptService,
   stockAdjustmentService,
   inventoryTransactionService
-} from '../services/api';
-import { useToast } from '../context/ToastContext';
-import { formatPrice, formatTimeAgo } from '../utils/format';
-import { TableSkeleton, EmptyState, ErrorState } from '../components/common/StateViews';
+} from '../../services/api';
+import { useToast } from '../../context/ToastContext';
+import { formatPrice, formatTimeAgo } from '../../utils/format';
+import { TableSkeleton, EmptyState, ErrorState } from '../../components/common/StateViews';
 
 import './InventoryManagement.css';
 

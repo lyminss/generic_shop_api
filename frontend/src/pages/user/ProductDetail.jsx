@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { productService } from '../services/api';
-import { useCart } from '../context/CartContext';
-import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
-import { formatPrice } from '../utils/format';
+import { productService } from '../../services/api';
+import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
+import { formatPrice } from '../../utils/format';
 import { ShoppingCart, ArrowLeft, Plus, Minus, Tag, CheckCircle, XCircle, Sparkles, Snowflake, Flame } from 'lucide-react';
-import ReviewSection from '../components/ReviewSection';
+import ReviewSection from '../../components/ReviewSection';
 import './ProductDetail.css';
 
 const SIZES = [

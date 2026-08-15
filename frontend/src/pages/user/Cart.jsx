@@ -1,10 +1,10 @@
-import { useCart } from '../context/CartContext';
+import { useCart } from '../../context/CartContext';
 import { Trash2, Plus, Minus, ShoppingBag, MapPin, AlertTriangle, ArrowRight, CupSoda, CheckCircle2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { orderService, addressService } from '../services/api';
+import { orderService, addressService } from '../../services/api';
 import { useState, useEffect } from 'react';
-import { useToast } from '../context/ToastContext';
-import { formatPrice } from '../utils/format';
+import { useToast } from '../../context/ToastContext';
+import { formatPrice } from '../../utils/format';
 import './Cart.css';
 
 const Cart = () => {

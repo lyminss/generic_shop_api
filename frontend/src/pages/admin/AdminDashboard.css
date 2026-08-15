@@ -1,5 +1,5 @@
 /* =====================================================================
-   TÚC TẮC TEA — ADMIN DESIGN SYSTEM (v2 — polished)
+   TÚC TẮC TEA — ADMIN DESIGN SYSTEM (v3 — polish pass)
    Bảng màu lấy cảm hứng từ trà sữa: kem sữa, taro, matcha, caramel, trà đào
    Font: Fraunces (số liệu/tiêu đề, có cá tính) + Manrope (thân/bảng/nhãn)
    ===================================================================== */
@@ -64,7 +64,7 @@
   --font-body: 'Manrope', ui-sans-serif, system-ui, sans-serif;
 }
 
-/* =================== Layout gốc (đã gộp, chỉ 1 định nghĩa) =================== */
+/* =================== Layout gốc =================== */
 .admin-container {
   box-sizing: border-box;
   max-width: 1280px;
@@ -88,7 +88,6 @@
   position: relative;
 }
 
-/* motif hạt trân châu — dải chấm trang trí dưới header */
 .admin-header::after {
   content: '';
   position: absolute;
@@ -141,6 +140,36 @@
 .admin-header button svg { transition: transform 0.5s ease; }
 .admin-header button:hover svg { transform: rotate(180deg); }
 
+/* =================== Page heading (tiêu đề trong từng tab) =================== */
+
+/* =================== Tab content spacing =================== */
+.tab-content {
+  margin-top: 1.75rem;
+}
+
+.tab-content + .tab-content {
+  margin-top: 2.25rem;
+}
+
+/* Ensure consistent vertical rhythm between direct child sections
+   of a tab (toolbar, panel, chart, table, etc.) regardless of
+   whatever Tailwind spacing classes are or aren't applied */
+.tab-content > * + * {
+  margin-top: 1.5rem;
+}
+
+/* Slightly larger gap between the bento grid rows on the Stats tab */
+.tab-content > .grid + .bento-panel,
+.tab-content > .bento-panel + .bento-panel,
+.tab-content > .grid + .grid {
+  margin-top: 1.75rem;
+}
+.tab-content > .flex.flex-wrap.items-center.justify-between h2,
+.tab-content h2.text-2xl {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
 /* =================== Panel Box =================== */
 .admin-panel-box {
   background: var(--surface);
@@ -162,22 +191,30 @@
 
 .panel-title svg { color: var(--taro-dark); flex-shrink: 0; }
 
-/* =================== Icon tile — trung tính, không "cầu vồng" ===================
-   Icon chỉ mang tính hỗ trợ, không phải điểm nhấn màu — điểm nhấn nằm ở vạch accent
-   phía trên card (.stat-tile::before) để giữ cảm giác cao cấp, đồng bộ hơn === */
+/* =================== Icon tile ===================
+   Icon giờ ăn theo màu accent của từng thẻ (qua biến --accent-* set inline),
+   thay vì luôn xám trung tính — giúp mỗi bento card có bản sắc rõ hơn
+   nhưng vẫn tiết chế (chỉ nền nhạt + icon đậm, không dùng màu no). === */
 .icon-tile {
-  width: 2.1rem;
-  height: 2.1rem;
-  border-radius: 0.65rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.7rem;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   background: var(--surface-sunken);
   color: var(--ink-soft);
+  transition: transform 0.25s cubic-bezier(.16,1,.3,1);
 }
 
-/* Text tăng trưởng — không còn pill nền màu, chỉ chữ đậm màu + mũi tên, tinh giản hơn */
+.stat-tile.accent-taro .icon-tile    { background: var(--taro-light);    color: var(--taro-dark); }
+.stat-tile.accent-caramel .icon-tile { background: var(--caramel-light); color: var(--caramel-dark); }
+.stat-tile.accent-matcha .icon-tile  { background: var(--matcha-light);  color: var(--matcha-dark); }
+.stat-tile.accent-teal .icon-tile    { background: var(--teal-light);    color: var(--teal-dark); }
+
+.stat-tile:hover .icon-tile { transform: scale(1.08) rotate(-4deg); }
+
 .trend-chip {
   display: inline-flex;
   align-items: center;
@@ -186,6 +223,10 @@
   font-weight: 800;
   color: var(--matcha-dark);
 }
+.stat-tile.accent-taro .trend-chip    { color: var(--taro-dark); }
+.stat-tile.accent-teal .trend-chip    { color: var(--teal-dark); }
+.stat-tile.accent-matcha .trend-chip  { color: var(--matcha-dark); }
+.stat-tile.accent-caramel .trend-chip { color: var(--caramel-dark); }
 
 /* =================== Stat Cards =================== */
 .stat-tile {
@@ -203,7 +244,6 @@
   box-shadow: var(--shadow-lg);
   border-color: var(--line-strong);
 }
-/* Vạch accent nhận diện đầu card — thay cho icon màu mè */
 .stat-tile::before {
   content: '';
   position: absolute;
@@ -214,6 +254,14 @@
 .stat-tile.accent-caramel::before { background: linear-gradient(90deg, var(--caramel), var(--caramel-light)); }
 .stat-tile.accent-matcha::before  { background: linear-gradient(90deg, var(--matcha), var(--matcha-light)); }
 .stat-tile.accent-teal::before    { background: linear-gradient(90deg, var(--teal), var(--teal-light)); }
+
+/* stagger nhẹ khi 4 thẻ xuất hiện — chỉ 1 lần lúc mount, không lặp lại gây rối mắt */
+.stat-tile { animation: statIn .5s cubic-bezier(.16,1,.3,1) both; }
+.stat-tile:nth-child(1) { animation-delay: .02s; }
+.stat-tile:nth-child(2) { animation-delay: .07s; }
+.stat-tile:nth-child(3) { animation-delay: .12s; }
+.stat-tile:nth-child(4) { animation-delay: .17s; }
+@keyframes statIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
 .stat-tile-value {
   font-family: var(--font-display);
@@ -352,6 +400,7 @@
   transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
 }
 .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 26px -6px rgba(92, 65, 116, 0.6); }
+.btn-primary:active { transform: translateY(0); box-shadow: 0 4px 10px -4px rgba(92, 65, 116, 0.5); }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
 .btn-secondary {
@@ -393,10 +442,14 @@
 .action-icon-btn.delete:hover { background: var(--rose-light); color: var(--rose-dark); border-color: var(--rose-line); }
 
 .status-select {
-  padding: 0.4rem 0.7rem;
+  padding: 0.4rem 1.9rem 0.4rem 0.7rem;
   border-radius: var(--radius-sm);
   border: 1.5px solid var(--line-strong);
-  background: var(--surface);
+  background: var(--surface)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23635546' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    no-repeat right 0.7rem center;
+  appearance: none;
+  -webkit-appearance: none;
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--ink);
@@ -446,6 +499,7 @@
   outline: none;
   font-family: var(--font-body);
   color: var(--ink);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .search-box input::placeholder { color: var(--ink-faint); }
 .search-box input:focus { border-color: var(--taro); box-shadow: 0 0 0 3px var(--taro-light); }
@@ -460,6 +514,7 @@
   color: var(--ink-faint);
   cursor: pointer;
 }
+.search-box button:hover { color: var(--rose-dark); }
 
 .filter-pill {
   padding: 0.4rem 0.9rem;
@@ -481,6 +536,10 @@
   box-shadow: var(--shadow-sm);
 }
 
+.admin-toolbar {
+  animation: fadeInUp 0.3s ease both;
+}
+
 /* =================== Modals =================== */
 .modal-overlay {
   position: fixed;
@@ -494,7 +553,9 @@
   justify-content: center;
   padding: 1.5rem;
   overflow-y: auto;
+  animation: overlayIn 0.2s ease both;
 }
+@keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
 
 .modal-card {
   position: relative;
@@ -548,7 +609,7 @@
   cursor: pointer;
   transition: all 0.15s ease;
 }
-.close-btn:hover { background: var(--rose-light); color: var(--rose-dark); border-color: var(--rose-line); }
+.close-btn:hover { background: var(--rose-light); color: var(--rose-dark); border-color: var(--rose-line); transform: rotate(90deg); }
 
 .modal-body { padding: 1.6rem; overflow-y: auto; flex: 1; }
 
@@ -596,7 +657,9 @@
   align-items: center;
   justify-content: center;
   border: 1px solid var(--line);
+  transition: transform 0.2s ease;
 }
+.admin-table tr:hover .admin-prod-thumb { transform: scale(1.06); }
 
 .admin-prod-thumb img { width: 100%; height: 100%; object-fit: cover; }
 
@@ -616,6 +679,12 @@
 
 .channel-pos { background: var(--caramel-light); color: var(--caramel-dark); border: 1px solid var(--caramel-line); }
 .channel-online { background: var(--taro-light); color: var(--taro-dark); border: 1px solid var(--taro-line); }
+
+/* =================== Empty / loading states =================== */
+.admin-table td .flex.flex-col.items-center,
+.admin-panel-box .flex.flex-col.items-center {
+  padding: 1rem 0;
+}
 
 /* =================== Misc / motion =================== */
 .animate-fade-in {
@@ -662,6 +731,10 @@ textarea:focus-visible {
   .admin-container { padding: 1.5rem 1rem 5rem; }
   .admin-title { font-size: 1.6rem; }
   .search-box { width: 100%; }
+  .admin-panel-box { padding: 1.1rem; border-radius: var(--radius-md); }
+  .stat-tile { padding: 1.2rem 1.1rem 1.1rem; }
+  .modal-body { padding: 1.15rem; }
+  .modal-header, .modal-footer { padding: 1rem 1.15rem; }
 }
 
 /* Reduced motion support */
