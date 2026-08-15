@@ -63,8 +63,19 @@ public class IngredientServiceImpl implements IngredientService {
         if (ingredientDetails.getCostPrice() != null) {
             existing.setCostPrice(ingredientDetails.getCostPrice());
         }
+        if (ingredientDetails.getExpiryDate() != null) {
+            existing.setExpiryDate(ingredientDetails.getExpiryDate());
+        }
+        if (ingredientDetails.getOpenedStock() != null) {
+            existing.setOpenedStock(ingredientDetails.getOpenedStock());
+        }
+        if (ingredientDetails.getOpenedExpiryDate() != null) {
+            existing.setOpenedExpiryDate(ingredientDetails.getOpenedExpiryDate());
+        }
         return ingredientRepository.save(existing);
     }
+
+
 
     @Transactional
     @Override

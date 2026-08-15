@@ -183,12 +183,20 @@
 }
 
 .ticket-item-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.625rem;
   background: rgba(255, 255, 255, 0.05);
-  padding: 0.5rem 0.75rem;
+  padding: 0.6rem 0.75rem;
   border-radius: 10px;
+}
+
+.kds-note-badge {
+  font-size: 0.78rem;
+  color: #fde047;
+  background: rgba(253, 224, 71, 0.12);
+  border: 1px solid rgba(253, 224, 71, 0.25);
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+  width: 100%;
 }
 
 .qty-box {
@@ -274,3 +282,4 @@
   padding: 1.75rem;
   border: 1px solid #1f2937;
 }
+

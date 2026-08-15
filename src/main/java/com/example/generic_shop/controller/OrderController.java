@@ -1,7 +1,6 @@
 package com.example.generic_shop.controller;
 
 
-import com.example.generic_shop.entity.Order;
 import com.example.generic_shop.enums.OrderStatus;
 import com.example.generic_shop.service.Impl.OrderServiceImpl;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +14,7 @@ import com.example.generic_shop.service.OrderService;
 @RequestMapping("/api/orders")
 public class OrderController {
     private final OrderService orderService;
+    private final OrderServiceImpl orderServiceImpl;
 
     @PostMapping("/checkout")
     public ResponseEntity<?> checkout(@RequestBody java.util.Map<String, String> request){
@@ -45,4 +45,11 @@ public class OrderController {
     public ResponseEntity<?> updateStatus(@PathVariable Long id, @RequestParam OrderStatus status){
         return orderService.updateOrderStatus(id, status);
     }
+
+    /** Barista đánh dấu 1 món trong đơn đã pha xong */
+    @PutMapping("/items/{itemId}/ready")
+    public ResponseEntity<?> markItemReady(@PathVariable Long itemId) {
+        return orderServiceImpl.markItemReady(itemId);
+    }
 }
+

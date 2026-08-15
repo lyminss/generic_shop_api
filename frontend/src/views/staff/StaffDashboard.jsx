@@ -2,13 +2,15 @@ import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { productService, orderService } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
-import { formatPrice } from '../../utils/format';
+import { formatPrice, formatTimeAgo } from '../../utils/format';
+import { TableSkeleton, CardSkeleton, EmptyState, ErrorState } from '../../components/common/StateViews';
 import {
   BellRing, Plus, Minus, Trash2,
   CheckCircle, Clock, Search, ShoppingCart,
   Printer, Check, XCircle, RefreshCw,
 } from 'lucide-react';
 import './StaffDashboard.css';
+
 
 // Derive active tab from URL path
 const getTabFromPath = (pathname) => {
@@ -69,9 +71,10 @@ const StaffDashboard = () => {
   useEffect(() => {
     fetchProducts();
     fetchOrders();
-    const interval = setInterval(fetchOrders, 10000);
+    const interval = setInterval(fetchOrders, 4000);
     return () => clearInterval(interval);
   }, [fetchProducts, fetchOrders]);
+
 
   // POS Cart Operations
   const handleAddToCart = (prod) => {
@@ -310,14 +313,19 @@ const StaffDashboard = () => {
             </button>
           </div>
 
-          {newOrdersList.length === 0 ? (
-            <div className="staff-empty-panel">
-              <CheckCircle size={48} />
-              <h3>Không có đơn mới</h3>
-              <p>Mọi đơn hàng đã được xử lý!</p>
-            </div>
+          {loadingOrders ? (
+            <CardSkeleton count={3} />
+          ) : newOrdersList.length === 0 ? (
+            <EmptyState
+              title="Không có đơn mới cần xác nhận"
+              description="Tất cả đơn hàng mới đã được xác nhận và chuyển cho Barista pha chế 🎉"
+              icon={CheckCircle}
+              actionText="Tải lại danh sách"
+              onAction={fetchOrders}
+            />
           ) : (
             <div className="orders-cards-grid">
+
               {newOrdersList.map(ord => (
                 <div key={ord.id} className="order-card-staff">
                   <div className="order-card-header">
@@ -332,8 +340,19 @@ const StaffDashboard = () => {
                   </div>
                   <div className="order-card-items">
                     {ord.items?.map(i => (
-                      <div key={i.id} className="item-row">
-                        <span>{i.productName} × {i.quantity}</span>
+                      <div key={i.id} className="item-row flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span>{i.productName} × {i.quantity}</span>
+                          {i.preparedStatus === 'READY' ? (
+                            <span style={{ fontSize: '0.68rem', padding: '1px 6px', background: '#dcfce7', color: '#166534', borderRadius: '99px', fontWeight: 700 }}>
+                              ✓ Đã pha
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '0.68rem', padding: '1px 6px', background: '#fef3c7', color: '#92400e', borderRadius: '99px', fontWeight: 700 }}>
+                              ⏳ Chờ pha
+                            </span>
+                          )}
+                        </div>
                         <span>{formatPrice(i.subtotal)}</span>
                       </div>
                     ))}
@@ -381,48 +400,97 @@ const StaffDashboard = () => {
                     <th>Mã Đơn</th>
                     <th>Thời gian</th>
                     <th>Địa chỉ / Ghi chú</th>
+                    <th>Món & Tiến độ Barista</th>
                     <th>Tổng tiền</th>
                     <th>Trạng thái</th>
                     <th>Hành động</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {orders.map(ord => (
-                    <tr key={ord.id}>
-                      <td className="font-bold">#{ord.id}</td>
-                      <td className="text-muted">{new Date(ord.createdAt).toLocaleString('vi-VN')}</td>
-                      <td className="text-truncate">{ord.shippingAddress}</td>
-                      <td className="text-green">{formatPrice(ord.totalPrice)}</td>
-                      <td>
-                        <span className={`status-badge badge-${ord.orderStatus?.toLowerCase()}`}>
-                          {ord.orderStatus}
-                        </span>
-                      </td>
-                      <td>
-                        {ord.orderStatus === 'NEW' && (
-                          <button
-                            onClick={() => handleConfirmOrder(ord.id)}
-                            className="table-action-btn confirm"
-                          >Xác nhận</button>
-                        )}
-                        {ord.orderStatus === 'PROCESSING' && (
-                          <span className="text-amber">🍵 Đang pha chế</span>
-                        )}
-                        {ord.orderStatus === 'COMPLETED' && (
-                          <span className="text-green">✓ Hoàn thành</span>
-                        )}
-                        {ord.orderStatus === 'CANCEL' && (
-                          <span className="text-red">✕ Đã hủy</span>
-                        )}
+                  {loadingOrders ? (
+                    <TableSkeleton rows={5} cols={7} />
+                  ) : orders.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="text-center py-8">
+                        <EmptyState
+                          title="Chưa có đơn hàng nào"
+                          description="Hệ thống hiện chưa ghi nhận đơn hàng nào."
+                          onAction={fetchOrders}
+                          actionText="Tải lại"
+                        />
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    orders.map(ord => (
+                      <tr key={ord.id}>
+                        <td className="font-bold">#{ord.id}</td>
+                        <td className="text-muted">{new Date(ord.createdAt).toLocaleString('vi-VN')}</td>
+                        <td className="text-truncate">{ord.shippingAddress}</td>
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            {(() => {
+                              const readyQty = ord.items?.filter(i => i.preparedStatus === 'READY').reduce((acc, i) => acc + i.quantity, 0) || 0;
+                              const totalQty = ord.items?.reduce((acc, i) => acc + i.quantity, 0) || 0;
+                              const allDone = totalQty > 0 && readyQty === totalQty;
+                              return (
+                                <div style={{ fontSize: '0.72rem', fontWeight: 700, marginBottom: '2px', color: allDone ? '#15803d' : '#b45309' }}>
+                                  {allDone ? `✓ ${readyQty}/${totalQty} ly đã pha` : `⏳ ${readyQty}/${totalQty} ly đã pha`}
+                                </div>
+                              );
+                            })()}
+                            {ord.items?.map(i => (
+                              <div key={i.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem' }}>
+                                <span style={{ fontWeight: 600 }}>{i.quantity}× {i.productName}</span>
+                                {i.preparedStatus === 'READY' ? (
+                                  <span style={{ fontSize: '0.65rem', padding: '0px 5px', background: '#dcfce7', color: '#166534', borderRadius: '99px', fontWeight: 700 }}>
+                                    ✓ Đã pha
+                                  </span>
+                                ) : (
+                                  <span style={{ fontSize: '0.65rem', padding: '0px 5px', background: '#fef3c7', color: '#92400e', borderRadius: '99px', fontWeight: 700 }}>
+                                    ⏳ Chờ
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="text-green">{formatPrice(ord.totalPrice)}</td>
+                        <td>
+                          <span className={`status-badge badge-${ord.orderStatus?.toLowerCase()}`}>
+                            {ord.orderStatus}
+                          </span>
+                        </td>
+                        <td>
+                          {ord.orderStatus === 'NEW' && (
+                            <button
+                              onClick={() => handleConfirmOrder(ord.id)}
+                              className="table-action-btn confirm"
+                            >Xác nhận</button>
+                          )}
+                          {ord.orderStatus === 'PROCESSING' && (
+                            <span className="text-amber">🍵 Đang pha chế</span>
+                          )}
+                          {ord.orderStatus === 'SHIPPING' && (
+                            <span className="text-emerald font-semibold">🛵 Chờ giao/trả</span>
+                          )}
+                          {ord.orderStatus === 'COMPLETED' && (
+                            <span className="text-green">✓ Hoàn thành</span>
+                          )}
+                          {ord.orderStatus === 'CANCEL' && (
+                            <span className="text-red">✕ Đã hủy</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
+
               </table>
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 };

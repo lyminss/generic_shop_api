@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ShoppingCart, Star, Tag } from 'lucide-react';
+import { ShoppingCart, Star, Tag, Sparkles } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -10,8 +10,8 @@ import './ProductCard.css';
 
 const getStockStatus = (qty) => {
   if (qty === 0) return { label: 'Hết hàng', cls: 'stock-out' };
-  if (qty <= 5) return { label: `Còn ${qty} suất`, cls: 'stock-low' };
-  return { label: 'Còn hàng', cls: 'stock-ok' };
+  if (qty <= 5) return { label: `Còn ${qty} ly`, cls: 'stock-low' };
+  return { label: 'Sẵn sàng', cls: 'stock-ok' };
 };
 
 const ProductCard = ({ product }) => {
@@ -35,11 +35,11 @@ const ProductCard = ({ product }) => {
     e.preventDefault();
     e.stopPropagation();
     if (!user) {
-      toast.info("Vui lòng đăng nhập để thêm vào giỏ hàng");
+      toast.info("Vui lòng đăng nhập để thêm món vào giỏ hàng");
       return;
     }
     if (product.stockQuantity === 0) {
-      toast.error("Món ăn này đã hết hàng");
+      toast.error("Món này hiện đã hết hàng");
       return;
     }
     addToCart(product.id, 1);
@@ -47,41 +47,50 @@ const ProductCard = ({ product }) => {
   };
 
   return (
-    <Link to={`/product/${product.id}`} className="product-card">
+    <Link to={`/product/${product.id}`} className="product-card glass-card">
       <div className="product-image">
         {product.image ? (
           <img src={product.image} alt={product.name} loading="lazy" />
         ) : (
           <div className="image-placeholder">
-            <span className="placeholder-emoji">🍽️</span>
+            <span className="placeholder-emoji">🧋</span>
           </div>
         )}
         {product.category && (
           <span className="category-badge">
-            <Tag size={10} />{product.category}
+            <Tag size={11} /> {product.category}
           </span>
         )}
         <span className={`stock-badge ${stock.cls}`}>{stock.label}</span>
       </div>
+
       <div className="product-info">
-        <h3 className="product-name">{product.name}</h3>
+        <div className="title-row">
+          <h3 className="product-name">{product.name}</h3>
+        </div>
 
         {/* Rating display */}
-        {reviewCount > 0 && (
+        {reviewCount > 0 ? (
           <div className="product-rating">
-            <Star size={12} className="fill-amber-400 text-amber-400" />
+            <Star size={13} className="fill-amber-400 text-amber-400" />
             <span className="rating-value">{avgRating?.toFixed(1)}</span>
-            <span className="rating-count">({reviewCount})</span>
+            <span className="rating-count">({reviewCount} đánh giá)</span>
+          </div>
+        ) : (
+          <div className="product-rating">
+            <Sparkles size={12} className="text-amber-500" />
+            <span className="rating-count">Món nước được yêu thích</span>
           </div>
         )}
 
         {product.description && (
           <p className="product-desc">
-            {product.description.length > 60
-              ? product.description.substring(0, 60) + '…'
+            {product.description.length > 55
+              ? product.description.substring(0, 55) + '…'
               : product.description}
           </p>
         )}
+
         <div className="product-footer">
           <span className="product-price">
             {formatPrice(product.price)}
@@ -102,3 +111,4 @@ const ProductCard = ({ product }) => {
 };
 
 export default ProductCard;
+

@@ -1,6 +1,7 @@
 package com.example.generic_shop.entity;
 
 
+import com.example.generic_shop.enums.ItemPreparedStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -23,4 +24,8 @@ public class OrderItem extends BaseEntity {
     private int quantity;
     private double price;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "prepared_status")
+    private ItemPreparedStatus preparedStatus = ItemPreparedStatus.PENDING;
 }
+

@@ -34,4 +34,15 @@ public class Ingredient extends BaseEntity {
 
     @Column(nullable = false)
     private Double costPrice = 0.0; // Giá vốn trung bình / đơn vị
+
+    @Column(name = "expiry_date")
+    private java.time.LocalDate expiryDate; // Hạn sử dụng tem nguyên (FEFO)
+
+    @Column(name = "opened_stock")
+    private Double openedStock = 0.0; // Số lượng chai/kg đã mở nắp đang dùng tại quầy
+
+    @Column(name = "opened_expiry_date")
+    private java.time.LocalDate openedExpiryDate; // Hạn sử dụng sau khi mở nắp (FEFO)
 }
+
+

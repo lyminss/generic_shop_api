@@ -6,7 +6,7 @@
 .sidebar-layout {
   display: flex;
   min-height: 100vh;
-  background: #f1f5f9;
+  background: #f4f3ef;
 }
 
 /* ========== SIDEBAR ========== */
@@ -49,7 +49,7 @@
   height: 60px;
   flex-shrink: 0;
   border-bottom: 1px solid rgba(255,255,255,0.07);
-  overflow: hidden; /* only brand row hides overflow for text */
+  overflow: visible; /* FIXED: Allow toggle button to overflow boundary */
   position: relative;
 }
 
@@ -96,38 +96,39 @@
   margin-top: 1px;
 }
 
-/* ---- Collapse toggle — floats on right edge of sidebar ---- */
+/* ---- Collapse toggle — prominent button on right edge of sidebar ---- */
 .sidebar-toggle {
   position: absolute;
-  right: -13px;
+  right: -14px;
   top: 50%;
   transform: translateY(-50%);
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  border: 1.5px solid rgba(255,255,255,0.18);
-  background: #334155;
-  color: rgba(255,255,255,0.85);
+  border: 2px solid #ffffff;
+  background: #2C5E3B;
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 10;
-  transition: background 0.2s, border-color 0.2s, color 0.2s;
-  flex-shrink: 0;
+  z-index: 999;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.sidebar--admin .sidebar-toggle  { background: #4F46E5; }
 .sidebar--staff .sidebar-toggle  { background: #166534; }
-.sidebar--barista .sidebar-toggle { background: #7c2d12; }
+.sidebar--barista .sidebar-toggle { background: #C2410C; }
 
 .sidebar-toggle:hover {
-  background: #6366f1;
-  border-color: #6366f1;
-  color: #fff;
+  background: #E6AA68 !important;
+  color: #1A120B !important;
+  border-color: #ffffff;
+  transform: translateY(-50%) scale(1.18);
+  box-shadow: 0 6px 18px rgba(230, 170, 104, 0.6);
 }
 
-.sidebar--staff .sidebar-toggle:hover { background: #16a34a; border-color: #16a34a; }
-.sidebar--barista .sidebar-toggle:hover { background: #ea580c; border-color: #ea580c; }
 
 /* ---- Nav ---- */
 .sidebar-nav {

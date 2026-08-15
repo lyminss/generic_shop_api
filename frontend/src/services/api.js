@@ -63,7 +63,9 @@ export const orderService = {
   getOrderById: (id) => api.get(`/orders/${id}`),
   updateOrderStatus: (id, status) => api.put(`/orders/${id}?status=${status}`),
   cancelOrder: (id) => api.put(`/orders/${id}?status=CANCEL`),
+  markItemReady: (itemId) => api.put(`/orders/items/${itemId}/ready`),
 };
+
 
 export const addressService = {
   getMyAddresses: () => api.get('/addresses'),

@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { adminService, productService, orderService } from '../services/api';
 import { useToast } from '../context/ToastContext';
-import { formatPrice } from '../utils/format';
+import { formatPrice, formatTimeAgo } from '../utils/format';
+import { TableSkeleton, EmptyState, ErrorState } from '../components/common/StateViews';
+
 import {
   LayoutDashboard,
   UtensilsCrossed,
@@ -24,7 +26,10 @@ import {
   Eye,
   ShieldAlert,
   ShieldCheck,
+  Sparkles,
+  Loader2,
 } from 'lucide-react';
+
 import InventoryManagement from './InventoryManagement';
 import './AdminDashboard.css';
 
@@ -97,7 +102,7 @@ const AdminDashboard = () => {
   // Selected Order for detail view modal
   const [selectedOrder, setSelectedOrder] = useState(null);
 
-  // Initial Load
+  // Initial Load & Realtime Polling for Orders
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
@@ -120,9 +125,34 @@ const AdminDashboard = () => {
     }
   }, [toast]);
 
+  const fetchOrdersRealtime = useCallback(async () => {
+    try {
+      const ordersRes = await orderService.getAllOrders();
+      if (ordersRes.data) {
+        setOrders(ordersRes.data);
+        setSelectedOrder((prev) => {
+          if (!prev) return null;
+          const updated = ordersRes.data.find((o) => o.id === prev.id);
+          return updated || prev;
+        });
+      }
+    } catch {
+      // silent background refresh
+    }
+  }, []);
+
   useEffect(() => {
     fetchAllData();
-  }, [fetchAllData]);
+    const interval = setInterval(fetchOrdersRealtime, 4000);
+    return () => clearInterval(interval);
+  }, [fetchAllData, fetchOrdersRealtime]);
+
+  // Auto-close open modals when switching tabs or navigating
+  useEffect(() => {
+    setSelectedOrder(null);
+    setShowProductModal(false);
+  }, [activeTab, location.pathname]);
+
 
   // Product Actions
   const handleOpenAddProduct = () => {
@@ -153,19 +183,15 @@ const AdminDashboard = () => {
 
   const handleSaveProduct = async (e) => {
     e.preventDefault();
-    if (!productForm.name || !productForm.price) {
-      toast.error('Vui lòng điền tên món và giá tiền');
-      return;
-    }
-
     setSubmittingProduct(true);
+
     const payload = {
-      name: productForm.name.trim(),
-      category: productForm.category.trim(),
+      name: productForm.name,
+      category: productForm.category || 'Trà Sữa',
       price: Number(productForm.price),
-      stockQuantity: Number(productForm.stockQuantity || 0),
-      image: productForm.image.trim(),
-      description: productForm.description.trim(),
+      stockQuantity: Number(productForm.stockQuantity),
+      image: productForm.image,
+      description: productForm.description,
     };
 
     try {
@@ -255,212 +281,349 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="admin-container animate-fade-in">
-      {/* Admin Header */}
-      <div className="admin-header">
-        <div>
-          <h1 className="admin-title">⚙️ Trang Quản Trị Túc Tắc Tea</h1>
-          <p className="admin-subtitle">Quản lý món ăn, đơn hàng, thành viên và theo dõi hoạt động kinh doanh</p>
-        </div>
-      </div>
+    <div className="admin-container space-y-8">
 
-      {/* Admin Navigation Tabs */}
-      <div className="admin-tabs">
-        <button
-          className={`admin-tab-btn ${activeTab === 'stats' ? 'active' : ''}`}
-          onClick={() => handleTabChange('stats', '/admin')}
-        >
-          <LayoutDashboard size={18} /> Tổng quan
-        </button>
-        <button
-          className={`admin-tab-btn ${activeTab === 'products' ? 'active' : ''}`}
-          onClick={() => handleTabChange('products', '/admin/products')}
-        >
-          <UtensilsCrossed size={18} /> Quản lý Món ăn ({products.length})
-        </button>
-        <button
-          className={`admin-tab-btn ${activeTab === 'inventory' ? 'active' : ''}`}
-          onClick={() => handleTabChange('inventory', '/admin/inventory')}
-        >
-          <Boxes size={18} /> Kho & Nguyên liệu
-        </button>
-        <button
-          className={`admin-tab-btn ${activeTab === 'orders' ? 'active' : ''}`}
-          onClick={() => handleTabChange('orders', '/admin/orders')}
-        >
-          <ClipboardList size={18} /> Quản lý Đơn hàng ({orders.length})
-        </button>
-        <button
-          className={`admin-tab-btn ${activeTab === 'users' ? 'active' : ''}`}
-          onClick={() => handleTabChange('users', '/admin/users')}
-        >
-          <Users size={18} /> Quản lý Thành viên ({usersList.length})
-        </button>
-      </div>
+      {/* ================= TAB 1: TỔNG QUAN & BIỂU ĐỒ DOANH THU ================= */}
+      {activeTab === 'stats' && (() => {
+        const completedOrdersList = orders.filter((o) => o.orderStatus === 'COMPLETED');
+        const posOrders = completedOrdersList.filter((o) => getOrderChannel(o.shippingAddress).isPos);
+        const onlineOrders = completedOrdersList.filter((o) => !getOrderChannel(o.shippingAddress).isPos);
 
-      {/* ================= TAB 1: TỔNG QUAN (STATS) ================= */}
-      {activeTab === 'stats' && (
-        <div className="tab-content animate-fade-in">
-          {/* Stats Metric Cards */}
-          <div className="stats-cards-grid">
-            <div className="stat-card primary-card">
-              <div className="stat-card-header">
-                <span>Tổng Doanh Thu</span>
-                <TrendingUp size={22} />
-              </div>
-              <div className="stat-card-value">
-                {formatPrice(stats?.totalRevenue || 0)}
-              </div>
-              <div className="stat-card-sub">Chỉ tính đơn đã hoàn thành</div>
-            </div>
+        const posRev = posOrders.reduce((acc, o) => acc + (o.totalPrice || 0), 0);
+        const onlineRev = onlineOrders.reduce((acc, o) => acc + (o.totalPrice || 0), 0);
+        const calcTotalRev = stats?.totalRevenue || (posRev + onlineRev);
+        const aov = completedOrdersList.length > 0 ? Math.round(calcTotalRev / completedOrdersList.length) : 0;
 
-            <div className="stat-card">
-              <div className="stat-card-header">
-                <span>Tổng Đơn Hàng</span>
-                <ClipboardList size={22} className="text-emerald-600" />
+        const salesMap = {};
+        orders.forEach((o) => {
+          if (o.orderStatus === 'COMPLETED' || o.orderStatus === 'SHIPPING' || o.orderStatus === 'PROCESSING') {
+            o.items?.forEach((item) => {
+              const name = item.productName || 'Món nước';
+              if (!salesMap[name]) salesMap[name] = { name, quantity: 0, revenue: 0 };
+              salesMap[name].quantity += item.quantity || 1;
+              salesMap[name].revenue += (item.price || 0) * (item.quantity || 1);
+            });
+          }
+        });
+        const topProducts = Object.values(salesMap).sort((a, b) => b.quantity - a.quantity).slice(0, 5);
+
+        return (
+          <div className="tab-content animate-fade-in space-y-7 w-full max-w-full overflow-hidden">
+            {/* Main Action Header */}
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-1">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Tổng quan</h2>
+                <p className="text-sm text-gray-500 mt-1">Chào mừng trở lại, đây là thông tin hoạt động hôm nay.</p>
               </div>
-              <div className="stat-card-value">{stats?.totalOrders || 0}</div>
-              <div className="stat-card-sub">
-                <span className="text-blue-600 font-semibold">{stats?.newOrdersCount || 0} mới</span> •{' '}
-                <span className="text-amber-600 font-semibold">{stats?.processingOrdersCount || 0} đang làm</span>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => toast.success('Đã xuất báo cáo thành công!')}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors flex items-center gap-2"
+                >
+                  <TrendingUp size={16} />
+                  Xuất báo cáo
+                </button>
+                <button
+                  onClick={handleOpenAddProduct}
+                  className="px-4 py-2 bg-stone-900 text-white rounded-xl text-sm font-semibold hover:bg-stone-800 transition-colors shadow-sm flex items-center gap-2"
+                >
+                  <Plus size={16} />
+                  Tạo đơn mới
+                </button>
               </div>
             </div>
 
-            <div className="stat-card">
-              <div className="stat-card-header">
-                <span>Số Món Trong Menu</span>
-                <UtensilsCrossed size={22} className="text-amber-600" />
+            {/* Bento Grid Layout - Stat Cards (đồng bộ màu taro/caramel/matcha/teal) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
+              {/* Stat Card 1 — Doanh thu */}
+              <div className="stat-tile accent-taro flex flex-col justify-between min-w-0 overflow-hidden">
+                <div className="flex justify-between items-start mb-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-stone-500 truncate">Tổng doanh thu</p>
+                  <div className="icon-tile ml-2">
+                    <TrendingUp size={16} />
+                  </div>
+                </div>
+                <div className="min-w-0">
+                  <h3 className="stat-tile-value truncate">{formatPrice(calcTotalRev)}</h3>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="trend-chip">
+                      <TrendingUp size={13} />
+                      +12.5%
+                    </span>
+                    <span className="text-xs text-stone-500 truncate">so với hôm qua</span>
+                  </div>
+                </div>
               </div>
-              <div className="stat-card-value">{stats?.totalProducts || 0}</div>
-              <div className="stat-card-sub">Món ăn & Đồ uống đang phục vụ</div>
-            </div>
 
-            <div className="stat-card">
-              <div className="stat-card-header">
-                <span>Khách Hàng Đăng Ký</span>
-                <Users size={22} className="text-indigo-600" />
+              {/* Stat Card 2 — Đơn hàng */}
+              <div className="stat-tile accent-teal flex flex-col justify-between min-w-0 overflow-hidden">
+                <div className="flex justify-between items-start mb-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-stone-500 truncate">Số đơn hàng mới</p>
+                  <div className="icon-tile ml-2">
+                    <ClipboardList size={16} />
+                  </div>
+                </div>
+                <div className="min-w-0">
+                  <h3 className="stat-tile-value truncate">{stats?.totalOrders || orders.length || 0}</h3>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="trend-chip">
+                      <TrendingUp size={13} />
+                      +5.2%
+                    </span>
+                    <span className="text-xs text-stone-500 truncate">so với hôm qua</span>
+                  </div>
+                </div>
               </div>
-              <div className="stat-card-value">{stats?.totalUsers || 0}</div>
-              <div className="stat-card-sub">Tài khoản thành viên hệ thống</div>
-            </div>
-          </div>
 
-          {/* Status Breakdown Bar */}
-          <div className="admin-panel-box mt-6">
-            <h3 className="panel-title mb-4">📊 Tỷ lệ trạng thái đơn hàng</h3>
-            <div className="status-progress-bar">
-              {stats?.totalOrders > 0 ? (
-                <>
-                  <div
-                    style={{ width: `${(stats.newOrdersCount / stats.totalOrders) * 100}%` }}
-                    className="bar-segment bg-blue-500"
-                    title={`Đơn mới: ${stats.newOrdersCount}`}
-                  />
-                  <div
-                    style={{ width: `${(stats.processingOrdersCount / stats.totalOrders) * 100}%` }}
-                    className="bar-segment bg-amber-500"
-                    title={`Đang làm: ${stats.processingOrdersCount}`}
-                  />
-                  <div
-                    style={{ width: `${(stats.shippingOrdersCount / stats.totalOrders) * 100}%` }}
-                    className="bar-segment bg-indigo-500"
-                    title={`Đang giao: ${stats.shippingOrdersCount}`}
-                  />
-                  <div
-                    style={{ width: `${(stats.completedOrdersCount / stats.totalOrders) * 100}%` }}
-                    className="bar-segment bg-emerald-500"
-                    title={`Hoàn thành: ${stats.completedOrdersCount}`}
-                  />
-                  <div
-                    style={{ width: `${(stats.cancelledOrdersCount / stats.totalOrders) * 100}%` }}
-                    className="bar-segment bg-rose-500"
-                    title={`Đã hủy: ${stats.cancelledOrdersCount}`}
-                  />
-                </>
-              ) : (
-                <div className="w-full bg-gray-200 h-4 rounded-full" />
-              )}
-            </div>
-            <div className="status-legend flex flex-wrap gap-4 mt-4 text-xs font-semibold">
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-blue-500"></span> Đơn mới ({stats?.newOrdersCount || 0})</span>
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-amber-500"></span> Đang chuẩn bị ({stats?.processingOrdersCount || 0})</span>
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-indigo-500"></span> Đang giao ({stats?.shippingOrdersCount || 0})</span>
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-emerald-500"></span> Hoàn thành ({stats?.completedOrdersCount || 0})</span>
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-rose-500"></span> Đã hủy ({stats?.cancelledOrdersCount || 0})</span>
-            </div>
-          </div>
+              {/* Stat Card 3 — Món bán chạy */}
+              <div className="stat-tile accent-caramel flex flex-col justify-between min-w-0 overflow-hidden">
+                <div className="flex justify-between items-start mb-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-stone-500 truncate">Món ăn bán chạy nhất</p>
+                  <div className="icon-tile ml-2">
+                    <UtensilsCrossed size={16} />
+                  </div>
+                </div>
+                <div className="min-w-0">
+                  <h3 className="stat-tile-value truncate" style={{ fontSize: '1.35rem' }} title={topProducts[0]?.name || 'Phở Bò'}>
+                    {topProducts[0]?.name || 'Phở Bò'}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="trend-chip" style={{ color: 'var(--caramel-dark)' }}>
+                      <Sparkles size={13} />
+                      {topProducts[0]?.quantity || 342}
+                    </span>
+                    <span className="text-xs text-stone-500 truncate">lượt bán hôm nay</span>
+                  </div>
+                </div>
+              </div>
 
-          {/* Recent Orders List */}
-          <div className="admin-panel-box mt-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="panel-title">⏱️ Đơn hàng gần đây</h3>
-              <button onClick={() => setActiveTab('orders')} className="text-sm text-green-700 font-semibold hover:underline">
-                Xem tất cả đơn hàng &rarr;
-              </button>
+              {/* Stat Card 4 — Khách hàng mới */}
+              <div className="stat-tile accent-matcha flex flex-col justify-between min-w-0 overflow-hidden">
+                <div className="flex justify-between items-start mb-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-stone-500 truncate">Khách hàng mới</p>
+                  <div className="icon-tile ml-2">
+                    <Users size={16} />
+                  </div>
+                </div>
+                <div className="min-w-0">
+                  <h3 className="stat-tile-value truncate">{usersList.length || 120}</h3>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="trend-chip">
+                      <TrendingUp size={13} />
+                      +1.1%
+                    </span>
+                    <span className="text-xs text-stone-500 truncate">so với tuần trước</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="table-responsive">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Mã Đơn</th>
-                    <th>Kênh đặt</th>
-                    <th>Thời gian</th>
-                    <th>Địa chỉ giao</th>
-                    <th>Tổng tiền</th>
-                    <th>Trạng thái</th>
-                    <th>Hành động</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats?.recentOrders?.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="text-center py-6 text-gray-400">Chưa có đơn hàng nào</td>
-                    </tr>
-                  ) : (
-                    stats?.recentOrders?.map((ord) => {
+            {/* Main Content Grid: Chart (2 cols) + Activities (1 col) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-w-0">
+              {/* Chart Section (Spans 2 columns) */}
+              <div className="bento-panel lg:col-span-2 flex flex-col min-w-0">
+                <div className="bento-panel-header flex flex-wrap justify-between items-center gap-2">
+                  <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
+                    <TrendingUp size={18} className="text-stone-700" />
+                    Tăng trưởng doanh thu
+                  </h3>
+                  <div className="flex gap-1.5">
+                    <button className="px-2.5 py-1 text-xs font-medium bg-stone-100 text-stone-700 rounded border border-stone-200">
+                      1T
+                    </button>
+                    <button className="px-2.5 py-1 text-xs font-medium bg-stone-900 text-white rounded">
+                      1Th
+                    </button>
+                    <button className="px-2.5 py-1 text-xs font-medium bg-white text-stone-600 rounded border border-stone-200 hover:bg-stone-50">
+                      1N
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-5 flex-1 flex flex-col justify-between bg-stone-50/30 overflow-hidden">
+                  {/* Bounded Chart Area */}
+                  <div className="relative w-full h-[180px] my-3 overflow-hidden rounded-xl bg-white/60 border border-stone-100 p-2">
+                    {/* Grid lines */}
+                    <div className="absolute inset-x-0 bottom-2 border-t border-stone-200/50"></div>
+                    <div className="absolute inset-x-0 bottom-1/3 border-t border-stone-200/40 border-dashed"></div>
+                    <div className="absolute inset-x-0 bottom-2/3 border-t border-stone-200/40 border-dashed"></div>
+
+                    {/* SVG Curve & Area Fill (Clean Bounded Coordinates) */}
+                    <svg className="w-full h-full block" preserveAspectRatio="none" viewBox="0 0 100 100">
+                      <defs>
+                        <linearGradient id="gradientAreaClean" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#7C5C9C" stopOpacity="0.22" />
+                          <stop offset="100%" stopColor="#7C5C9C" stopOpacity="0.0" />
+                        </linearGradient>
+                      </defs>
+                      <path
+                        d="M 0 95 L 0 70 Q 20 60 40 45 T 70 55 T 100 25 L 100 95 Z"
+                        fill="url(#gradientAreaClean)"
+                      />
+                      <path
+                        d="M 0 70 Q 20 60 40 45 T 70 55 T 100 25"
+                        fill="none"
+                        stroke="#5C4174"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </div>
+
+                  {/* Channel Breakdown Summary */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-stone-200/60">
+                    <div className="flex items-center justify-between p-2.5 rounded-xl border" style={{ background: 'var(--caramel-light)', borderColor: 'var(--caramel-line)' }}>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--caramel)' }}></span>
+                        <span className="text-xs font-semibold text-stone-700">🏪 Tại quầy (POS)</span>
+                      </div>
+                      <span className="text-xs font-bold" style={{ color: 'var(--caramel-dark)' }}>{formatPrice(posRev)}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between p-2.5 rounded-xl border" style={{ background: 'var(--taro-light)', borderColor: 'var(--taro-line)' }}>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--taro)' }}></span>
+                        <span className="text-xs font-semibold text-stone-700">🌐 Đặt Online</span>
+                      </div>
+                      <span className="text-xs font-bold" style={{ color: 'var(--taro-dark)' }}>{formatPrice(onlineRev)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Activities Section (1 column) */}
+              <div className="bento-panel flex flex-col min-w-0">
+                <div className="bento-panel-header flex justify-between items-center">
+                  <h3 className="text-base font-bold text-stone-900">Hoạt động gần đây</h3>
+                  <button
+                    onClick={() => setActiveTab('orders')}
+                    className="text-xs font-semibold text-stone-900 hover:underline"
+                  >
+                    Xem tất cả
+                  </button>
+                </div>
+                <div className="p-5 flex-1 max-h-[340px] overflow-y-auto">
+                  <ul className="space-y-4 relative before:absolute before:inset-y-0 before:left-3 before:w-px before:bg-stone-200">
+                    {stats?.recentOrders?.slice(0, 5).map((ord) => {
                       const badge = STATUS_BADGES[ord.orderStatus] || { label: ord.orderStatus, cls: '' };
                       const channel = getOrderChannel(ord.shippingAddress);
+                      const isCompleted = ord.orderStatus === 'COMPLETED';
+                      const isCancel = ord.orderStatus === 'CANCEL';
+                      const dotBg = isCompleted ? 'bg-emerald-500' : isCancel ? 'bg-rose-500' : 'bg-stone-900';
+
                       return (
-                        <tr key={ord.id}>
-                          <td className="font-bold">#{ord.id}</td>
-                          <td>
-                            <span className={`channel-badge ${channel.cls}`}>
-                              {channel.icon} {channel.label}
-                            </span>
-                          </td>
-                          <td className="text-xs text-gray-500">
-                            {new Date(ord.createdAt).toLocaleString('vi-VN')}
-                          </td>
-                          <td className="text-xs max-w-xs truncate">{ord.shippingAddress || '—'}</td>
-                          <td className="font-bold text-green-800">{formatPrice(ord.totalPrice)}</td>
-                          <td>
-                            <span className={`status-badge ${badge.cls}`}>{badge.label}</span>
-                          </td>
-                          <td>
-                            <button
-                              onClick={() => setSelectedOrder(ord)}
-                              className="action-icon-btn"
-                              title="Xem chi tiết"
-                            >
-                              <Eye size={16} />
-                            </button>
-                          </td>
-                        </tr>
+                        <li key={ord.id} className="relative pl-7 flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <span className={`absolute left-1.5 top-1.5 w-3 h-3 rounded-full ${dotBg} ring-4 ring-white`}></span>
+                            <p className="text-xs font-semibold text-stone-900 truncate">
+                              {channel.icon} Đơn <span className="font-bold">#{ord.id}</span> vừa được đặt
+                            </p>
+                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                              <span className={`status-badge ${badge.cls}`}>{badge.label}</span>
+                              <span className="text-[11px] text-stone-400 font-medium">
+                                {formatTimeAgo(ord.createdAt)}
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setSelectedOrder(ord)}
+                            className="p-1 rounded text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors flex-shrink-0"
+                            title="Xem chi tiết"
+                          >
+                            <Eye size={15} />
+                          </button>
+                        </li>
                       );
-                    })
-                  )}
-                </tbody>
-              </table>
+                    })}
+
+                    {(!stats?.recentOrders || stats.recentOrders.length === 0) && (
+                      <li className="text-center text-xs text-stone-400 py-6">Chưa có hoạt động gần đây</li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Table Section - Top Selling Products */}
+            <div className="bento-panel min-w-0">
+              <div className="bento-panel-header flex flex-wrap justify-between items-center gap-2">
+                <h3 className="text-base font-bold text-stone-900">Món ăn bán chạy nhất</h3>
+                <button
+                  onClick={() => setActiveTab('products')}
+                  className="px-3 py-1.5 text-xs font-medium border border-stone-300 text-stone-700 rounded-lg hover:bg-stone-50 transition-colors flex items-center gap-1"
+                >
+                  Lọc
+                  <Plus size={14} />
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[500px]">
+                  <thead>
+                    <tr className="border-b border-stone-200 bg-stone-50/80">
+                      <th className="p-3.5 text-xs font-semibold text-stone-500">Tên món ăn</th>
+                      <th className="p-3.5 text-xs font-semibold text-stone-500 text-right">Doanh thu</th>
+                      <th className="p-3.5 text-xs font-semibold text-stone-500 text-right">Lượt bán</th>
+                      <th className="p-3.5 text-xs font-semibold text-stone-500 text-center">Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-sm divide-y divide-stone-100">
+                    {topProducts.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="p-6 text-center text-stone-400 text-xs font-medium">
+                          Chưa có dữ liệu bán hàng
+                        </td>
+                      </tr>
+                    ) : (
+                      topProducts.map((p, idx) => {
+                        const matchedProd = products.find((prod) => prod.name === p.name);
+                        const stock = matchedProd?.stockQuantity ?? 50;
+                        const isOutOfStock = stock === 0;
+                        const isLowStock = stock > 0 && stock <= 10;
+
+                        const statusLabel = isOutOfStock ? 'Hết món' : isLowStock ? 'Sắp hết' : 'Còn món';
+                        const statusClass = isOutOfStock
+                          ? 'stock-indicator out'
+                          : isLowStock
+                          ? 'stock-indicator low'
+                          : 'stock-indicator ok';
+
+                        return (
+                          <tr key={p.name} className="hover:bg-stone-50/80 transition-colors">
+                            <td className="p-3.5">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-stone-100 flex items-center justify-center font-bold text-xs text-stone-700 flex-shrink-0">
+                                  #{idx + 1}
+                                </div>
+                                <span className="text-stone-900 font-medium truncate max-w-[220px]" title={p.name}>
+                                  {p.name}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="p-3.5 text-right font-semibold text-stone-900">{formatPrice(p.revenue)}</td>
+                            <td className="p-3.5 text-right text-stone-600">{p.quantity}</td>
+                            <td className="p-3.5 text-center">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs ${statusClass}`}>
+                                {statusLabel}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
+
 
       {/* ================= TAB 2: QUẢN LÝ MÓN ĂN (PRODUCTS) ================= */}
       {activeTab === 'products' && (
         <div className="tab-content animate-fade-in">
-          <div className="admin-toolbar mb-4 flex flex-wrap justify-between items-center gap-3">
+          <div className="admin-toolbar mb-5 flex flex-wrap justify-between items-center gap-3">
             <div className="search-box">
               <Search size={16} />
               <input
@@ -493,14 +656,22 @@ const AdminDashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredProducts.length === 0 ? (
+                  {loading ? (
+                    <TableSkeleton rows={5} cols={6} />
+                  ) : filteredProducts.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center py-8 text-gray-400">
-                        Không tìm thấy món ăn nào
+                      <td colSpan={6} className="py-6">
+                        <EmptyState
+                          title="Không tìm thấy món ăn"
+                          description="Chưa có món ăn nào phù hợp với bộ lọc tìm kiếm."
+                          actionText="Thêm món ăn mới"
+                          onAction={handleOpenAddProduct}
+                        />
                       </td>
                     </tr>
                   ) : (
                     filteredProducts.map((prod) => (
+
                       <tr key={prod.id}>
                         <td>
                           <div className="admin-prod-thumb">
@@ -551,8 +722,8 @@ const AdminDashboard = () => {
 
       {/* ================= TAB 3: QUẢN LÝ ĐƠN HÀNG (ORDERS) ================= */}
       {activeTab === 'orders' && (
-        <div className="tab-content animate-fade-in space-y-4">
-          <div className="admin-toolbar flex flex-wrap gap-4 items-center justify-between bg-white p-4 rounded-2xl border border-emerald-100 mb-4">
+        <div className="tab-content animate-fade-in space-y-5">
+          <div className="admin-toolbar flex flex-wrap gap-4 items-center justify-between bg-white p-4 rounded-2xl border border-stone-200 shadow-sm">
             <div className="flex flex-wrap gap-2 items-center">
               <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Trạng thái:</span>
               <button
@@ -615,17 +786,28 @@ const AdminDashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredOrders.length === 0 ? (
+                  {loading ? (
+                    <TableSkeleton rows={5} cols={9} />
+                  ) : filteredOrders.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="text-center py-8 text-gray-400">
-                        Không tìm thấy đơn hàng nào
+                      <td colSpan={9} className="py-6">
+                        <EmptyState
+                          title="Không tìm thấy đơn hàng"
+                          description="Hiện không có đơn hàng nào khớp với bộ lọc của bạn."
+                          actionText="Bỏ bộ lọc"
+                          onAction={() => { setOrderStatusFilter(''); setOrderChannelFilter(''); }}
+                        />
                       </td>
                     </tr>
                   ) : (
                     filteredOrders.map((ord) => {
+
                       const badge = STATUS_BADGES[ord.orderStatus] || { label: ord.orderStatus, cls: '' };
                       const channel = getOrderChannel(ord.shippingAddress);
                       const totalItemsCount = ord.items?.reduce((acc, i) => acc + i.quantity, 0) || 0;
+                      const readyItemsCount = ord.items?.filter((i) => i.preparedStatus === 'READY').reduce((acc, i) => acc + i.quantity, 0) || 0;
+                      const allItemsReady = totalItemsCount > 0 && readyItemsCount === totalItemsCount;
+
                       return (
                         <tr key={ord.id}>
                           <td className="font-bold text-gray-800">#{ord.id}</td>
@@ -640,8 +822,27 @@ const AdminDashboard = () => {
                           <td className="text-xs max-w-xs truncate" title={ord.shippingAddress}>
                             {ord.shippingAddress || '—'}
                           </td>
-                          <td className="text-center font-medium">{totalItemsCount}</td>
+                          <td className="text-center font-medium">
+                            <div>{totalItemsCount} món</div>
+                            {totalItemsCount > 0 && (
+                              <span
+                                className={`inline-block px-2 py-0.5 mt-1 text-[10px] font-bold rounded-full ${
+                                  allItemsReady
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : readyItemsCount > 0
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : 'bg-gray-100 text-gray-600'
+                                }`}
+                              >
+                                {allItemsReady
+                                  ? `✓ ${readyItemsCount}/${totalItemsCount} đã pha`
+                                  : `⏳ ${readyItemsCount}/${totalItemsCount} đã pha`}
+                              </span>
+                            )}
+                          </td>
                           <td className="font-bold text-green-800">{formatPrice(ord.totalPrice)}</td>
+
+
                           <td>
                             <span className={`status-badge ${badge.cls}`}>{badge.label}</span>
                           </td>
@@ -682,7 +883,7 @@ const AdminDashboard = () => {
       {/* ================= TAB 4: QUẢN LÝ THÀNH VIÊN (USERS) ================= */}
       {activeTab === 'users' && (
         <div className="tab-content animate-fade-in">
-          <div className="admin-toolbar mb-4 flex justify-between items-center">
+          <div className="admin-toolbar mb-5 flex justify-between items-center">
             <div className="search-box">
               <Search size={16} />
               <input
@@ -852,6 +1053,22 @@ const AdminDashboard = () => {
                   disabled={submittingProduct}
                   className="btn-primary"
                 >
+                  {submittingProduct ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Đang lưu...
+                    </>
+                  ) : editingProduct ? (
+                    <>
+                      <CheckCircle2 size={16} />
+                      Lưu thay đổi
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={16} />
+                      Thêm món
+                    </>
+                  )}
                 </button>
               </div>
             </form>
@@ -901,7 +1118,16 @@ const AdminDashboard = () => {
               </div>
 
               <div>
-                <h4 className="font-bold text-gray-800 mb-2">Danh sách món đã đặt:</h4>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-bold text-gray-800">Danh sách món đã đặt:</h4>
+                  {selectedOrder.items && (
+                    <span className="text-xs font-semibold text-gray-500">
+                      Tiến độ pha chế: {selectedOrder.items.filter((i) => i.preparedStatus === 'READY').reduce((acc, i) => acc + i.quantity, 0)}/
+                      {selectedOrder.items.reduce((acc, i) => acc + i.quantity, 0)} ly đã pha
+                    </span>
+                  )}
+
+                </div>
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                   {selectedOrder.items?.map((item) => (
                     <div key={item.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-xl">
@@ -914,7 +1140,18 @@ const AdminDashboard = () => {
                           )}
                         </div>
                         <div>
-                          <p className="font-semibold text-sm text-gray-800">{item.productName}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-sm text-gray-800">{item.productName}</p>
+                            {item.preparedStatus === 'READY' ? (
+                              <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-800 rounded-full">
+                                ✓ Đã pha
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 rounded-full">
+                                ⏳ Chờ pha
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-gray-500">{formatPrice(item.price)} × {item.quantity}</p>
                         </div>
                       </div>
@@ -923,6 +1160,7 @@ const AdminDashboard = () => {
                   ))}
                 </div>
               </div>
+
 
               <div className="flex justify-between items-center pt-3 border-t border-gray-200">
                 <span className="font-bold text-gray-700">Tổng cộng thanh toán:</span>

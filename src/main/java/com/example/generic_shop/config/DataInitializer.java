@@ -61,19 +61,20 @@ public class DataInitializer implements CommandLineRunner {
     private Map<String, Ingredient> seedIngredients() {
         Map<String, Ingredient> result = new HashMap<>();
 
+        java.time.LocalDate today = java.time.LocalDate.now();
         Object[][] ingData = {
-            {"NL001", "Cà Phê Hạt Arabica Thượng Hạng", "g", 5000.0, 1000.0, 250.0},
-            {"NL002", "Sữa Tươi Thanh Trùng Vinamilk", "ml", 10000.0, 2000.0, 35.0},
-            {"NL003", "Sữa Đặc Ngôi Sao Phương Nam", "ml", 5000.0, 1000.0, 60.0},
-            {"NL004", "Lục Trà Thái Nguyên Đặc Sản", "g", 3000.0, 500.0, 300.0},
-            {"NL005", "Trà Đen Cốt Đậm Đượm Vị", "g", 4000.0, 500.0, 280.0},
-            {"NL006", "Đường Nước Thanh Ngọt Bắp", "ml", 8000.0, 1500.0, 20.0},
-            {"NL007", "Trân Châu Đen Dẻo Ô Long", "g", 6000.0, 1000.0, 50.0},
-            {"NL008", "Bột Kem Béo Thực Vật Béo Ngậy", "g", 5000.0, 800.0, 120.0},
-            {"NL009", "Siro Đào Giòn Pháp Monin", "ml", 2000.0, 400.0, 180.0},
-            {"NL010", "Siro Vải Thiều Ngâm Đường", "ml", 2000.0, 400.0, 175.0},
-            {"NL011", "Sốt Matcha Uji Nhật Bản", "g", 1500.0, 300.0, 450.0},
-            {"NL012", "Kem Cheese Macchiato Béo Mặn", "ml", 3000.0, 500.0, 150.0}
+            {"NL001", "Cà Phê Hạt Arabica Thượng Hạng", "kg", 5.0, 1.0, 250000.0, today.plusDays(90), 0.0, null},
+            {"NL002", "Sữa Tươi Thanh Trùng Vinamilk", "chai", 10.0, 2.0, 35000.0, today.plusDays(10), 1.0, today.plusDays(3)},
+            {"NL003", "Sữa Đặc Ngôi Sao Phương Nam", "chai", 5.0, 1.0, 60000.0, today.plusDays(60), 1.0, today.plusDays(15)},
+            {"NL004", "Lục Trà Thái Nguyên Đặc Sản", "kg", 3.0, 0.5, 300000.0, today.plusDays(120), 0.0, null},
+            {"NL005", "Trà Đen Cốt Đậm Đượm Vị", "kg", 4.0, 0.5, 280000.0, today.plusDays(100), 0.0, null},
+            {"NL006", "Đường Nước Thanh Ngọt Bắp", "chai", 8.0, 1.5, 20000.0, today.plusDays(180), 1.0, today.plusDays(30)},
+            {"NL007", "Trân Châu Đen Dẻo Ô Long", "kg", 6.0, 1.0, 50000.0, today.plusDays(7), 1.0, today.plusDays(1)},
+            {"NL008", "Bột Kem Béo Thực Vật Béo Ngậy", "kg", 5.0, 0.8, 120000.0, today.plusDays(45), 0.0, null},
+            {"NL009", "Siro Đào Giòn Pháp Monin", "chai", 2.0, 0.4, 180000.0, today.plusDays(30), 1.0, today.plusDays(7)},
+            {"NL010", "Siro Vải Thiều Ngâm Đường", "chai", 2.0, 0.4, 175000.0, today.plusDays(25), 0.0, null},
+            {"NL011", "Sốt Matcha Uji Nhật Bản", "kg", 1.5, 0.3, 450000.0, today.plusDays(15), 0.5, today.plusDays(4)},
+            {"NL012", "Kem Cheese Macchiato Béo Mặn", "chai", 3.0, 0.5, 150000.0, today.plusDays(5), 1.0, today.plusDays(2)}
         };
 
         for (Object[] item : ingData) {
@@ -83,6 +84,9 @@ public class DataInitializer implements CommandLineRunner {
             Double currentStock = (Double) item[3];
             Double minAlert = (Double) item[4];
             Double costPrice = (Double) item[5];
+            java.time.LocalDate expDate = (java.time.LocalDate) item[6];
+            Double openedStock = (Double) item[7];
+            java.time.LocalDate openedExpDate = (java.time.LocalDate) item[8];
 
             Ingredient ing = ingredientRepository.findByCode(code).orElseGet(() -> {
                 Ingredient newIng = new Ingredient();
@@ -92,11 +96,27 @@ public class DataInitializer implements CommandLineRunner {
                 newIng.setCurrentStock(currentStock);
                 newIng.setMinStockAlert(minAlert);
                 newIng.setCostPrice(costPrice);
+                newIng.setExpiryDate(expDate);
+                newIng.setOpenedStock(openedStock);
+                newIng.setOpenedExpiryDate(openedExpDate);
                 return ingredientRepository.save(newIng);
             });
 
+            // Sync units and values to kg / chai
+            ing.setUnit(unit);
+            ing.setCurrentStock(currentStock);
+            ing.setMinStockAlert(minAlert);
+            ing.setCostPrice(costPrice);
+            ing.setExpiryDate(expDate);
+            ing.setOpenedStock(openedStock);
+            ing.setOpenedExpiryDate(openedExpDate);
+            ingredientRepository.save(ing);
+
             result.put(code, ing);
         }
+
+
+
 
         System.out.println(">>> Seeded " + result.size() + " Ingredients successfully.");
         return result;
