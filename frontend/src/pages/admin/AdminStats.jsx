@@ -176,6 +176,7 @@ const AdminStats = () => {
   let finalTotalData = [];
   let finalPosData = [];
   let finalOnlineData = [];
+  let hasChartData = false;
 
   if (chartViewMode === 'day') {
     chartLabels = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
@@ -194,10 +195,11 @@ const AdminStats = () => {
 
     const totalByDay = posByDay.map((p, i) => p + onlineByDay[i]);
     const hasData = totalByDay.some((v) => v > 0);
+    hasChartData = hasData;
 
-    finalTotalData = hasData ? totalByDay : [1850000, 2400000, 3100000, 2800000, 4200000, 5800000, 4900000];
-    finalPosData = hasData ? posByDay : [1100000, 1400000, 1900000, 1600000, 2500000, 3400000, 2800000];
-    finalOnlineData = hasData ? onlineByDay : [750000, 1000000, 1200000, 1200000, 1700000, 2400000, 2100000];
+    finalTotalData = totalByDay;
+    finalPosData = posByDay;
+    finalOnlineData = onlineByDay;
   } else {
     // Monthly View (Tháng 1 -> Tháng 12)
     chartLabels = ['Thg 1', 'Thg 2', 'Thg 3', 'Thg 4', 'Thg 5', 'Thg 6', 'Thg 7', 'Thg 8', 'Thg 9', 'Thg 10', 'Thg 11', 'Thg 12'];
@@ -216,16 +218,11 @@ const AdminStats = () => {
 
     const totalByMonth = posByMonth.map((p, i) => p + onlineByMonth[i]);
     const hasMonthData = totalByMonth.some((v) => v > 0);
+    hasChartData = hasMonthData;
 
-    finalTotalData = hasMonthData
-      ? totalByMonth
-      : [12500000, 14800000, 18200000, 21500000, 26800000, 31200000, 38500000, 42000000, 39500000, 45800000, 52400000, 68000000];
-    finalPosData = hasMonthData
-      ? posByMonth
-      : [7200000, 8600000, 10600000, 12200000, 15400000, 18100000, 22300000, 24100000, 22400000, 25600000, 29200000, 38000000];
-    finalOnlineData = hasMonthData
-      ? onlineByMonth
-      : [5300000, 6200000, 7600000, 9300000, 11400000, 13100000, 16200000, 17900000, 17100000, 20200000, 23200000, 30000000];
+    finalTotalData = totalByMonth;
+    finalPosData = posByMonth;
+    finalOnlineData = onlineByMonth;
   }
 
   const chartData = {
@@ -325,7 +322,7 @@ const AdminStats = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="spinner"></div>
-          <p className="text-stone-500 font-medium">Đang tải dữ liệu báo cáo thống kê...</p>
+          <p className="text-stone-500 font-medium" role="status">Đang tải dữ liệu báo cáo thống kê…</p>
         </div>
       </div>
     );
@@ -349,49 +346,62 @@ const AdminStats = () => {
 
         <div className="flex flex-wrap items-center gap-3">
           {/* Time period filter pills */}
-          <div className="stats-filter-bar">
+          <div className="stats-filter-bar" role="group" aria-label="Khoảng thời gian báo cáo">
             <button
+              type="button"
               onClick={() => setTimePeriod('today')}
               className={`stats-filter-btn ${timePeriod === 'today' ? 'active' : ''}`}
+              aria-pressed={timePeriod === 'today'}
             >
               Hôm nay
             </button>
             <button
+              type="button"
               onClick={() => setTimePeriod('7days')}
               className={`stats-filter-btn ${timePeriod === '7days' ? 'active' : ''}`}
+              aria-pressed={timePeriod === '7days'}
             >
               7 ngày qua
             </button>
             <button
+              type="button"
               onClick={() => setTimePeriod('month')}
               className={`stats-filter-btn ${timePeriod === 'month' ? 'active' : ''}`}
+              aria-pressed={timePeriod === 'month'}
             >
               Tháng này
             </button>
             <button
+              type="button"
               onClick={() => setTimePeriod('all')}
               className={`stats-filter-btn ${timePeriod === 'all' ? 'active' : ''}`}
+              aria-pressed={timePeriod === 'all'}
             >
               Tất cả
             </button>
             <button
+              type="button"
               onClick={() => setTimePeriod('custom')}
               className={`stats-filter-btn ${timePeriod === 'custom' ? 'active' : ''}`}
-              style={{ paddingLeft: '1.1rem', paddingRight: '1.1rem', paddingTop: '0.6rem', paddingBottom: '0.6rem' }}
+              aria-pressed={timePeriod === 'custom'}
             >
-              📅 Chọn ngày
+              <CalendarDays size={15} aria-hidden="true" />
+              Chọn ngày
             </button>
           </div>
 
           <button
+            type="button"
             onClick={() => fetchStatsData(true)}
-            className="p-2.5 border border-white/20 text-white rounded-2xl hover:bg-white/10 transition-colors"
-            title="Làm mới dữ liệu"
+            className="stats-icon-btn"
+            aria-label="Làm mới dữ liệu"
+            aria-busy={refreshing}
           >
-            <RefreshCw size={18} />
+            <RefreshCw size={18} aria-hidden="true" />
           </button>
 
           <button
+            type="button"
             onClick={handleExportReport}
             className="stats-action-btn"
           >
@@ -403,7 +413,7 @@ const AdminStats = () => {
 
       {/* Custom Date Range Picker Bar (Shown when timePeriod === 'custom') */}
       {timePeriod === 'custom' && (
-        <div style={{ margin: '0 8px' }} className="px-8 py-5 rounded-2xl bg-gradient-to-r from-stone-900 via-purple-950 to-stone-900 border border-purple-300/30 text-white shadow-lg flex flex-wrap items-center justify-between gap-5 animate-fade-in">
+        <div className="stats-date-range animate-fade-in">
           <div className="flex items-center gap-3">
             <Calendar size={20} className="text-purple-300" />
             <div>
@@ -413,32 +423,37 @@ const AdminStats = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-3 bg-white/10 px-5 py-3 rounded-xl border border-white/20 min-w-[210px]">
-              <label className="text-sm font-bold text-purple-200 whitespace-nowrap">Từ ngày:</label>
+            <div className="stats-date-field">
+              <label htmlFor="stats-start-date">Từ ngày</label>
               <input
+                id="stats-start-date"
+                name="startDate"
                 type="date"
                 value={customStartDate}
                 onChange={(e) => setCustomStartDate(e.target.value)}
-                className="bg-transparent text-white text-sm font-semibold flex-1 focus:outline-none focus:ring-0 cursor-pointer"
+                className="stats-date-input"
               />
             </div>
 
-            <div className="flex items-center gap-3 bg-white/10 px-5 py-3 rounded-xl border border-white/20 min-w-[210px]">
-              <label className="text-sm font-bold text-purple-200 whitespace-nowrap">Đến ngày:</label>
+            <div className="stats-date-field">
+              <label htmlFor="stats-end-date">Đến ngày</label>
               <input
+                id="stats-end-date"
+                name="endDate"
                 type="date"
                 value={customEndDate}
                 onChange={(e) => setCustomEndDate(e.target.value)}
-                className="bg-transparent text-white text-sm font-semibold flex-1 focus:outline-none focus:ring-0 cursor-pointer"
+                className="stats-date-input"
               />
             </div>
 
             {(customStartDate || customEndDate) && (
               <button
+                type="button"
                 onClick={() => { setCustomStartDate(''); setCustomEndDate(''); }}
-                className="px-5 py-3 bg-rose-500/20 hover:bg-rose-500/35 border border-rose-400/40 text-rose-200 rounded-xl text-sm font-bold transition-all cursor-pointer whitespace-nowrap"
+                className="stats-reset-btn"
               >
-                ✕ Xóa bộ lọc
+                Xóa bộ lọc
               </button>
             )}
           </div>
@@ -457,12 +472,9 @@ const AdminStats = () => {
           </div>
           <div>
             <h3 className="stat-tile-value">{formatPrice(totalRevenue)}</h3>
-            <div className="flex items-center gap-2 mt-2">
-              <span className="trend-chip">
-                <TrendingUp size={13} />
-                +15.8%
-              </span>
-              <span className="text-xs text-stone-500">tổng các đơn hoàn thành</span>
+            <div className="stats-card-caption">
+              <TrendingUp size={14} aria-hidden="true" />
+              Tổng từ các đơn hoàn thành
             </div>
           </div>
         </div>
@@ -544,25 +556,29 @@ const AdminStats = () => {
             </div>
 
             {/* Chart Filter Mode Toggle (Daily vs Monthly) */}
-            <div className="flex bg-stone-100 p-1 rounded-xl border border-stone-200 shadow-2xs">
+            <div className="stats-chart-toggle" role="group" aria-label="Cách xem biểu đồ">
               <button
+                type="button"
                 onClick={() => setChartViewMode('day')}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`stats-chart-toggle-btn ${
                   chartViewMode === 'day'
-                    ? 'bg-purple-700 text-white shadow-xs'
-                    : 'text-stone-600 hover:text-stone-900 hover:bg-stone-200/60'
+                    ? 'active'
+                    : ''
                 }`}
+                aria-pressed={chartViewMode === 'day'}
               >
                 <Calendar size={13} />
                 Theo Ngày
               </button>
               <button
+                type="button"
                 onClick={() => setChartViewMode('month')}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`stats-chart-toggle-btn ${
                   chartViewMode === 'month'
-                    ? 'bg-purple-700 text-white shadow-xs'
-                    : 'text-stone-600 hover:text-stone-900 hover:bg-stone-200/60'
+                    ? 'active'
+                    : ''
                 }`}
+                aria-pressed={chartViewMode === 'month'}
               >
                 <CalendarDays size={13} />
                 Theo Tháng
@@ -572,14 +588,22 @@ const AdminStats = () => {
 
           <div className="p-6 flex-1 flex flex-col justify-between bg-stone-50/40 min-h-[320px]">
             {/* Chart.js Interactive Line display */}
-            <div className="relative w-full h-[280px] rounded-2xl bg-white p-4 border border-stone-200/80 shadow-inner">
-              <Line data={chartData} options={chartOptions} />
+            <div className="stats-chart-canvas">
+              {hasChartData ? (
+                <Line data={chartData} options={chartOptions} />
+              ) : (
+                <div className="stats-chart-empty">
+                  <BarChart3 size={28} aria-hidden="true" />
+                  <strong>Chưa có doanh thu trong khoảng này</strong>
+                  <span>Thử chọn khoảng thời gian khác hoặc làm mới dữ liệu.</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Channel Breakdown Panel (1 col) */}
-        <div className="stats-bento-panel flex flex-col justify-between">
+        <div className="stats-bento-panel stats-channel-panel-shell">
           <div className="stats-panel-header px-6 py-4">
             <div>
               <h3 className="stats-panel-title">
@@ -590,76 +614,90 @@ const AdminStats = () => {
             </div>
           </div>
 
-          <div className="p-6 flex-1 flex flex-col justify-between space-y-5 bg-stone-50/20">
+          <div className="stats-channel-panel">
             {/* POS Channel Card */}
-            <div className="p-4.5 rounded-2xl bg-white border border-amber-200/70 shadow-2xs space-y-3">
-              <div className="flex justify-between items-center" style={{margin:"20px"}}>
+            <article className="stats-channel-card stats-channel-card--pos">
+              <div className="channel-row">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
-                    <Store size={16} />
+                    <Store size={16} aria-hidden="true" />
                   </div>
                   <div>
                     <p className="text-xs font-bold text-stone-800 uppercase tracking-wide">Tại quầy (POS)</p>
                     <p className="text-[11px] text-stone-500 font-medium">{posOrders.length} đơn hàng</p>
                   </div>
                 </div>
-                <span className="text-sm font-extrabold text-stone-900">{formatPrice(posRevenue)}</span>
+                <span className="channel-value">{formatPrice(posRevenue)}</span>
               </div>
 
-              <div className="w-full bg-stone-100 rounded-full h-3 overflow-hidden border border-stone-200/70" >
+              <div
+                className="channel-progress"
+                role="progressbar"
+                aria-label="Tỷ trọng doanh thu tại quầy"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow={totalRevenue > 0 ? Math.round((posRevenue / totalRevenue) * 100) : 0}
+              >
                 <div
-                  className="bg-gradient-to-r from-amber-500 to-amber-600 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${totalRevenue > 0 ? (posRevenue / totalRevenue) * 100 : 50}%` }}
+                  className="channel-progress-fill channel-progress-fill--pos"
+                  style={{ width: `${totalRevenue > 0 ? (posRevenue / totalRevenue) * 100 : 0}%` }}
                 ></div>
               </div>
 
-              <div className="flex justify-between items-center text-xs" style={{margin:"20px"}}>
+              <div className="channel-share-row">
                 <span className="text-stone-500 font-medium">Tỷ trọng kênh</span>
                 <span className="font-extrabold text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200/80">
                   {totalRevenue > 0 ? Math.round((posRevenue / totalRevenue) * 100) : 0}%
                 </span>
               </div>
-            </div>
+            </article>
 
             {/* Online Channel Card */}
-            <div className="p-4.5 rounded-2xl bg-white border border-purple-200/70 shadow-2xs space-y-3">
-              <div className="flex justify-between items-center" style={{margin:"20px"}}>
+            <article className="stats-channel-card stats-channel-card--online">
+              <div className="channel-row">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-800 flex items-center justify-center font-bold">
-                    <Globe size={16} />
+                    <Globe size={16} aria-hidden="true" />
                   </div>
                   <div>
                     <p className="text-xs font-bold text-stone-800 uppercase tracking-wide">Đặt Online</p>
                     <p className="text-[11px] text-stone-500 font-medium">{onlineOrders.length} đơn hàng</p>
                   </div>
                 </div>
-                <span className="text-sm font-extrabold text-stone-900">{formatPrice(onlineRevenue)}</span>
+                <span className="channel-value">{formatPrice(onlineRevenue)}</span>
               </div>
 
-              <div className="w-full bg-stone-100 rounded-full h-3 overflow-hidden border border-stone-200/70">
+              <div
+                className="channel-progress"
+                role="progressbar"
+                aria-label="Tỷ trọng doanh thu đặt online"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow={totalRevenue > 0 ? Math.round((onlineRevenue / totalRevenue) * 100) : 0}
+              >
                 <div
-                  className="bg-gradient-to-r from-purple-500 to-purple-600 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${totalRevenue > 0 ? (onlineRevenue / totalRevenue) * 100 : 50}%` }}
+                  className="channel-progress-fill channel-progress-fill--online"
+                  style={{ width: `${totalRevenue > 0 ? (onlineRevenue / totalRevenue) * 100 : 0}%` }}
                 ></div>
               </div>
 
-              <div className="flex justify-between items-center text-xs" style={{margin:"20px"}}>
+              <div className="channel-share-row">
                 <span className="text-stone-500 font-medium">Tỷ trọng kênh</span>
                 <span className="font-extrabold text-purple-800 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-200/80">
                   {totalRevenue > 0 ? Math.round((onlineRevenue / totalRevenue) * 100) : 0}%
                 </span>
               </div>
-            </div>
+            </article>
 
             {/* Order Status Breakdown mini box */}
-            <div className="pt-2 grid grid-cols-2 gap-3" style={{margin:"20px"}}>
+            <div className="stats-order-statuses">
               <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200 flex flex-col justify-center">
-                <p className="text-[11px] font-bold text-emerald-800 uppercase tracking-wide" style={{marginLeft:"15px"}}>Hoàn thành</p>
-                <p className="text-lg font-extrabold text-emerald-950 mt-0.5" style={{marginLeft:"15px"}} >{completedOrders.length} đơn</p>
+                <p className="text-[11px] font-bold text-emerald-800 uppercase tracking-wide">Hoàn thành</p>
+                <p className="text-lg font-extrabold text-emerald-950 mt-0.5">{completedOrders.length} đơn</p>
               </div>
               <div className="p-3.5 rounded-2xl bg-rose-50/80 border border-rose-200 flex flex-col justify-center">
-                <p className="text-[11px] font-bold text-rose-800 uppercase tracking-wide" style={{marginLeft:"15px"}}>Đã hủy</p>
-                <p className="text-lg font-extrabold text-rose-950 mt-0.5" style={{marginLeft:"15px"}}>{cancelledOrders.length} đơn</p>
+                <p className="text-[11px] font-bold text-rose-800 uppercase tracking-wide">Đã hủy</p>
+                <p className="text-lg font-extrabold text-rose-950 mt-0.5">{cancelledOrders.length} đơn</p>
               </div>
             </div>
           </div>
@@ -711,7 +749,7 @@ const AdminStats = () => {
                           <div className="w-16 bg-stone-100 rounded-full h-2 overflow-hidden">
                             <div
                               className="bg-purple-600 h-full rounded-full"
-                              style={{ width: `${Math.min(share * 2, 100)}%` }}
+                              style={{ width: `${share}%` }}
                             ></div>
                           </div>
                           <span className="text-xs font-bold text-stone-600">{share}%</span>
@@ -729,11 +767,17 @@ const AdminStats = () => {
       {/* Selected Order Detail Modal */}
       {selectedOrder && (
         <div className="modal-overlay" onClick={() => setSelectedOrder(null)}>
-          <div className="modal-card max-w-lg" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="modal-card max-w-lg"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="stats-order-dialog-title"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header">
-              <h3>Chi tiết Đơn hàng #{selectedOrder.id}</h3>
-              <button className="close-btn" onClick={() => setSelectedOrder(null)}>
-                <X size={16} />
+              <h3 id="stats-order-dialog-title">Chi tiết Đơn hàng #{selectedOrder.id}</h3>
+              <button type="button" className="close-btn" onClick={() => setSelectedOrder(null)} aria-label="Đóng chi tiết đơn hàng">
+                <X size={16} aria-hidden="true" />
               </button>
             </div>
             <div className="modal-body space-y-4">

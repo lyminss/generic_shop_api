@@ -82,6 +82,7 @@ const AdminDashboard = () => {
 
   // Filters & Search
   const [productSearch, setProductSearch] = useState('');
+  const [orderSearch, setOrderSearch] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('');
   const [orderChannelFilter, setOrderChannelFilter] = useState(''); // '' | 'pos' | 'online'
   const [userSearch, setUserSearch] = useState('');
@@ -260,7 +261,12 @@ const AdminDashboard = () => {
     const channel = getOrderChannel(o.shippingAddress);
     const matchChannel =
       orderChannelFilter === '' ? true : (orderChannelFilter === 'pos' ? channel.isPos : !channel.isPos);
-    return matchStatus && matchChannel;
+    const searchTerm = orderSearch.trim().toLowerCase();
+    const matchSearch = !searchTerm ||
+      String(o.id).includes(searchTerm) ||
+      o.shippingAddress?.toLowerCase().includes(searchTerm) ||
+      o.items?.some((item) => item.productName?.toLowerCase().includes(searchTerm));
+    return matchStatus && matchChannel && matchSearch;
   });
 
   // Filtered Users
@@ -685,8 +691,21 @@ const AdminDashboard = () => {
 
       {/* ================= TAB 3: QUẢN LÝ ĐƠN HÀNG (ORDERS) ================= */}
       {activeTab === 'orders' && (
-        <div className="tab-content animate-fade-in space-y-5">
-          <div className="admin-toolbar flex flex-wrap gap-4 items-center justify-between bg-white p-4 rounded-2xl border border-stone-200 shadow-sm">
+        <div className="orders-workspace tab-content animate-fade-in">
+          <div className="orders-command-header">
+            <div>
+              <p className="orders-eyebrow">Vận hành cửa hàng</p>
+              <h2>Quản lý đơn hàng</h2>
+              <p>Theo dõi tiến độ pha chế, giao hàng và cập nhật đơn trong một nơi.</p>
+            </div>
+            <div className="orders-result-count" aria-live="polite">
+              <span>Đang hiển thị</span>
+              <strong>{filteredOrders.length}</strong>
+              <span>trên {orders.length} đơn</span>
+            </div>
+          </div>
+
+          <div className="orders-toolbar">
             <div className="flex flex-wrap gap-2 items-center">
               <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Trạng thái:</span>
               <button
@@ -730,17 +749,41 @@ const AdminDashboard = () => {
                 🌐 Online
               </button>
             </div>
+
+            <label className="orders-search-box">
+              <Search size={17} aria-hidden="true" />
+              <span className="sr-only">Tìm đơn hàng</span>
+              <input
+                type="search"
+                name="orderSearch"
+                value={orderSearch}
+                onChange={(e) => setOrderSearch(e.target.value)}
+                placeholder="Tìm mã đơn, món hoặc ghi chú…"
+              />
+              {orderSearch && (
+                <button type="button" onClick={() => setOrderSearch('')} aria-label="Xóa nội dung tìm kiếm">
+                  <X size={15} aria-hidden="true" />
+                </button>
+              )}
+            </label>
           </div>
 
-          <div className="admin-panel-box">
-            <div className="table-responsive">
-              <table className="admin-table">
+          <div className="orders-table-card">
+            <div className="orders-table-heading">
+              <div>
+                <h3>Danh sách đơn hàng</h3>
+                <p>Chọn biểu tượng xem để mở đầy đủ chi tiết đơn.</p>
+              </div>
+              <span>{filteredOrders.length} đơn phù hợp</span>
+            </div>
+            <div className="table-responsive orders-table-scroll">
+              <table className="admin-table orders-table">
                 <thead>
                   <tr>
                     <th>Mã Đơn</th>
                     <th>Kênh Đặt</th>
                     <th>Thời gian</th>
-                    <th>Địa chỉ / Ghi chú</th>
+                    {/* <th>Địa chỉ / Ghi chú</th> */}
                     <th>Số món</th>
                     <th>Tổng tiền</th>
                     <th>Trạng thái</th>
@@ -750,10 +793,10 @@ const AdminDashboard = () => {
                 </thead>
                 <tbody>
                   {loading ? (
-                    <TableSkeleton rows={5} cols={9} />
+                    <TableSkeleton rows={5} cols={8} />
                   ) : filteredOrders.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="py-6">
+                      <td colSpan={8} className="py-6">
                         <EmptyState
                           title="Không tìm thấy đơn hàng"
                           description="Hiện không có đơn hàng nào khớp với bộ lọc của bạn."
@@ -782,9 +825,9 @@ const AdminDashboard = () => {
                           <td className="text-xs text-gray-500">
                             {new Date(ord.createdAt).toLocaleString('vi-VN')}
                           </td>
-                          <td className="text-xs max-w-xs truncate" title={ord.shippingAddress}>
+                          {/* <td className="text-xs max-w-xs truncate" title={ord.shippingAddress}>
                             {ord.shippingAddress || '—'}
-                          </td>
+                          </td> */}
                           <td className="text-center font-medium">
                             <div>{totalItemsCount} món</div>
                             {totalItemsCount > 0 && (
