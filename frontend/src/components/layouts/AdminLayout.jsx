@@ -75,7 +75,7 @@ const AdminLayout = () => {
         <div className="sidebar-brand">
           <span className="sidebar-brand-icon">⚙️</span>
           <div className="sidebar-brand-text">
-            <div className="sidebar-brand-title">Túc Tắc Tea</div>
+            <div className="sidebar-brand-title">MinTea</div>
             <div className="sidebar-brand-subtitle">Admin Panel</div>
           </div>
           {/* Toggle — absolute positioned on right edge via CSS */}

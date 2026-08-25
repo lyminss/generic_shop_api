@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { orderService } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 import { formatPrice } from '../../utils/format';
@@ -32,6 +32,7 @@ const getStepIndex = (status) => {
 
 const OrderDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelLoading, setCancelLoading] = useState(false);
@@ -84,9 +85,9 @@ const OrderDetail = () => {
         <AlertCircle size={52} className="od-not-found-icon" />
         <h2>Không Tìm Thấy Đơn Hàng</h2>
         <p>Đơn hàng #{id} không tồn tại hoặc đã bị xóa.</p>
-        <Link to="/orders" className="od-back-btn">
+        <button onClick={() => navigate(-1)} className="od-back-btn">
           <ArrowLeft size={16} /> Quay lại danh sách
-        </Link>
+        </button>
       </div>
     );
   }
@@ -100,9 +101,9 @@ const OrderDetail = () => {
   return (
     <div className="od-page">
       {/* ─── Back Link ─── */}
-      <Link to="/orders" className="od-back-link">
-        <ArrowLeft size={16} /> Đơn hàng của tôi
-      </Link>
+      <button onClick={() => navigate(-1)} className="od-back-link">
+        <ArrowLeft size={16} /> Quay lại
+      </button>
 
       {/* ─── Hero Header ─── */}
       <div className={`od-hero ${isCancelled ? 'od-hero--cancelled' : isCompleted ? 'od-hero--completed' : 'od-hero--active'}`}>
@@ -253,7 +254,7 @@ const OrderDetail = () => {
               <h2>Địa chỉ nhận món</h2>
             </div>
             <p className="od-address">
-              {order.shippingAddress || 'Nhận tại quầy Túc Tắc Tea'}
+              {order.shippingAddress || 'Nhận tại quầy MinTea'}
             </p>
           </div>
 

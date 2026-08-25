@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { ShoppingCart, LogOut, User, UtensilsCrossed, Home, ClipboardList, Menu, X, Shield, Coffee, ConciergeBell } from 'lucide-react';
+import { ShoppingCart, LogOut, User, UtensilsCrossed, Home, Menu, X, Shield, Coffee, ConciergeBell } from 'lucide-react';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -25,10 +25,10 @@ const Navbar = () => {
     <nav className="navbar-container glass-header" aria-label="Main Navigation">
       <div className="container nav-content">
         {/* Brand Logo */}
-        <Link to="/" className="nav-brand" onClick={closeMenu} aria-label="Túc Tắc Tea Home">
+        <Link to="/" className="nav-brand" onClick={closeMenu} aria-label="MinTea Home">
           <div className="brand-logo-icon">🧋</div>
           <div className="brand-text-wrapper">
-            <span className="brand-title">Túc Tắc Tea</span>
+            <span className="brand-title">MinTea</span>
             <span className="brand-tagline">Artisanal Brews</span>
           </div>
         </Link>
@@ -52,16 +52,6 @@ const Navbar = () => {
             >
               <UtensilsCrossed size={17} /> <span>Thực đơn</span>
             </NavLink>
-
-            {user && (
-              <NavLink
-                to="/orders"
-                onClick={closeMenu}
-                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-              >
-                <ClipboardList size={17} /> <span>Đơn hàng của tôi</span>
-              </NavLink>
-            )}
           </div>
 
           {/* Role Based Access Fast Links */}

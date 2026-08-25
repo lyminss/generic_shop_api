@@ -75,7 +75,7 @@ const AdminOverview = ({ stats, orders = [], usersList = [], onOpenAddProduct })
             <Sparkles size={13} /> Tổng quan vận hành quán
           </div>
           <h1 className="admin-hero-title">
-            Trung Tâm Điều Hành Túc Tắc
+            Trung Tâm Điều Hành MinTea
           </h1>
           <p className="admin-hero-subtitle">
             Theo dõi tổng doanh thu, tiến độ đơn hàng theo thời gian thực và phân tích kênh bán hàng POS / Online.

@@ -43,7 +43,7 @@ const AdminUsers = ({ usersList = [], loading = false, onToggleUserRole }) => {
             Quản Lý Thành Viên
           </h1>
           <p className="admin-hero-subtitle">
-            Danh sách tài khoản đăng ký và thiết lập quyền hạn quản trị cho nhân viên hệ thống Túc Tắc.
+            Danh sách tài khoản đăng ký và thiết lập quyền hạn quản trị cho nhân viên hệ thống MinTea.
           </p>
         </div>
 
@@ -238,7 +238,7 @@ const AdminUsers = ({ usersList = [], loading = false, onToggleUserRole }) => {
                           </div>
                           <div>
                             <p className="font-extrabold text-xs text-stone-900">{u.email}</p>
-                            <span className="text-[10px] text-stone-400">Thành viên Túc Tắc</span>
+                            <span className="text-[10px] text-stone-400">Thành viên MinTea</span>
                           </div>
                         </div>
                       </td>

@@ -9,7 +9,7 @@ export default {
       colors: {
         tuctac: {
           light: '#f4f9f6',
-          green: '#1e5f37', // Túc Tắc Tea forest green
+          green: '#1e5f37', // MinTea forest green
           dark: '#123e23',
           yellow: '#e6a15c',
           bg: '#fafdfb',
@@ -17,8 +17,8 @@ export default {
         }
       },
       fontFamily: {
-        body: ['Inter', 'sans-serif'],
-        heading: ['Outfit', 'sans-serif'],
+        body: ['"Plus Jakarta Sans"', 'sans-serif'],
+        heading: ['"Plus Jakarta Sans"', 'sans-serif'],
       }
     },
   },

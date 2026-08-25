@@ -45,7 +45,7 @@ const Cart = () => {
       return;
     }
 
-    let shippingInfo = 'Nhận tại quầy Túc Tắc Tea';
+    let shippingInfo = 'Nhận tại quầy MinTea';
     if (fulfillmentType === 'DELIVERY') {
       const selectedAddr = addresses.find(a => a.id.toString() === selectedAddressId.toString());
       if (selectedAddr) {

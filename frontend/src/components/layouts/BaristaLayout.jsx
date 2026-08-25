@@ -106,7 +106,7 @@ const BaristaLayout = () => {
         <div className="sidebar-brand">
           <span className="sidebar-brand-icon">☕</span>
           <div className="sidebar-brand-text">
-            <div className="sidebar-brand-title">Túc Tắc Tea</div>
+            <div className="sidebar-brand-title">MinTea</div>
             <div className="sidebar-brand-subtitle">Barista · Quầy Bar</div>
           </div>
           <button
@@ -173,7 +173,7 @@ const BaristaLayout = () => {
       <div className="sidebar-main">
         <header className="sidebar-topbar">
           <div className="flex items-center gap-2">
-            <span className="sidebar-topbar-title">🧋 Túc Tắc Tea — Màn hình Pha Chế (Barista KDS)</span>
+            <span className="sidebar-topbar-title">🧋 MinTea — Màn hình Pha Chế (Barista KDS)</span>
             {activeTicketCount > 0 && (
               <span style={{
                 background: '#ffedd5',

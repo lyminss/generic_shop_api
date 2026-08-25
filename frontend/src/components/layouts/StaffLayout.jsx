@@ -130,7 +130,7 @@ const StaffLayout = () => {
         <div className="sidebar-brand">
           <span className="sidebar-brand-icon">💁</span>
           <div className="sidebar-brand-text">
-            <div className="sidebar-brand-title">Túc Tắc Tea</div>
+            <div className="sidebar-brand-title">MinTea</div>
             <div className="sidebar-brand-subtitle">Staff · Thu ngân</div>
           </div>
           {/* Toggle — positioned absolute on right edge */}
@@ -204,7 +204,7 @@ const StaffLayout = () => {
       <div className="sidebar-main">
         <header className="sidebar-topbar">
           <div className="flex items-center gap-2">
-            <span className="sidebar-topbar-title">🧋 Túc Tắc Tea — Màn hình Phục vụ & Thu ngân</span>
+            <span className="sidebar-topbar-title">🧋 MinTea — Màn hình Phục vụ & Thu ngân</span>
             {newOrdersCount > 0 && (
               <span style={{
                 background: '#fee2e2',
