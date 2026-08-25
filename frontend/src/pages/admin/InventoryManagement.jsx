@@ -737,7 +737,7 @@ const InventoryManagement = () => {
                                 <span className="expiry-icon">📦</span>
                                 <span className="expiry-label">HSD Seal:</span>
                                 <strong className="expiry-date-val">{formatDate(ing.expiryDate)}</strong>
-                                <span className="expiry-sub-count">({info.sealedCount} {ing.unit})</span>
+                                <span className="expiry-sub-count">({fmtQty(info.sealedCount)} {ing.unit})</span>
                               </div>
                               <div className="expiry-item-right">
                                 {info.seDays === null ? (
@@ -768,7 +768,7 @@ const InventoryManagement = () => {
                                   <span className="expiry-label">HSD Mở nắp:</span>
                                   <strong className="expiry-date-val">{formatDate(ing.openedExpiryDate)}</strong>
                                   {info.openedCount > 0 && (
-                                    <span className="expiry-sub-count text-amber">({info.openedCount} {ing.unit} đã mở)</span>
+                                    <span className="expiry-sub-count text-amber">({fmtQty(info.openedCount)} {ing.unit} đã mở)</span>
                                   )}
                                 </div>
                                 <div className="expiry-item-right">
@@ -1537,7 +1537,7 @@ const InventoryManagement = () => {
                                 ))}
                               </select>
                             </td>
-                            <td className="font-semibold">{systemStock} {targetIng?.unit}</td>
+                            <td className="font-semibold">{fmtQty(systemStock)} {targetIng?.unit}</td>
                             <td>
                               <input
                                 type="number"
@@ -1551,7 +1551,7 @@ const InventoryManagement = () => {
                             </td>
                             <td>
                               <span className={`diff-tag ${diff > 0 ? 'text-emerald' : diff < 0 ? 'text-danger' : ''}`}>
-                                {diff > 0 ? `+${diff}` : diff} {targetIng?.unit}
+                                {diff > 0 ? `+${fmtQty(diff)}` : fmtQty(diff)} {targetIng?.unit}
                               </span>
                             </td>
                             <td>

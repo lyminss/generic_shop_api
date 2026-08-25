@@ -1,172 +1,223 @@
-import { X } from 'lucide-react';
+import { X, Clock, MapPin, Store, Globe, Package, CheckCircle2, Coffee, Bike, Receipt, CreditCard, AlertCircle } from 'lucide-react';
 import { formatPrice } from '../../../utils/format';
 
-const STATUS_BADGES = {
-  NEW: { label: 'Đơn mới', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
-  PROCESSING: { label: 'Đang chuẩn bị', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
-  SHIPPING: { label: 'Đang giao', cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-  COMPLETED: { label: 'Hoàn thành', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  CANCEL: { label: 'Đã hủy', cls: 'bg-rose-50 text-rose-700 border-rose-200' },
+/* ─── Config ──────────────────────────────────────────────────────── */
+const STATUS_CFG = {
+  NEW:        { label: 'Đơn mới',         color: 'blue',    dot: '#3b82f6' },
+  PROCESSING: { label: 'Đang pha chế',    color: 'amber',   dot: '#f59e0b' },
+  SHIPPING:   { label: 'Đang giao hàng',  color: 'indigo',  dot: '#6366f1' },
+  COMPLETED:  { label: 'Hoàn thành',      color: 'emerald', dot: '#10b981' },
+  CANCEL:     { label: 'Đã hủy',          color: 'rose',    dot: '#f43f5e' },
 };
 
-const getOrderChannel = (address) => {
-  if (!address) return { label: 'Online', isPos: false, icon: '🌐', cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' };
-  const lower = address.toLowerCase();
-  if (lower.includes('pos') || lower.includes('tại quầy') || lower.includes('quầy')) {
-    return { label: 'Tại quầy (POS)', isPos: true, icon: '🏪', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
-  }
-  return { label: 'Online', isPos: false, icon: '🌐', cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' };
+const ORDER_STEPS = [
+  { status: 'NEW',        label: 'Tiếp nhận',   icon: Receipt      },
+  { status: 'PROCESSING', label: 'Đang pha',    icon: Coffee       },
+  { status: 'SHIPPING',   label: 'Đang giao',   icon: Bike         },
+  { status: 'COMPLETED',  label: 'Hoàn thành',  icon: CheckCircle2 },
+];
+
+const STEP_IDX = { NEW: 0, PROCESSING: 1, SHIPPING: 2, COMPLETED: 3, CANCEL: -1 };
+
+const getChannel = (addr) => {
+  if (!addr) return { label: 'Online App', isPos: false };
+  const l = addr.toLowerCase();
+  return l.includes('pos') || l.includes('tại quầy') || l.includes('quầy')
+    ? { label: 'Tại quầy (POS)', isPos: true }
+    : { label: 'Online App', isPos: false };
 };
 
+/* ─── Component ─────────────────────────────────────────────────── */
 const AdminOrderDetailModal = ({ order, onClose }) => {
   if (!order) return null;
 
-  const channel = getOrderChannel(order.shippingAddress);
-  const statusBadge = STATUS_BADGES[order.orderStatus] || { label: order.orderStatus, cls: 'bg-stone-50 text-stone-700 border-stone-200' };
-  const readyCount = order.items?.filter((i) => i.preparedStatus === 'READY').reduce((acc, i) => acc + i.quantity, 0) || 0;
-  const totalCount = order.items?.reduce((acc, i) => acc + i.quantity, 0) || 0;
-  const allItemsReady = totalCount > 0 && readyCount === totalCount;
+  const statusCfg    = STATUS_CFG[order.orderStatus] || { label: order.orderStatus, color: 'stone', dot: '#78716c' };
+  const channel      = getChannel(order.shippingAddress);
+  const currentStep  = STEP_IDX[order.orderStatus] ?? 0;
+  const isCancelled  = order.orderStatus === 'CANCEL';
+  const isCompleted  = order.orderStatus === 'COMPLETED';
+
+  const readyQty  = order.items?.filter(i => i.preparedStatus === 'READY').reduce((s, i) => s + i.quantity, 0) ?? 0;
+  const totalQty  = order.items?.reduce((s, i) => s + i.quantity, 0) ?? 0;
+  const baristaProgress = totalQty > 0 ? Math.round((readyQty / totalQty) * 100) : 0;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-md animate-fade-in"
+      className="aodm-overlay"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl border border-stone-200/90 overflow-hidden flex flex-col max-h-[92vh]"
-        onClick={(e) => e.stopPropagation()}
+        className="aodm-panel"
+        onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-8 py-6 border-b border-stone-100 bg-stone-50/90">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-stone-950 text-white flex items-center justify-center font-black text-lg shadow-2xs">
-              #{order.id}
+
+        {/* ── Header ── */}
+        <div className="aodm-header">
+          <div className="aodm-header-left">
+            <div className={`aodm-header-icon aodm-icon--${statusCfg.color}`}>
+              <Package size={20} />
             </div>
             <div>
-              <h3 className="text-xl font-extrabold text-stone-900 tracking-tight">Chi tiết đơn hàng #{order.id}</h3>
-              <p className="text-xs text-stone-500 font-medium mt-0.5">
-                Tạo lúc {new Date(order.createdAt).toLocaleString('vi-VN')}
+              <p className="aodm-eyebrow">Chi tiết đơn hàng</p>
+              <h2 className="aodm-title">#{String(order.id).padStart(4, '0')}</h2>
+              <p className="aodm-date">
+                <Clock size={12} />
+                {new Date(order.createdAt).toLocaleString('vi-VN')}
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2.5 rounded-2xl text-stone-400 hover:text-stone-700 hover:bg-stone-200/70 transition-colors cursor-pointer"
-          >
-            <X size={20} />
-          </button>
+          <div className="aodm-header-right">
+            <span className={`aodm-status-badge aodm-status--${statusCfg.color}`}>
+              <span className="aodm-status-dot" style={{ background: statusCfg.dot }} />
+              {statusCfg.label}
+            </span>
+            <button className="aodm-close-btn" onClick={onClose} title="Đóng">
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto p-8 space-y-7">
-          {/* Order Summary Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-5 bg-stone-50 rounded-2xl border border-stone-200/80 text-xs">
-            <div className="flex justify-between items-center sm:block space-y-1.5">
-              <span className="text-stone-500 font-medium">Kênh đặt hàng</span>
-              <div>
-                <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold border ${channel.cls}`}>
-                  <span>{channel.icon}</span> {channel.label}
-                </span>
+        {/* ── Scrollable Body ── */}
+        <div className="aodm-body">
+
+          {/* Progress Tracker (hidden when cancelled) */}
+          {!isCancelled ? (
+            <div className="aodm-section">
+              <p className="aodm-section-label">Tiến trình đơn hàng</p>
+              <div className="aodm-progress-track-wrap">
+                <div className="aodm-progress-track">
+                  <div
+                    className="aodm-progress-fill"
+                    style={{ width: `${(currentStep / (ORDER_STEPS.length - 1)) * 100}%` }}
+                  />
+                </div>
+                <div className="aodm-steps">
+                  {ORDER_STEPS.map((step, idx) => {
+                    const Icon = step.icon;
+                    const passed  = idx <= currentStep;
+                    const current = idx === currentStep;
+                    return (
+                      <div key={step.status} className={`aodm-step ${passed ? 'aodm-step--passed' : ''} ${current ? 'aodm-step--current' : ''}`}>
+                        <div className="aodm-step-dot">
+                          <Icon size={13} />
+                        </div>
+                        <span className="aodm-step-label">{step.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-
-            <div className="flex justify-between items-center sm:block space-y-1.5">
-              <span className="text-stone-500 font-medium">Trạng thái đơn</span>
-              <div>
-                <span className={`inline-flex items-center px-3 py-1.5 rounded-xl font-bold border ${statusBadge.cls}`}>
-                  {statusBadge.label}
-                </span>
-              </div>
+          ) : (
+            <div className="aodm-cancelled-strip">
+              <AlertCircle size={16} />
+              <span>Đơn hàng này đã bị hủy</span>
             </div>
+          )}
 
-            <div className="sm:col-span-2 pt-3 border-t border-stone-200/70 space-y-1.5">
-              <span className="text-stone-500 font-medium block">Địa chỉ nhận hàng / Ghi chú</span>
-              <p className="text-sm font-semibold text-stone-900 break-words leading-relaxed">
-                {order.shippingAddress || '—'}
-              </p>
+          {/* Info Grid */}
+          <div className="aodm-info-grid">
+            <div className="aodm-info-cell">
+              <span className="aodm-info-label">Kênh đặt</span>
+              <span className={`aodm-channel-badge ${channel.isPos ? 'aodm-channel--pos' : 'aodm-channel--online'}`}>
+                {channel.isPos ? <Store size={12} /> : <Globe size={12} />}
+                {channel.label}
+              </span>
+            </div>
+            <div className="aodm-info-cell">
+              <span className="aodm-info-label">Tổng giá trị</span>
+              <span className="aodm-info-value aodm-info-price">{formatPrice(order.totalPrice)}</span>
+            </div>
+            <div className="aodm-info-cell aodm-info-cell--full">
+              <span className="aodm-info-label">
+                <MapPin size={12} /> Địa chỉ nhận / Ghi chú
+              </span>
+              <span className="aodm-info-value">{order.shippingAddress || 'Nhận tại quầy'}</span>
             </div>
           </div>
 
-          {/* Items & Barista progress */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-extrabold uppercase tracking-wider text-stone-700">
-                Danh sách món ({totalCount} phần)
-              </h4>
-              {order.items && totalCount > 0 && (
-                <span
-                  className={`text-xs font-bold px-3 py-1 rounded-full border ${
-                    allItemsReady
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : 'bg-amber-50 text-amber-700 border-amber-200'
-                  }`}
-                >
-                  Barista: {readyCount}/{totalCount} ly đã pha
+          {/* Barista Progress */}
+          {totalQty > 0 && (
+            <div className="aodm-section">
+              <div className="aodm-barista-header">
+                <p className="aodm-section-label">
+                  <Coffee size={13} /> Tiến độ barista
+                </p>
+                <span className={`aodm-barista-badge ${baristaProgress === 100 ? 'aodm-barista-badge--done' : 'aodm-barista-badge--progress'}`}>
+                  {readyQty}/{totalQty} ly đã pha
                 </span>
-              )}
+              </div>
+              <div className="aodm-barista-bar-track">
+                <div
+                  className={`aodm-barista-bar-fill ${baristaProgress === 100 ? 'aodm-bar--done' : ''}`}
+                  style={{ width: `${baristaProgress}%` }}
+                />
+              </div>
             </div>
+          )}
 
-            <div className="space-y-3">
-              {order.items?.map((item) => {
+          {/* Items List */}
+          <div className="aodm-section">
+            <p className="aodm-section-label">
+              <Package size={13} /> Danh sách món ({totalQty} phần)
+            </p>
+            <div className="aodm-items">
+              {order.items?.map(item => {
                 const isReady = item.preparedStatus === 'READY';
                 return (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between p-4 bg-stone-50/80 hover:bg-stone-50 rounded-2xl border border-stone-200/80 transition-all gap-4"
-                  >
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className="w-14 h-14 rounded-2xl bg-stone-200 overflow-hidden flex-shrink-0 border border-stone-300 flex items-center justify-center text-xl shadow-2xs">
-                        {item.productImage ? (
-                          <img src={item.productImage} alt={item.productName} className="w-full h-full object-cover" />
-                        ) : (
-                          <span>🧋</span>
-                        )}
-                      </div>
-                      <div className="min-w-0 space-y-0.5">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-bold text-stone-900 truncate">{item.productName}</p>
-                          <span
-                            className={`px-2.5 py-0.5 text-[10px] font-extrabold rounded-full border ${
-                              isReady
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                : 'bg-amber-50 text-amber-700 border-amber-200'
-                            }`}
-                          >
-                            {isReady ? '✓ Đã pha' : '⏳ Chờ pha'}
-                          </span>
-                        </div>
-                        <p className="text-xs text-stone-500">
-                          {formatPrice(item.price)} × <span className="font-bold text-stone-800">{item.quantity}</span>
-                        </p>
-                      </div>
+                  <div key={item.id} className={`aodm-item ${isReady ? 'aodm-item--ready' : ''}`}>
+                    <div className="aodm-item-img">
+                      {item.productImage
+                        ? <img src={item.productImage} alt={item.productName} />
+                        : <span>🧋</span>
+                      }
                     </div>
-                    <span className="text-base font-extrabold text-stone-900 flex-shrink-0">
-                      {formatPrice(item.subtotal)}
-                    </span>
+                    <div className="aodm-item-info">
+                      <div className="aodm-item-top">
+                        <p className="aodm-item-name">{item.productName}</p>
+                        <span className={`aodm-item-badge ${isReady ? 'aodm-item-badge--ready' : 'aodm-item-badge--pending'}`}>
+                          {isReady ? <><CheckCircle2 size={10} /> Đã pha</> : <><Clock size={10} /> Chờ pha</>}
+                        </span>
+                      </div>
+                      {item.notes && <p className="aodm-item-note">📝 {item.notes}</p>}
+                      <p className="aodm-item-qty">{formatPrice(item.price)} × {item.quantity}</p>
+                    </div>
+                    <span className="aodm-item-total">{formatPrice(item.price * item.quantity)}</span>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Payment Total Breakdown */}
-          <div className="p-5 bg-stone-900 text-white rounded-2xl flex items-center justify-between shadow-xl">
-            <span className="text-xs font-extrabold uppercase tracking-wider text-stone-400">Tổng thanh toán</span>
-            <span className="text-2xl font-black text-amber-400 tracking-tight">
-              {formatPrice(order.totalPrice)}
-            </span>
+          {/* Payment Summary */}
+          <div className="aodm-payment-box">
+            <div className="aodm-payment-row">
+              <span><CreditCard size={13} /> Tạm tính</span>
+              <span>{formatPrice(order.totalPrice)}</span>
+            </div>
+            <div className="aodm-payment-row">
+              <span>Phí giao hàng</span>
+              <span className="aodm-freeship">Miễn phí</span>
+            </div>
+            <div className="aodm-payment-divider" />
+            <div className="aodm-payment-row aodm-payment-total">
+              <span>Tổng thanh toán</span>
+              <span>{formatPrice(order.totalPrice)}</span>
+            </div>
           </div>
+
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end px-8 py-5 border-t border-stone-100 bg-stone-50/80">
-          <button
-            onClick={onClose}
-            className="px-7 py-3 bg-stone-200 hover:bg-stone-300 text-stone-800 text-sm font-bold rounded-2xl transition-all cursor-pointer"
-          >
+        {/* ── Footer ── */}
+        <div className="aodm-footer">
+          <p className="aodm-footer-note">
+            {isCompleted ? '✅ Đơn hàng đã hoàn thành.' : isCancelled ? '❌ Đơn đã bị hủy bởi khách.' : '🔄 Đơn đang được xử lý.'}
+          </p>
+          <button className="aodm-close-action" onClick={onClose}>
             Đóng
           </button>
         </div>
+
       </div>
     </div>
   );

@@ -285,17 +285,18 @@ public class OrderServiceImpl implements OrderService {
             Ingredient ing = ri.getIngredient();
             if (ing == null) continue;
 
-            double consumed = com.example.generic_shop.util.UnitConverter.convertToIngredientUnit(
-                    ri.getQuantity() * item.getQuantity(), ri.getUnit(), ing.getUnit());
+            double consumed = com.example.generic_shop.util.UnitConverter.roundQuantity(
+                    com.example.generic_shop.util.UnitConverter.convertToIngredientUnit(
+                            ri.getQuantity() * item.getQuantity(), ri.getUnit(), ing.getUnit()));
 
             double before = ing.getCurrentStock() != null ? ing.getCurrentStock() : 0.0;
-            double after = Math.max(0.0, before - consumed);
+            double after = com.example.generic_shop.util.UnitConverter.roundQuantity(Math.max(0.0, before - consumed));
             ing.setCurrentStock(after);
 
             // Trừ ưu tiên từ openedStock nếu có
             if (ing.getOpenedStock() != null && ing.getOpenedStock() > 0) {
                 double opConsumed = Math.min(ing.getOpenedStock(), consumed);
-                ing.setOpenedStock(Math.max(0.0, ing.getOpenedStock() - opConsumed));
+                ing.setOpenedStock(com.example.generic_shop.util.UnitConverter.roundQuantity(Math.max(0.0, ing.getOpenedStock() - opConsumed)));
             }
 
             ingredientRepository.save(ing);
@@ -330,11 +331,12 @@ public class OrderServiceImpl implements OrderService {
                 Ingredient ing = ri.getIngredient();
                 if (ing == null) continue;
 
-                double refunded = com.example.generic_shop.util.UnitConverter.convertToIngredientUnit(
-                        ri.getQuantity() * item.getQuantity(), ri.getUnit(), ing.getUnit());
+                double refunded = com.example.generic_shop.util.UnitConverter.roundQuantity(
+                        com.example.generic_shop.util.UnitConverter.convertToIngredientUnit(
+                                ri.getQuantity() * item.getQuantity(), ri.getUnit(), ing.getUnit()));
 
                 double before = ing.getCurrentStock() != null ? ing.getCurrentStock() : 0.0;
-                double after = before + refunded;
+                double after = com.example.generic_shop.util.UnitConverter.roundQuantity(before + refunded);
                 ing.setCurrentStock(after);
                 ingredientRepository.save(ing);
 

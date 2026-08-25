@@ -49,8 +49,8 @@ public class StockAdjustmentServiceImpl implements StockAdjustmentService {
                     .orElseThrow(() -> new RuntimeException("Nguyên liệu không tồn tại ID: " + itemInput.getIngredientId()));
 
             double systemStock = ingredient.getCurrentStock();
-            double actualStock = itemInput.getActualStock() != null ? itemInput.getActualStock() : 0.0;
-            double diff = actualStock - systemStock;
+            double actualStock = com.example.generic_shop.util.UnitConverter.roundQuantity(itemInput.getActualStock() != null ? itemInput.getActualStock() : 0.0);
+            double diff = com.example.generic_shop.util.UnitConverter.roundQuantity(actualStock - systemStock);
 
             // Cập nhật tồn thực tế
             ingredient.setCurrentStock(actualStock);

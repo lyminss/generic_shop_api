@@ -1,6 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { NavLink, useNavigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
+import { orderService } from '../../services/api';
+import { playOrderNotificationSound, testNotificationSound } from '../../utils/audio';
+import NewTicketNotification from '../barista/NewTicketNotification';
 import {
   ChevronLeft,
   ChevronRight,
@@ -8,28 +12,87 @@ import {
   Coffee,
   History,
   ChefHat,
+  Volume2,
+  VolumeX,
+  Flame,
 } from 'lucide-react';
 import './SidebarLayout.css';
 
-const baristaNavItems = [
-  {
-    group: 'Quầy Pha Chế',
-    items: [
-      { icon: <ChefHat size={18} />, label: 'Bảng Kẹp Đơn (KDS)', to: '/barista', end: true },
-      { icon: <History size={18} />, label: 'Lịch sử Pha Chế', to: '/barista/history' },
-    ],
-  },
-];
-
-const BaristaLayout = ({ pendingCount = 0 }) => {
+const BaristaLayout = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const [collapsed, setCollapsed] = useState(false);
+
+  // Sound preference state
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    return localStorage.getItem('barista_notification_sound_enabled') !== 'false';
+  });
+
+  const [activeTicketCount, setActiveTicketCount] = useState(0);
+  const [popTickets, setPopTickets] = useState([]);
+  const knownProcessingTicketIdsRef = useRef(new Set());
+  const isFirstFetchRef = useRef(true);
+
+  const toggleSound = () => {
+    const nextState = !soundEnabled;
+    setSoundEnabled(nextState);
+    localStorage.setItem('barista_notification_sound_enabled', nextState.toString());
+    if (nextState) {
+      testNotificationSound('barista');
+      toast.info('🔊 Đã bật âm thanh chuông báo KDS');
+    } else {
+      toast.info('🔇 Đã tắt âm thanh chuông báo');
+    }
+  };
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
+
+  // Poll active orders for KDS
+  const checkActiveTickets = useCallback(async () => {
+    try {
+      const res = await orderService.getAllOrders();
+      const allOrders = res.data || [];
+
+      const processingOrders = allOrders.filter(
+        (o) => o.orderStatus === 'PROCESSING' || o.orderStatus === 'SHIPPING'
+      );
+      setActiveTicketCount(processingOrders.length);
+
+      // On initial load, record only existing PROCESSING orders
+      if (isFirstFetchRef.current) {
+        allOrders
+          .filter((o) => o.orderStatus === 'PROCESSING' || o.orderStatus === 'SHIPPING')
+          .forEach((o) => knownProcessingTicketIdsRef.current.add(o.id));
+        isFirstFetchRef.current = false;
+        return;
+      }
+
+      // Check for incoming newly transitioned processing tickets
+      const newProcessingOrders = allOrders.filter(
+        (o) => o.orderStatus === 'PROCESSING' && !knownProcessingTicketIdsRef.current.has(o.id)
+      );
+
+      if (newProcessingOrders.length > 0) {
+        newProcessingOrders.forEach((o) => knownProcessingTicketIdsRef.current.add(o.id));
+        setPopTickets((prev) => [...newProcessingOrders, ...prev]);
+        // Play energetic barista notification chime
+        playBaristaNotificationSound();
+        toast.info(`🛎️ Có ${newProcessingOrders.length} vé pha chế mới vừa được chuyển xuống!`);
+      }
+    } catch (err) {
+      console.warn('Lỗi khi kiểm tra vé pha chế:', err);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    checkActiveTickets();
+    const interval = setInterval(checkActiveTickets, 3000);
+    return () => clearInterval(interval);
+  }, [checkActiveTickets]);
 
   const initials = user?.firstName
     ? user.firstName.charAt(0).toUpperCase()
@@ -58,29 +121,36 @@ const BaristaLayout = ({ pendingCount = 0 }) => {
 
         {/* Nav */}
         <nav className="sidebar-nav">
-          {baristaNavItems.map((group) => (
-            <div key={group.group}>
-              <div className="sidebar-group-label">{group.group}</div>
-              {group.items.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  className={({ isActive }) =>
-                    `sidebar-nav-item${isActive ? ' active' : ''}`
-                  }
-                  title={collapsed ? item.label : undefined}
-                >
-                  <span className="sidebar-nav-icon">{item.icon}</span>
-                  <span className="sidebar-nav-label">{item.label}</span>
-                  {item.label.includes('KDS') && pendingCount > 0 && (
-                    <span className="sidebar-badge">{pendingCount}</span>
-                  )}
-                </NavLink>
-              ))}
-              <div className="sidebar-divider" />
-            </div>
-          ))}
+          <div className="sidebar-group-label">Quầy Pha Chế</div>
+          <NavLink
+            to="/barista"
+            end
+            className={({ isActive }) =>
+              `sidebar-nav-item${isActive ? ' active' : ''}`
+            }
+            title={collapsed ? 'Bảng Kẹp Đơn (KDS)' : undefined}
+          >
+            <span className="sidebar-nav-icon"><ChefHat size={18} /></span>
+            <span className="sidebar-nav-label">Bảng Kẹp Đơn (KDS)</span>
+            {activeTicketCount > 0 && (
+              <span className="sidebar-badge pulse" title={`${activeTicketCount} vé đang chờ`}>
+                {activeTicketCount}
+              </span>
+            )}
+          </NavLink>
+
+          <NavLink
+            to="/barista/history"
+            className={({ isActive }) =>
+              `sidebar-nav-item${isActive ? ' active' : ''}`
+            }
+            title={collapsed ? 'Lịch sử Pha Chế' : undefined}
+          >
+            <span className="sidebar-nav-icon"><History size={18} /></span>
+            <span className="sidebar-nav-label">Lịch sử Pha Chế</span>
+          </NavLink>
+
+          <div className="sidebar-divider" />
         </nav>
 
         {/* Footer */}
@@ -102,18 +172,62 @@ const BaristaLayout = ({ pendingCount = 0 }) => {
       {/* Main */}
       <div className="sidebar-main">
         <header className="sidebar-topbar">
-          <span className="sidebar-topbar-title">Màn hình Pha Chế Quầy Bar (KDS)</span>
+          <div className="flex items-center gap-2">
+            <span className="sidebar-topbar-title">🧋 Túc Tắc Tea — Màn hình Pha Chế (Barista KDS)</span>
+            {activeTicketCount > 0 && (
+              <span style={{
+                background: '#ffedd5',
+                color: '#c2410c',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                padding: '2px 8px',
+                borderRadius: '99px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}>
+                <Flame size={12} className="text-orange-600" />
+                {activeTicketCount} vé đang xử lý
+              </span>
+            )}
+          </div>
+
           <div className="sidebar-topbar-right">
-            <Coffee size={14} />
-            <span>👤 {user?.email}</span>
+            {/* Sound Toggle Button */}
+            <button
+              onClick={toggleSound}
+              className={`topbar-sound-btn ${soundEnabled ? 'active' : 'muted'}`}
+              title={soundEnabled ? 'Chuông báo đang BẬT. Bấm để tắt.' : 'Chuông báo đang TẮT. Bấm để bật.'}
+            >
+              {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
+              <span>{soundEnabled ? 'Chuông: BẬT' : 'Chuông: TẮT'}</span>
+            </button>
+
+            <button
+              onClick={testNotificationSound}
+              className="topbar-test-sound"
+              title="Thử âm thanh chuông báo"
+            >
+              Thử chuông
+            </button>
+
+            <span style={{ color: '#cbd5e1' }}>|</span>
+            <span>👤 {user?.firstName || user?.email}</span>
           </div>
         </header>
         <main className="sidebar-content">
           <Outlet />
         </main>
       </div>
+
+      {/* Pop-up notification card for incoming barista tickets */}
+      <NewTicketNotification
+        newTickets={popTickets}
+        onDismiss={(id) => setPopTickets((prev) => prev.filter((t) => t.id !== id))}
+      />
     </div>
   );
 };
 
 export default BaristaLayout;
+

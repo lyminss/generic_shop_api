@@ -3,25 +3,31 @@ import { useParams, Link } from 'react-router-dom';
 import { orderService } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 import { formatPrice } from '../../utils/format';
-import { ArrowLeft, Clock, MapPin, AlertCircle, ShoppingBag, Package, CheckCircle2, Coffee, Bike, Sparkles } from 'lucide-react';
+import {
+  ArrowLeft, Clock, MapPin, AlertCircle, Package,
+  CheckCircle2, Coffee, Bike, Sparkles, Receipt,
+  CreditCard, ShoppingBag, X, Loader2
+} from 'lucide-react';
 import './OrderDetail.css';
 
 const ORDER_STEPS = [
-  { status: 'NEW', label: 'Đã Tiếp Nhận', desc: 'Đơn hàng đã được tạo', icon: Clock },
-  { status: 'PROCESSING', label: 'Barista Pha Chế', desc: 'Đang làm đồ uống tươi', icon: Coffee },
-  { status: 'SHIPPING', label: 'Đang Giao / Sẵn Sàng', desc: 'Shipper/Khách nhận', icon: Bike },
-  { status: 'COMPLETED', label: 'Hoàn Thành', desc: 'Cảm ơn quý khách!', icon: CheckCircle2 },
+  { status: 'NEW',        label: 'Đã Tiếp Nhận',        desc: 'Đơn hàng đã được ghi nhận',     icon: Receipt },
+  { status: 'PROCESSING', label: 'Barista Đang Pha',     desc: 'Thức uống đang được chuẩn bị',  icon: Coffee },
+  { status: 'SHIPPING',   label: 'Sẵn Sàng Giao',       desc: 'Đơn hàng đang trên đường đến', icon: Bike },
+  { status: 'COMPLETED',  label: 'Hoàn Thành',           desc: 'Cảm ơn quý khách! 🎉',         icon: CheckCircle2 },
 ];
 
+const STATUS_MAP = {
+  NEW:        { label: 'Đơn mới',         color: 'blue' },
+  PROCESSING: { label: 'Đang chuẩn bị',   color: 'amber' },
+  SHIPPING:   { label: 'Đang giao hàng',  color: 'indigo' },
+  COMPLETED:  { label: 'Hoàn thành',      color: 'emerald' },
+  CANCEL:     { label: 'Đã hủy',          color: 'rose' },
+};
+
 const getStepIndex = (status) => {
-  switch (status) {
-    case 'NEW': return 0;
-    case 'PROCESSING': return 1;
-    case 'SHIPPING': return 2;
-    case 'COMPLETED': return 3;
-    case 'CANCEL': return -1;
-    default: return 0;
-  }
+  const map = { NEW: 0, PROCESSING: 1, SHIPPING: 2, COMPLETED: 3, CANCEL: -1 };
+  return map[status] ?? 0;
 };
 
 const OrderDetail = () => {
@@ -36,8 +42,8 @@ const OrderDetail = () => {
       const res = await orderService.getOrderById(id);
       setOrder(res.data);
     } catch (err) {
-      console.error("Failed to fetch order details", err);
-      toast.error("Không thể tải thông tin chi tiết đơn hàng.");
+      console.error('Failed to fetch order details', err);
+      toast.error('Không thể tải thông tin chi tiết đơn hàng.');
     } finally {
       setLoading(false);
     }
@@ -45,42 +51,41 @@ const OrderDetail = () => {
 
   useEffect(() => {
     fetchOrderDetail();
-    const interval = setInterval(fetchOrderDetail, 4000);
+    const interval = setInterval(fetchOrderDetail, 5000);
     return () => clearInterval(interval);
   }, [id]);
 
   const handleCancelOrder = async () => {
-    if (!window.confirm("Bạn có chắc chắn muốn hủy đơn hàng này không?")) return;
+    if (!window.confirm('Bạn có chắc chắn muốn hủy đơn hàng này không?')) return;
     setCancelLoading(true);
     try {
       await orderService.cancelOrder(id);
-      toast.success("Hủy đơn hàng thành công!");
+      toast.success('Hủy đơn hàng thành công!');
       fetchOrderDetail();
     } catch (err) {
-      console.error("Failed to cancel order", err);
-      toast.error(err.response?.data || "Không thể hủy đơn hàng.");
+      toast.error(err.response?.data || 'Không thể hủy đơn hàng.');
     } finally {
       setCancelLoading(false);
     }
   };
 
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-12 h-12 rounded-full border-4 border-stone-200 border-t-emerald-700 animate-spin" />
+      <div className="od-loading">
+        <Loader2 size={36} className="od-spinner" />
+        <p>Đang tải chi tiết đơn hàng...</p>
       </div>
     );
   }
 
   if (!order) {
     return (
-      <div className="order-not-found container py-16 animate-fade-in text-center">
-        <AlertCircle size={54} className="text-rose-500 mx-auto mb-3" />
-        <h2 className="text-2xl font-bold mb-2">Không Tìm Thấy Đơn Hàng</h2>
-        <p className="text-stone-500 mb-4">Rất tiếc, đơn hàng #{id} không tồn tại hoặc đã bị xóa.</p>
-        <Link to="/orders" className="btn-brand">
-          <ArrowLeft size={16} /> Quay lại danh sách đơn hàng
+      <div className="od-not-found">
+        <AlertCircle size={52} className="od-not-found-icon" />
+        <h2>Không Tìm Thấy Đơn Hàng</h2>
+        <p>Đơn hàng #{id} không tồn tại hoặc đã bị xóa.</p>
+        <Link to="/orders" className="od-back-btn">
+          <ArrowLeft size={16} /> Quay lại danh sách
         </Link>
       </div>
     );
@@ -88,45 +93,65 @@ const OrderDetail = () => {
 
   const currentStep = getStepIndex(order.orderStatus);
   const isCancelled = order.orderStatus === 'CANCEL';
+  const isCompleted = order.orderStatus === 'COMPLETED';
+  const statusInfo = STATUS_MAP[order.orderStatus] || { label: order.orderStatus, color: 'stone' };
+  const totalItems = order.items?.reduce((s, i) => s + i.quantity, 0) || 0;
 
   return (
-    <div className="order-detail-container container animate-fade-in">
-      <Link to="/orders" className="back-link mb-6">
-        <ArrowLeft size={18} /> Quay lại Đơn hàng của tôi
+    <div className="od-page">
+      {/* ─── Back Link ─── */}
+      <Link to="/orders" className="od-back-link">
+        <ArrowLeft size={16} /> Đơn hàng của tôi
       </Link>
 
-      {/* Header Info */}
-      <div className="order-detail-header glass-card">
-        <div>
-          <h1 className="detail-title">Mã Đơn Hàng #{order.id}</h1>
-          <p className="detail-date">Đặt lúc {new Date(order.createdAt).toLocaleString('vi-VN')}</p>
+      {/* ─── Hero Header ─── */}
+      <div className={`od-hero ${isCancelled ? 'od-hero--cancelled' : isCompleted ? 'od-hero--completed' : 'od-hero--active'}`}>
+        <div className="od-hero-left">
+          <div className="od-hero-icon-wrap">
+            <ShoppingBag size={22} />
+          </div>
+          <div>
+            <p className="od-hero-eyebrow">Đơn hàng</p>
+            <h1 className="od-hero-title">#{order.id}</h1>
+            <p className="od-hero-date">
+              <Clock size={13} /> {new Date(order.createdAt).toLocaleString('vi-VN')}
+            </p>
+          </div>
         </div>
-        <div>
-          {isCancelled ? (
-            <span className="badge-cancelled">❌ Đã Hủy Đơn</span>
-          ) : (
-            <span className="badge-active">✨ Đang Xử Lý</span>
-          )}
+        <div className="od-hero-right">
+          <span className={`od-status-badge od-status-badge--${statusInfo.color}`}>
+            {isCancelled ? <X size={13} /> : isCompleted ? <CheckCircle2 size={13} /> : <Sparkles size={13} />}
+            {statusInfo.label}
+          </span>
+          <div className="od-hero-meta">
+            <span>{totalItems} món</span>
+            <span className="od-hero-total">{formatPrice(order.totalPrice)}</span>
+          </div>
         </div>
       </div>
 
-      {/* Visual Step Progress Tracker */}
+      {/* ─── Progress Timeline ─── */}
       {!isCancelled && (
-        <div className="order-timeline-card glass-card">
-          <h3 className="timeline-title"><Sparkles size={16} className="inline text-amber-500 mr-1" /> Tiến Trình Đơn Hàng</h3>
-          <div className="timeline-steps">
+        <div className="od-timeline">
+          <div className="od-timeline-track">
+            <div
+              className="od-timeline-fill"
+              style={{ width: `${(currentStep / (ORDER_STEPS.length - 1)) * 100}%` }}
+            />
+          </div>
+          <div className="od-timeline-steps">
             {ORDER_STEPS.map((step, idx) => {
               const Icon = step.icon;
-              const isPassed = idx <= currentStep;
-              const isCurrent = idx === currentStep;
+              const passed = idx <= currentStep;
+              const current = idx === currentStep;
               return (
-                <div key={step.status} className={`timeline-step ${isPassed ? 'passed' : ''} ${isCurrent ? 'current' : ''}`}>
-                  <div className="step-icon-wrap">
-                    <Icon size={20} />
+                <div key={step.status} className={`od-step ${passed ? 'od-step--passed' : ''} ${current ? 'od-step--current' : ''}`}>
+                  <div className="od-step-dot">
+                    <Icon size={16} />
                   </div>
-                  <div className="step-info">
-                    <span className="step-name">{step.label}</span>
-                    <span className="step-desc">{step.desc}</span>
+                  <div className="od-step-text">
+                    <span className="od-step-label">{step.label}</span>
+                    <span className="od-step-desc">{step.desc}</span>
                   </div>
                 </div>
               );
@@ -135,82 +160,103 @@ const OrderDetail = () => {
         </div>
       )}
 
-      {/* Layout details */}
-      <div className="order-detail-layout">
-        <div className="detail-main">
-          <div className="detail-section glass-card">
-            <h2 className="section-title"><Package size={18} /> Món Nước Đã Đặt</h2>
-            <div className="order-items-list">
-              {order.items?.map(item => (
-                <div key={item.id} className="order-item-row">
-                  <div className="item-img-container">
-                    {item.productImage ? (
-                      <img src={item.productImage} alt={item.productName} />
-                    ) : (
-                      <div className="item-img-placeholder">🧋</div>
-                    )}
-                  </div>
-                  <div className="item-info">
-                    <div className="flex items-center gap-2">
-                      <h3 className="item-name">{item.productName}</h3>
-                      {item.preparedStatus === 'READY' ? (
-                        <span className="text-[11px] px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full font-bold">
-                          ✓ Đã pha xong
-                        </span>
-                      ) : (
-                        <span className="text-[11px] px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full font-bold">
-                          ⏳ Đang chế biến
-                        </span>
-                      )}
-                    </div>
-                    {item.notes && <span className="item-notes">📝 {item.notes}</span>}
-                    <p className="item-price-quantity">
-                      {formatPrice(item.price)} × {item.quantity}
-                    </p>
-                  </div>
+      {/* ─── Cancelled Banner ─── */}
+      {isCancelled && (
+        <div className="od-cancelled-banner">
+          <X size={20} />
+          <div>
+            <strong>Đơn hàng đã bị hủy</strong>
+            <p>Nếu bạn đã thanh toán, tiền hoàn trả sẽ được xử lý trong 3-5 ngày làm việc.</p>
+          </div>
+        </div>
+      )}
 
-                  <div className="item-total">
-                    {formatPrice(item.price * item.quantity)}
+      {/* ─── Main Content ─── */}
+      <div className="od-body">
+
+        {/* Items */}
+        <div className="od-card od-card--main">
+          <div className="od-card-header">
+            <Package size={17} />
+            <h2>Các món đã đặt</h2>
+            <span className="od-card-badge">{totalItems} món</span>
+          </div>
+          <div className="od-items">
+            {order.items?.map((item) => (
+              <div key={item.id} className="od-item">
+                <div className="od-item-img">
+                  {item.productImage
+                    ? <img src={item.productImage} alt={item.productName} />
+                    : <div className="od-item-img-placeholder">🧋</div>
+                  }
+                </div>
+                <div className="od-item-info">
+                  <div className="od-item-top">
+                    <h3 className="od-item-name">{item.productName}</h3>
+                    <span className={`od-item-status ${item.preparedStatus === 'READY' ? 'od-item-status--ready' : 'od-item-status--pending'}`}>
+                      {item.preparedStatus === 'READY' ? <><CheckCircle2 size={11} /> Xong</> : <><Clock size={11} /> Đang pha</>}
+                    </span>
+                  </div>
+                  {item.notes && (
+                    <p className="od-item-note">📝 {item.notes}</p>
+                  )}
+                  <div className="od-item-bottom">
+                    <span className="od-item-unit">{formatPrice(item.price)} × {item.quantity}</span>
+                    <span className="od-item-subtotal">{formatPrice(item.price * item.quantity)}</span>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Sidebar Summary */}
-        <div className="detail-sidebar">
-          <div className="detail-section glass-card">
-            <h2 className="section-title"><Clock size={18} /> Thanh Toán</h2>
-            <div className="summary-row">
-              <span>Tiền nước</span>
-              <span>{formatPrice(order.totalPrice)}</span>
+        {/* Sidebar */}
+        <div className="od-sidebar">
+
+          {/* Payment Summary */}
+          <div className="od-card">
+            <div className="od-card-header">
+              <CreditCard size={17} />
+              <h2>Tóm tắt thanh toán</h2>
             </div>
-            <div className="summary-row">
-              <span>Phí vận chuyển</span>
-              <span className="text-emerald-700 font-bold">Freeship</span>
-            </div>
-            <div className="summary-divider" />
-            <div className="summary-row total">
-              <span>Tổng thanh toán</span>
-              <span className="total-amount">{formatPrice(order.totalPrice)}</span>
+            <div className="od-summary">
+              <div className="od-summary-row">
+                <span>Tạm tính</span>
+                <span>{formatPrice(order.totalPrice)}</span>
+              </div>
+              <div className="od-summary-row">
+                <span>Phí giao hàng</span>
+                <span className="od-freeship">Miễn phí 🎁</span>
+              </div>
+              <div className="od-summary-divider" />
+              <div className="od-summary-row od-summary-row--total">
+                <span>Tổng thanh toán</span>
+                <span>{formatPrice(order.totalPrice)}</span>
+              </div>
             </div>
 
             {order.orderStatus === 'NEW' && (
               <button
-                className="btn-danger-outline w-full mt-4"
+                className="od-cancel-btn"
                 onClick={handleCancelOrder}
                 disabled={cancelLoading}
               >
-                {cancelLoading ? 'Đang hủy...' : 'Hủy đơn hàng này'}
+                {cancelLoading ? <><Loader2 size={15} className="od-spinner-sm" /> Đang hủy...</> : <><X size={15} /> Hủy đơn hàng</>}
               </button>
             )}
           </div>
 
-          <div className="detail-section glass-card">
-            <h2 className="section-title"><MapPin size={18} /> Nhận Món</h2>
-            <p className="address-text">{order.shippingAddress || 'Nhận tại quầy Túc Tắc Tea'}</p>
+          {/* Delivery Info */}
+          <div className="od-card">
+            <div className="od-card-header">
+              <MapPin size={17} />
+              <h2>Địa chỉ nhận món</h2>
+            </div>
+            <p className="od-address">
+              {order.shippingAddress || 'Nhận tại quầy Túc Tắc Tea'}
+            </p>
           </div>
+
         </div>
       </div>
     </div>
@@ -218,4 +264,3 @@ const OrderDetail = () => {
 };
 
 export default OrderDetail;
-

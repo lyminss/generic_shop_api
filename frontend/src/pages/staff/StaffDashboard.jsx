@@ -4,10 +4,12 @@ import { productService, orderService } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 import { formatPrice, formatTimeAgo } from '../../utils/format';
 import { TableSkeleton, CardSkeleton, EmptyState, ErrorState } from '../../components/common/StateViews';
+import PosPaymentModal from './components/PosPaymentModal';
 import {
   BellRing, Plus, Minus, Trash2,
   CheckCircle, Clock, Search, ShoppingCart,
   Printer, Check, XCircle, RefreshCw,
+  CreditCard, Banknote,
 } from 'lucide-react';
 import './StaffDashboard.css';
 
@@ -38,6 +40,7 @@ const StaffDashboard = () => {
   const [customerName, setCustomerName] = useState('');
   const [tableNote, setTableNote] = useState('');
   const [submittingPos, setSubmittingPos] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
   // Orders State
   const [orders, setOrders] = useState([]);
@@ -116,11 +119,23 @@ const StaffDashboard = () => {
     setTableNote('');
   };
 
-  const handleCheckoutPos = async () => {
-    if (cartItems.length === 0) { toast.error('Vui lòng chọn ít nhất 1 món ăn'); return; }
+  const handleOpenPaymentModal = () => {
+    if (cartItems.length === 0) {
+      toast.error('Vui lòng chọn ít nhất 1 món ăn trước khi thanh toán');
+      return;
+    }
+    setIsPaymentModalOpen(true);
+  };
+
+  const handleConfirmPaymentAndCheckout = async (paymentDetails) => {
+    if (cartItems.length === 0) {
+      toast.error('Giỏ hàng trống');
+      return;
+    }
     setSubmittingPos(true);
     try {
-      const shippingAddress = `Đơn tại quầy POS - Khách: ${customerName || 'Khách vãng lai'}${tableNote ? ` (Ghi chú: ${tableNote})` : ''}`;
+      const changeText = paymentDetails.changeDue > 0 ? ` (Thối: ${formatPrice(paymentDetails.changeDue)})` : '';
+      const shippingAddress = `Đơn POS [Đã TT: ${paymentDetails.paymentMethod}${changeText}] - Khách: ${customerName || 'Khách vãng lai'}${tableNote ? ` (Ghi chú: ${tableNote})` : ''}`;
       const payload = {
         shippingAddress,
         customerName: customerName || 'Khách vãng lai',
@@ -131,8 +146,9 @@ const StaffDashboard = () => {
         }))
       };
       await orderService.createPosOrder(payload);
-      toast.success('Tạo đơn tại quầy thành công!');
+      toast.success(`🎉 Đã thu tiền (${paymentDetails.paymentMethod}) & tạo đơn thành công!`);
       handleClearPosCart();
+      setIsPaymentModalOpen(false);
       fetchOrders();
     } catch (err) {
       toast.error(typeof err.response?.data === 'string' ? err.response.data : 'Không thể tạo đơn hàng tại quầy');
@@ -302,16 +318,28 @@ const StaffDashboard = () => {
                   <strong>{formatPrice(posTotal)}</strong>
                 </div>
                 <button
-                  onClick={handleCheckoutPos}
+                  onClick={handleOpenPaymentModal}
                   disabled={submittingPos || cartItems.length === 0}
                   className="pos-checkout-btn"
                 >
-                  <Printer size={16} />
-                  {submittingPos ? 'Đang tạo đơn...' : 'Tạo Đơn & Thanh Toán'}
+                  <CreditCard size={16} />
+                  Tiến Hành Thanh Toán & Đặt Đơn
                 </button>
               </div>
             </div>
           </div>
+
+          {/* Modal Thanh Toán Bắt Buộc Tại Quầy POS */}
+          <PosPaymentModal
+            isOpen={isPaymentModalOpen}
+            onClose={() => setIsPaymentModalOpen(false)}
+            cartItems={cartItems}
+            totalPrice={posTotal}
+            customerName={customerName}
+            tableNote={tableNote}
+            submitting={submittingPos}
+            onConfirmCheckout={handleConfirmPaymentAndCheckout}
+          />
         </>
       )}
 

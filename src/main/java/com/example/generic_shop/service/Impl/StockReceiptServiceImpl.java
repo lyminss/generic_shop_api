@@ -55,7 +55,7 @@ public class StockReceiptServiceImpl implements StockReceiptService {
             totalAmount += totalPrice;
 
             double stockBefore = ingredient.getCurrentStock();
-            double stockAfter = stockBefore + qty;
+            double stockAfter = com.example.generic_shop.util.UnitConverter.roundQuantity(stockBefore + qty);
 
             // Tính giá vốn trung bình gia quyền (Weighted average cost)
             if (stockAfter > 0 && unitPrice > 0) {

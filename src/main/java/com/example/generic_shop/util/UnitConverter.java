@@ -48,13 +48,18 @@ public class UnitConverter {
         return recipeQuantity;
     }
 
+    public static double roundQuantity(double val) {
+        return Math.round(val * 10000.0) / 10000.0;
+    }
+
     /**
      * Format hiển thị số lượng nguyên liệu kèm đơn vị thân thiện
      */
     public static String formatQuantityWithUnit(double qty, String unit) {
-        if (qty == (long) qty) {
-            return String.format("%d %s", (long) qty, unit);
+        double rQty = roundQuantity(qty);
+        if (rQty == (long) rQty) {
+            return String.format("%d %s", (long) rQty, unit);
         }
-        return String.format("%.3f %s", qty, unit).replaceAll("0+$", "").replaceAll("\\.$", "") + " " + unit;
+        return String.format("%.3f %s", rQty, unit).replaceAll("0+$", "").replaceAll("\\.$", "") + " " + unit;
     }
 }

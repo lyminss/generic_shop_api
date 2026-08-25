@@ -219,9 +219,23 @@ const AdminProducts = ({
 
       {/* ── Content: Bento Table or Bento Grid ── */}
       {view === 'grid' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        <div className="prod-grid-layout">
           {loading ? (
-            <div className="col-span-full py-20 text-center text-stone-400 text-sm">Đang tải danh sách món…</div>
+            Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="prod-grid-card prod-grid-card--skeleton animate-pulse">
+                <div className="prod-card-media-skeleton" />
+                <div className="prod-card-body-skeleton">
+                  <div className="skeleton-line w-20 h-4 mb-2 rounded-full" />
+                  <div className="skeleton-line w-3/4 h-5 mb-2 rounded-lg" />
+                  <div className="skeleton-line w-full h-3 mb-1 rounded" />
+                  <div className="skeleton-line w-2/3 h-3 mb-4 rounded" />
+                  <div className="flex justify-between items-center pt-3 border-t border-stone-100">
+                    <div className="skeleton-line w-24 h-6 rounded-lg" />
+                    <div className="skeleton-line w-16 h-6 rounded-full" />
+                  </div>
+                </div>
+              </div>
+            ))
           ) : filtered.length === 0 ? (
             <div className="col-span-full stats-bento-panel py-20 text-center">
               <EmptyState
@@ -234,64 +248,117 @@ const AdminProducts = ({
           ) : (
             filtered.map((p) => {
               const isOff = p.available === false;
+              const isLow = !isOff && p.stockQuantity <= 5;
               return (
-                <div key={p.id} className="product-bento-card">
-                  {/* Ảnh */}
-                  <div className="product-card-image-wrap">
+                <div key={p.id} className={`prod-grid-card ${isOff ? 'is-disabled' : ''}`}>
+                  {/* Media Wrap */}
+                  <div className="prod-card-media">
                     {p.image ? (
                       <img src={p.image} alt={p.name} loading="lazy" />
                     ) : (
-                      <span className="text-4xl opacity-40">🍵</span>
+                      <div className="prod-card-placeholder">
+                        <span className="text-4xl">🧋</span>
+                      </div>
                     )}
-                    <span className="absolute top-3 left-3 px-2.5 py-0.5 bg-white/95 rounded-lg text-[11px] font-bold text-stone-700 shadow-xs">
+                    
+                    {/* Gradient Overlay for Text Legibility */}
+                    <div className="prod-card-media-gradient" />
+
+                    {/* Top-Left Category Badge */}
+                    <span className="prod-card-cat-badge">
                       {p.category || 'Đồ uống'}
                     </span>
+
+                    {/* Top-Right ID Chip */}
+                    <span className="prod-card-id-chip">
+                      #{String(p.id).padStart(3, '0')}
+                    </span>
+
+                    {/* Disabled Overlay */}
                     {isOff && (
-                      <div className="absolute inset-0 bg-stone-900/75 flex flex-col items-center justify-center p-4 text-center">
-                        <span className="px-3 py-1.5 bg-rose-700 text-white text-[12px] font-bold rounded-lg flex items-center gap-1.5 shadow-sm">
+                      <div className="prod-card-disabled-overlay">
+                        <div className="prod-card-disabled-badge">
                           <AlertTriangle size={13} /> Tạm ngưng bán
-                        </span>
-                        <p className="text-[11px] text-rose-200 mt-1.5 line-clamp-2 leading-relaxed">
+                        </div>
+                        <p className="prod-card-disabled-reason">
                           {p.unavailableReason || 'Hết hoặc quá hạn nguyên liệu'}
                         </p>
                       </div>
                     )}
                   </div>
 
-                  {/* Nội dung */}
-                  <div className="p-5 flex-1 flex flex-col justify-between gap-3">
-                    <div>
-                      <h3 className="font-bold text-sm text-stone-900 line-clamp-1">{p.name}</h3>
-                      {p.description && (
-                        <p className="text-xs text-stone-500 mt-1 line-clamp-2 leading-relaxed">{p.description}</p>
+                  {/* Body Content */}
+                  <div className="prod-card-body">
+                    <div className="prod-card-main-info">
+                      <h3 className="prod-card-title" title={p.name}>
+                        {p.name}
+                      </h3>
+                      {p.description ? (
+                        <p className="prod-card-desc" title={p.description}>
+                          {p.description}
+                        </p>
+                      ) : (
+                        <p className="prod-card-desc prod-card-desc--empty">
+                          Chưa có mô tả chi tiết cho món này.
+                        </p>
                       )}
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono font-black text-lg text-amber-800">{formatPrice(p.price)}</span>
-                      {!isOff && (
-                        <span className="stock-indicator ok">
-                          {p.stockQuantity} suất
+
+                    {/* Price & Stock Row */}
+                    <div className="prod-card-pricing-row">
+                      <div className="prod-card-price-group">
+                        <span className="prod-card-price-label">Giá bán</span>
+                        <span className="prod-card-price-val">
+                          {formatPrice(p.price)}
                         </span>
-                      )}
+                      </div>
+
+                      <div className="prod-card-stock-group">
+                        {isOff ? (
+                          <span className="prod-stock-pill prod-stock-pill--out">
+                            Hết hàng
+                          </span>
+                        ) : isLow ? (
+                          <span className="prod-stock-pill prod-stock-pill--low">
+                            <span className="prod-stock-dot amber" /> Còn {p.stockQuantity} suất
+                          </span>
+                        ) : (
+                          <span className="prod-stock-pill prod-stock-pill--ok">
+                            <span className="prod-stock-dot green" /> Còn {p.stockQuantity} suất
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Actions */}
-                  <div className="px-5 py-3.5 bg-stone-50/70 border-t border-stone-100 flex items-center justify-between">
-                    <span className="font-mono text-xs text-stone-400">#{p.id}</span>
-                    <div className="flex gap-1.5">
+                  {/* Actions Footer */}
+                  <div className="prod-card-footer">
+                    <span className="prod-card-status-indicator">
+                      {isOff ? (
+                        <span className="text-rose-600 font-semibold flex items-center gap-1 text-[11px]">
+                          <span className="w-2 h-2 rounded-full bg-rose-500" /> Tạm dừng
+                        </span>
+                      ) : (
+                        <span className="text-emerald-700 font-semibold flex items-center gap-1 text-[11px]">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500" /> Sẵn bán
+                        </span>
+                      )}
+                    </span>
+
+                    <div className="prod-card-actions">
                       <button
                         type="button"
                         onClick={() => openEdit(p)}
-                        className="action-icon-btn edit"
-                        title="Chỉnh sửa"
+                        className="prod-action-btn prod-action-btn--edit"
+                        title="Chỉnh sửa món"
                       >
                         <Edit size={14} />
+                        <span>Sửa</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDelete(p)}
-                        className="action-icon-btn delete"
+                        className="prod-action-btn prod-action-btn--delete"
                         title="Xóa món"
                       >
                         <Trash2 size={14} />
