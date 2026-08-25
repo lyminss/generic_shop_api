@@ -7,6 +7,8 @@ import {
   FileDiff,
   History,
   AlertTriangle,
+  AlertOctagon,
+  ShieldAlert,
   Plus,
   Edit,
   Trash2,
@@ -18,7 +20,10 @@ import {
   X,
   Sparkles,
   Clock,
-  Calendar
+  Calendar,
+  CalendarDays,
+  Filter,
+  Check
 } from 'lucide-react';
 import {
   ingredientService,
@@ -29,7 +34,7 @@ import {
   inventoryTransactionService
 } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
-import { formatPrice, formatTimeAgo } from '../../utils/format';
+import { formatPrice, formatTimeAgo, formatDate, formatDateTime, fmtQty } from '../../utils/format';
 import { TableSkeleton, EmptyState, ErrorState } from '../../components/common/StateViews';
 
 import './InventoryManagement.css';
@@ -90,7 +95,7 @@ const InventoryManagement = () => {
   const [loading, setLoading] = useState(true);
   const [stockSearch, setStockSearch] = useState('');
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
-  const [sortByFEFO, setSortByFEFO] = useState(true);
+  const [expiryFilterTab, setExpiryFilterTab] = useState('all'); // 'all' | 'expired' | 'urgent' | 'low_stock' | 'safe'
   const [showIngModal, setShowIngModal] = useState(false);
   const [editingIng, setEditingIng] = useState(null);
   const [ingForm, setIngForm] = useState({
@@ -299,6 +304,31 @@ const InventoryManagement = () => {
     }
   };
 
+  const handleDiscardExpired = async (id, ingName) => {
+    if (!window.confirm(`Xác nhận xuất hủy lô nguyên liệu hết hạn của "${ingName}"? Hệ thống sẽ ghi nhận lịch sử vào nhật ký biến động kho.`)) return;
+    try {
+      await ingredientService.discardExpired(id);
+      toast.success(`Đã xuất hủy nguyên liệu "${ingName}" và ghi nhận biến động kho!`);
+      fetchIngredients();
+      fetchTransactions();
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.response?.data || 'Không thể xuất hủy nguyên liệu');
+    }
+  };
+
+  const handleDiscardAllExpired = async () => {
+    if (!window.confirm(`Xác nhận xuất hủy TẤT CẢ các nguyên liệu đã quá hạn sử dụng? Thao tác này sẽ ghi nhận vào lịch sử biến động kho.`)) return;
+    try {
+      await ingredientService.discardAllExpired();
+      toast.success(`Đã xuất hủy tất cả các nguyên liệu hết hạn và ghi nhật ký biến động kho thành công!`);
+      fetchIngredients();
+      fetchTransactions();
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.response?.data || 'Không thể xuất hủy nguyên liệu');
+    }
+  };
+
+
   // ----------------------------------------------------
   // RECIPE HANDLERS
   // ----------------------------------------------------
@@ -438,30 +468,72 @@ const InventoryManagement = () => {
   };
 
   // ----------------------------------------------------
-  // COMPUTED STATS
+  // COMPUTED STATS & EXPIRY EVALUATION
   // ----------------------------------------------------
-  const lowStockCount = ingredients.filter(i => i.currentStock <= i.minStockAlert).length;
+  const getIngredientExpiryInfo = (ing) => {
+    const openedCount = ing.openedStock || 0;
+    const sealedCount = Math.max(0, (ing.currentStock || 0) - openedCount);
+    const opDays = (openedCount > 0 && ing.openedExpiryDate) ? getDaysUntilExpiry(ing.openedExpiryDate) : null;
+    const seDays = ing.expiryDate ? getDaysUntilExpiry(ing.expiryDate) : null;
+
+    const isOpenedExpired = opDays !== null && opDays < 0;
+    const isSealedExpired = seDays !== null && seDays < 0;
+    const isExpired = isOpenedExpired || isSealedExpired;
+
+    const minDays = (() => {
+      if (opDays !== null && seDays !== null) return Math.min(opDays, seDays);
+      return opDays ?? seDays ?? 9999;
+    })();
+
+    const isUrgent = !isExpired && minDays <= 3;
+    const isWarning = !isExpired && minDays > 3 && minDays <= 7;
+    const isSafe = !isExpired && minDays > 7;
+    const isLow = ing.currentStock <= ing.minStockAlert;
+
+    return {
+      openedCount,
+      sealedCount,
+      opDays,
+      seDays,
+      isOpenedExpired,
+      isSealedExpired,
+      isExpired,
+      minDays,
+      isUrgent,
+      isWarning,
+      isSafe,
+      isLow,
+    };
+  };
+
+  const computedIngredients = ingredients.map(ing => ({
+    ...ing,
+    _info: getIngredientExpiryInfo(ing)
+  }));
+
+  const expiredCount = computedIngredients.filter(i => i._info.isExpired).length;
+  const urgentCount = computedIngredients.filter(i => i._info.isUrgent).length;
+  const expiringSoonCount = computedIngredients.filter(i => i._info.isUrgent || i._info.isWarning).length;
+  const lowStockCount = computedIngredients.filter(i => i._info.isLow).length;
+  const safeCount = computedIngredients.filter(i => i._info.isSafe).length;
   const totalStockValue = ingredients.reduce((sum, i) => sum + (i.currentStock * i.costPrice), 0);
 
-  const filteredIngredients = ingredients
+  const filteredIngredients = computedIngredients
     .filter(ing => {
       const matchesSearch = ing.name.toLowerCase().includes(stockSearch.toLowerCase()) ||
                             ing.code.toLowerCase().includes(stockSearch.toLowerCase());
-      const matchesLow = showLowStockOnly ? ing.currentStock <= ing.minStockAlert : true;
-      return matchesSearch && matchesLow;
+
+      let matchesTab = true;
+      if (expiryFilterTab === 'expired') matchesTab = ing._info.isExpired;
+      else if (expiryFilterTab === 'urgent') matchesTab = (ing._info.isUrgent || ing._info.isWarning);
+      else if (expiryFilterTab === 'low_stock') matchesTab = ing._info.isLow;
+      else if (expiryFilterTab === 'safe') matchesTab = ing._info.isSafe;
+
+      const matchesLowCheckbox = showLowStockOnly ? ing._info.isLow : true;
+
+      return matchesSearch && matchesTab && matchesLowCheckbox;
     })
-    .sort((a, b) => {
-      if (!sortByFEFO) return 0;
-      const getEffectiveDays = (ing) => {
-        const daysOpened = (ing.openedStock || 0) > 0 ? getDaysUntilExpiry(ing.openedExpiryDate) : null;
-        const daysSealed = getDaysUntilExpiry(ing.expiryDate);
-        if (daysOpened !== null && daysSealed !== null) {
-          return Math.min(daysOpened, daysSealed);
-        }
-        return daysOpened ?? daysSealed ?? 9999;
-      };
-      return getEffectiveDays(a) - getEffectiveDays(b);
-    });
+    .sort((a, b) => a._info.minDays - b._info.minDays);
 
   const headerInfo = FEATURE_TITLES[activeFeature] || FEATURE_TITLES.stock;
 
@@ -475,54 +547,108 @@ const InventoryManagement = () => {
         </div>
       </header>
 
-      {/* STATS OVERVIEW CARDS */}
-      <div className="inventory-stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon-wrapper bg-blue">
-            <Boxes className="stat-icon" />
+      {/* EMERGENCY EXPIRY ALERT BANNERS */}
+      {expiredCount > 0 && (
+        <div className="expiry-alert-banner critical-banner animate-fade-in">
+          <div className="banner-left">
+            <div className="banner-icon-box danger-pulse">
+              <AlertOctagon size={26} />
+            </div>
+            <div>
+              <h4 className="banner-title">🚨 CẢNH BÁO AN TOÀN VỆ SINH: Có {expiredCount} nguyên liệu ĐÃ QUÁ HẠN SỬ DỤNG!</h4>
+              <p className="banner-desc">Các nguyên liệu quá hạn không được phép tiếp tục phục vụ khách hàng. Các món liên quan đã tự động tạm ngưng đặt đơn.</p>
+            </div>
           </div>
-          <div className="stat-info">
-            <span className="stat-label">Tổng loại nguyên liệu</span>
-            <span className="stat-value">{ingredients.length} <small>mặt hàng</small></span>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              className={`btn-banner-action danger-btn ${expiryFilterTab === 'expired' ? 'active-filter' : ''}`}
+              onClick={() => setExpiryFilterTab(prev => prev === 'expired' ? 'all' : 'expired')}
+            >
+              <Filter size={16} /> {expiryFilterTab === 'expired' ? 'Đang lọc hết hạn (Tắt)' : `Lọc ${expiredCount} món hết hạn`}
+            </button>
+            <button
+              className="btn-banner-action"
+              style={{ background: '#991b1b', color: '#fff', border: '1px solid #ef4444' }}
+              onClick={handleDiscardAllExpired}
+            >
+              <Trash2 size={16} /> Xuất hủy {expiredCount} lô hết hạn
+            </button>
           </div>
         </div>
+      )}
 
-        <div className={`stat-card ${lowStockCount > 0 ? 'warning-card' : ''}`}>
-          <div className="stat-icon-wrapper bg-amber">
-            <AlertTriangle className="stat-icon" />
+      {expiredCount === 0 && expiringSoonCount > 0 && (
+        <div className="expiry-alert-banner warning-banner animate-fade-in">
+          <div className="banner-left">
+            <div className="banner-icon-box warning-box">
+              <Clock size={24} />
+            </div>
+            <div>
+              <h4 className="banner-title">⚠️ CHÚ Ý QUẢN LÝ FEFO: Có {expiringSoonCount} nguyên liệu sắp hết hạn trong 7 ngày tới!</h4>
+              <p className="banner-desc">Ưu tiên xuất dùng các lô hàng cận date trước theo nguyên tắc FEFO (First Expired, First Out) để tránh lãng phí.</p>
+            </div>
           </div>
-          <div className="stat-info">
-            <span className="stat-label">Cảnh báo sắp hết</span>
-            <span className="stat-value text-amber">{lowStockCount} <small>nguyên liệu</small></span>
-          </div>
+          <button
+            className={`btn-banner-action warning-btn ${expiryFilterTab === 'urgent' ? 'active-filter' : ''}`}
+            onClick={() => setExpiryFilterTab(prev => prev === 'urgent' ? 'all' : 'urgent')}
+          >
+            <Clock size={16} /> {expiryFilterTab === 'urgent' ? 'Đang lọc cận date (Tắt)' : `Xem ${expiringSoonCount} món cận date`}
+          </button>
         </div>
-
-        <div className="stat-card">
-          <div className="stat-icon-wrapper bg-emerald">
-            <TrendingUp className="stat-icon" />
-          </div>
-          <div className="stat-info">
-            <span className="stat-label">Ước tính giá trị kho</span>
-            <span className="stat-value text-emerald">{formatPrice(totalStockValue)}</span>
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* ==================================================== */}
       {/* ROUTE 1: TỒN KHO NGUYÊN LIỆU (/admin/inventory/stock) */}
       {/* ==================================================== */}
       {activeFeature === 'stock' && (
         <div className="tab-content-panel">
-          {/* FEFO compact toggle */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
-            <button
-              className={`btn-secondary ${sortByFEFO ? 'bg-amber-600 text-white border-amber-600' : ''}`}
-              onClick={() => setSortByFEFO(!sortByFEFO)}
-              style={{ fontSize: '0.82rem', padding: '6px 14px' }}
-            >
-              <Clock size={14} />
-              {sortByFEFO ? '⚡ FEFO đang bật' : 'Bật xếp FEFO'}
-            </button>
+
+          {/* QUICK FILTER PILLS */}
+          <div className="expiry-filter-pills-container">
+            <div className="expiry-filter-pills">
+              <button
+                className={`pill-btn ${expiryFilterTab === 'all' ? 'active' : ''}`}
+                onClick={() => setExpiryFilterTab('all')}
+              >
+                Tất cả <span className="pill-badge">{ingredients.length}</span>
+              </button>
+
+              <button
+                className={`pill-btn pill-danger ${expiryFilterTab === 'expired' ? 'active' : ''}`}
+                onClick={() => setExpiryFilterTab('expired')}
+              >
+                <AlertOctagon size={14} />
+                Hết hạn
+                {expiredCount > 0 && <span className="pill-badge badge-red">{expiredCount}</span>}
+              </button>
+
+              <button
+                className={`pill-btn pill-urgent ${expiryFilterTab === 'urgent' ? 'active' : ''}`}
+                onClick={() => setExpiryFilterTab('urgent')}
+              >
+                <Clock size={14} />
+                Gần hết hạn
+                {expiringSoonCount > 0 && <span className="pill-badge badge-orange">{expiringSoonCount}</span>}
+              </button>
+
+              <button
+                className={`pill-btn pill-warning ${expiryFilterTab === 'low_stock' ? 'active' : ''}`}
+                onClick={() => setExpiryFilterTab('low_stock')}
+              >
+                <AlertTriangle size={14} />
+                Gần hết hàng
+                {lowStockCount > 0 && <span className="pill-badge badge-amber">{lowStockCount}</span>}
+              </button>
+
+              <button
+                className={`pill-btn pill-safe ${expiryFilterTab === 'safe' ? 'active' : ''}`}
+                onClick={() => setExpiryFilterTab('safe')}
+              >
+                <CheckCircle size={14} />
+                Đủ hàng
+                <span className="pill-badge badge-green">{safeCount}</span>
+              </button>
+            </div>
           </div>
 
           <div className="panel-actions-bar">
@@ -542,7 +668,7 @@ const InventoryManagement = () => {
                   checked={showLowStockOnly}
                   onChange={(e) => setShowLowStockOnly(e.target.checked)}
                 />
-                <span>Chỉ hiện NL sắp hết</span>
+                <span>Chỉ hiện NL gần hết hàng</span>
               </label>
               <button className="btn-primary" onClick={handleOpenAddIng}>
                 <Plus size={18} /> Thêm Nguyên Liệu
@@ -554,107 +680,195 @@ const InventoryManagement = () => {
             <table className="inv-table">
               <thead>
                 <tr>
-                  <th>Mã NL</th>
-                  <th>Tên Nguyên Liệu</th>
-                  <th>Trạng Thái Hạn FEFO (Mở Nắp & Tem Nguyên)</th>
-                  <th>Tổng Tồn Kho</th>
-                  <th>Ngưỡng Cảnh Báo</th>
-                  <th>Giá Vốn TB / Đơn vị</th>
-                  <th>Trạng Thái Kho</th>
-                  <th>Thao Tác</th>
+                  <th style={{ width: '75px' }}>Mã NL</th>
+                  <th style={{ minWidth: '140px' }}>Tên Nguyên Liệu</th>
+                  <th style={{ minWidth: '220px' }}>Hạn Sử Dụng (FEFO)</th>
+                  <th style={{ minWidth: '110px' }}>Tổng Tồn</th>
+                  <th>Ngưỡng</th>
+                  <th style={{ minWidth: '130px' }}>Trạng Thái</th>
+                  <th style={{ width: '80px', textAlign: 'right' }}>Thao Tác</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <TableSkeleton rows={5} cols={8} />
+                  <TableSkeleton rows={5} cols={7} />
                 ) : filteredIngredients.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="py-6">
+                    <td colSpan="7" className="py-6">
                       <EmptyState
                         title="Không tìm thấy nguyên liệu"
-                        description="Hiện không có nguyên liệu nào khớp với từ khóa tìm kiếm."
+                        description={
+                          expiryFilterTab === 'expired'
+                            ? 'Tuyệt vời! Hiện tại trong kho không có nguyên liệu nào bị quá hạn sử dụng.'
+                            : 'Hiện không có nguyên liệu nào khớp với bộ lọc tìm kiếm.'
+                        }
                         actionText="Thêm nguyên liệu mới"
                         onAction={handleOpenAddIng}
                       />
                     </td>
                   </tr>
                 ) : (
-                  filteredIngredients.map((ing, rankIdx) => {
-
-                    const isLow = ing.currentStock <= ing.minStockAlert;
-                    const openedCount = ing.openedStock || 0;
-                    const sealedCount = Math.max(0, (ing.currentStock || 0) - openedCount);
-                    const opDays = getDaysUntilExpiry(ing.openedExpiryDate);
-                    const seDays = getDaysUntilExpiry(ing.expiryDate);
-
-                    const expiryBadge = (days, prefix) => {
-                      if (days === null) return null;
-                      if (days < 0)  return <span className="badge-fefo-expired">{prefix} · Hết hạn</span>;
-                      if (days <= 5) return <span className="badge-fefo-urgent">{prefix} · {days} ngày</span>;
-                      if (days <= 15) return <span className="badge-fefo-warning">{prefix} · {days} ngày</span>;
-                      return <span className="badge-fefo-safe">{prefix} · {days} ngày</span>;
-                    };
+                  filteredIngredients.map((ing) => {
+                    const info = ing._info;
+                    const rowClass = info.isExpired
+                      ? 'row-expired'
+                      : info.isUrgent
+                      ? 'row-urgent'
+                      : info.isLow
+                      ? 'row-warning'
+                      : '';
 
                     return (
-                      <tr key={ing.id} className={isLow ? 'row-warning' : ''}>
+                      <tr key={ing.id} className={rowClass}>
                         <td>
-                          <div className="flex items-center gap-1.5">
-                            <span className="code-badge">{ing.code}</span>
-                            {sortByFEFO && rankIdx === 0 && (
-                              <span className="fefo-rank-tag">#1</span>
-                            )}
-                          </div>
+                          <span className="code-badge">{ing.code}</span>
                         </td>
-                        <td className="font-semibold">{ing.name}</td>
                         <td>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '260px' }}>
-                            {openedCount > 0 && (
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                                <span style={{ fontSize: '0.8rem', color: '#92400e' }}>
-                                  🍾 <strong>{openedCount} {ing.unit}</strong> đã mở
-                                </span>
-                                {expiryBadge(opDays, 'Mở nắp')}
+                          <div className="font-semibold text-dark">{ing.name}</div>
+                          <small className="text-muted">Đơn vị: <strong>{ing.unit}</strong></small>
+                        </td>
+
+                        {/* CỘT HẠN SỬ DỤNG CỤ THỂ */}
+                        <td>
+                          <div className="expiry-display-box">
+                            {/* 📦 HSD Tem nguyên (Seal) */}
+                            <div className={`expiry-item-row ${info.isSealedExpired ? 'is-expired' : ''}`}>
+                              <div className="expiry-item-left">
+                                <span className="expiry-icon">📦</span>
+                                <span className="expiry-label">HSD Seal:</span>
+                                <strong className="expiry-date-val">{formatDate(ing.expiryDate)}</strong>
+                                <span className="expiry-sub-count">({info.sealedCount} {ing.unit})</span>
+                              </div>
+                              <div className="expiry-item-right">
+                                {info.seDays === null ? (
+                                  <span className="badge-fefo-none">Chưa đặt</span>
+                                ) : info.seDays < 0 ? (
+                                  <span className="badge-fefo-expired">
+                                    <span className="pulse-dot-mini red"></span>
+                                    <AlertOctagon size={11} /> Hết hạn
+                                  </span>
+                                ) : info.seDays <= 7 ? (
+                                  <span className="badge-fefo-urgent">
+                                    <span className="pulse-dot-mini orange"></span>
+                                    <Clock size={11} /> Gần hết hạn
+                                  </span>
+                                ) : (
+                                  <span className="badge-fefo-safe">
+                                    <Check size={11} /> Còn hạn
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* 🍾 HSD Mở nắp (nếu có tồn mở nắp hoặc có ngày mở nắp) */}
+                            {(info.openedCount > 0 || ing.openedExpiryDate) && (
+                              <div className={`expiry-item-row ${info.isOpenedExpired ? 'is-expired' : ''}`}>
+                                <div className="expiry-item-left">
+                                  <span className="expiry-icon">🍾</span>
+                                  <span className="expiry-label">HSD Mở nắp:</span>
+                                  <strong className="expiry-date-val">{formatDate(ing.openedExpiryDate)}</strong>
+                                  {info.openedCount > 0 && (
+                                    <span className="expiry-sub-count text-amber">({info.openedCount} {ing.unit} đã mở)</span>
+                                  )}
+                                </div>
+                                <div className="expiry-item-right">
+                                  {info.opDays === null ? (
+                                    <span className="badge-fefo-none">—</span>
+                                  ) : info.opDays < 0 ? (
+                                    <span className="badge-fefo-expired">
+                                      <span className="pulse-dot-mini red"></span>
+                                      <AlertOctagon size={11} /> Hết hạn
+                                    </span>
+                                  ) : info.opDays <= 7 ? (
+                                    <span className="badge-fefo-urgent">
+                                      <span className="pulse-dot-mini orange"></span>
+                                      <Clock size={11} /> Gần hết hạn
+                                    </span>
+                                  ) : (
+                                    <span className="badge-fefo-safe">
+                                      <Check size={11} /> Còn hạn
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             )}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                              <span style={{ fontSize: '0.8rem', color: '#065f46' }}>
-                                📦 <strong>{sealedCount} {ing.unit}</strong> nguyên seal
-                              </span>
-                              {expiryBadge(seDays, 'Seal')}
-                            </div>
                           </div>
                         </td>
+
+                        {/* CỘT TỔNG TỒN KHO */}
                         <td>
-                          <span className={`stock-amount ${isLow ? 'text-danger font-bold' : ''}`}>
-                            {ing.currentStock.toLocaleString('vi-VN')} <span className="unit-chip">{ing.unit}</span>
+                          <span className={`stock-amount ${info.isLow ? 'text-danger font-bold' : ''}`}>
+                            {fmtQty(ing.currentStock)} <span className="unit-chip">{ing.unit}</span>
                           </span>
                         </td>
-                        <td>{ing.minStockAlert.toLocaleString('vi-VN')} {ing.unit}</td>
-                        <td>{formatPrice(ing.costPrice)} / {ing.unit}</td>
+
+                        <td>{fmtQty(ing.minStockAlert)} {ing.unit}</td>
+
+                        {/* CỘT TRẠNG THÁI */}
                         <td>
-                          {isLow ? (
-                            <span className="status-badge badge-warning">
-                              <AlertTriangle size={14} /> Sắp hết
-                            </span>
+                          {info.isExpired ? (
+                            <div className="status-pill-wrap">
+                              <span className="inv-status-pill expired" title="Nguyên liệu đã quá hạn sử dụng!">
+                                <span className="inv-status-beacon red"></span>
+                                <AlertOctagon size={12} className="inv-status-ico" />
+                                <span className="inv-status-text">Hết hạn</span>
+                              </span>
+                            </div>
+                          ) : (info.isUrgent || info.isWarning) ? (
+                            <div className="status-pill-wrap">
+                              <span className="inv-status-pill urgent" title="Nguyên liệu gần hết hạn">
+                                <span className="inv-status-beacon orange"></span>
+                                <Clock size={12} className="inv-status-ico" />
+                                <span className="inv-status-text">Gần hết hạn</span>
+                              </span>
+                              {info.isLow && (
+                                <span className="inv-micro-pill amber" title="Tồn kho dưới mức cảnh báo">
+                                  Gần hết hàng
+                                </span>
+                              )}
+                            </div>
+                          ) : info.isLow ? (
+                            <div className="status-pill-wrap">
+                              <span className="inv-status-pill low-stock" title="Số lượng tồn kho thấp dưới ngưỡng">
+                                <span className="inv-status-beacon amber"></span>
+                                <AlertTriangle size={12} className="inv-status-ico" />
+                                <span className="inv-status-text">Gần hết hàng</span>
+                              </span>
+                            </div>
                           ) : (
-                            <span className="status-badge badge-success">
-                              <CheckCircle size={14} /> Đủ hàng
-                            </span>
+                            <div className="status-pill-wrap">
+                              <span className="inv-status-pill safe" title="Tồn kho an toàn & còn hạn sử dụng">
+                                <span className="inv-status-beacon green"></span>
+                                <CheckCircle size={12} className="inv-status-ico" />
+                                <span className="inv-status-text">Đủ hàng</span>
+                              </span>
+                            </div>
                           )}
                         </td>
+
+                        {/* THAO TÁC */}
                         <td>
                           <div className="btn-group-actions">
-                            <button className="btn-icon btn-edit" title="Chỉnh sửa" onClick={() => handleOpenEditIng(ing)}>
+                            {info.isExpired && (
+                              <button
+                                className="btn-icon text-danger"
+                                title="Xuất hủy lô hết hạn & ghi nhật ký biến động kho"
+                                style={{ color: '#dc2626', borderColor: '#fca5a5', background: '#fee2e2' }}
+                                onClick={() => handleDiscardExpired(ing.id, ing.name)}
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                            <button className="btn-icon btn-edit" title="Chỉnh sửa hạn và thông tin" onClick={() => handleOpenEditIng(ing)}>
                               <Edit size={16} />
                             </button>
-                            <button className="btn-icon btn-delete" title="Xóa" onClick={() => handleDeleteIng(ing.id)}>
+                            <button className="btn-icon btn-delete" title="Xóa nguyên liệu" onClick={() => handleDeleteIng(ing.id)}>
                               <Trash2 size={16} />
                             </button>
                           </div>
                         </td>
                       </tr>
                     );
-
                   })
                 )}
               </tbody>
@@ -733,7 +947,7 @@ const InventoryManagement = () => {
                             >
                               {ingredients.map(ing => (
                                 <option key={ing.id} value={ing.id}>
-                                  {ing.code} - {ing.name} (Tồn: {ing.currentStock} {ing.unit})
+                                  {ing.code} - {ing.name} (Tồn: {fmtQty(ing.currentStock)} {ing.unit})
                                 </option>
                               ))}
                             </select>
@@ -749,7 +963,21 @@ const InventoryManagement = () => {
                             />
                           </td>
                           <td>
-                            <span className="unit-chip">{item.unit || 'g'}</span>
+                            <select
+                              className="select-table-input"
+                              style={{ minWidth: '95px' }}
+                              value={item.unit || 'g'}
+                              onChange={(e) => handleRecipeRowChange(idx, 'unit', e.target.value)}
+                            >
+                              <option value="g">g (Gram)</option>
+                              <option value="ml">ml (Mili-lít)</option>
+                              <option value="kg">kg (Kilogram)</option>
+                              <option value="chai">chai</option>
+                              <option value="lon">lon</option>
+                              <option value="hộp">hộp</option>
+                              <option value="gói">gói</option>
+                              <option value="l">l (Lít)</option>
+                            </select>
                           </td>
                           <td>
                             <button className="btn-icon btn-delete" onClick={() => handleRemoveRecipeRow(idx)}>
@@ -908,6 +1136,7 @@ const InventoryManagement = () => {
                 <option value="EXPORT_PREPARATION">Trừ kho pha chế (EXPORT_PREPARATION)</option>
                 <option value="ADJUSTMENT">Điều chỉnh kiểm kê (ADJUSTMENT)</option>
                 <option value="RETURN">Hoàn trả kho (RETURN)</option>
+                <option value="EXPIRED_DISCARD">Xuất hủy hết hạn (EXPIRED_DISCARD)</option>
               </select>
 
               <button className="btn-secondary" onClick={fetchTransactions}>
@@ -949,14 +1178,15 @@ const InventoryManagement = () => {
                           {t.type === 'EXPORT_PREPARATION' && <span className="type-badge badge-export">Pha chế món</span>}
                           {t.type === 'ADJUSTMENT' && <span className="type-badge badge-adj">Kiểm kê</span>}
                           {t.type === 'RETURN' && <span className="type-badge badge-return">Hoàn đơn</span>}
+                          {t.type === 'EXPIRED_DISCARD' && <span className="type-badge" style={{ background: '#fee2e2', color: '#b91c1c', border: '1px solid #f87171' }}>🗑️ Xuất hủy hết hạn</span>}
                         </td>
                         <td>
                           <span className={`qty-change ${isPositive ? 'text-emerald font-bold' : 'text-danger font-bold'}`}>
-                            {isPositive ? `+${t.quantity}` : t.quantity} {t.ingredient?.unit}
+                            {isPositive ? `+${fmtQty(t.quantity)}` : fmtQty(t.quantity)} {t.ingredient?.unit}
                           </span>
                         </td>
-                        <td>{t.stockBefore} {t.ingredient?.unit}</td>
-                        <td className="font-semibold">{t.stockAfter} {t.ingredient?.unit}</td>
+                        <td>{fmtQty(t.stockBefore)} {t.ingredient?.unit}</td>
+                        <td className="font-semibold">{fmtQty(t.stockAfter)} {t.ingredient?.unit}</td>
                         <td><code className="ref-code">{t.referenceCode || '-'}</code></td>
                         <td>{t.note || '-'}</td>
                       </tr>
@@ -1050,7 +1280,20 @@ const InventoryManagement = () => {
                 </div>
                 <div className="form-grid-2">
                   <div className="form-group">
-                    <label>Hạn Dùng Tem Nguyên</label>
+                    <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>📦 Hạn Dùng Tem Nguyên (Seal)</span>
+                      {ingForm.expiryDate && (
+                        <span style={{ fontSize: '0.78rem', fontWeight: 600 }}>
+                          {getDaysUntilExpiry(ingForm.expiryDate) < 0 ? (
+                            <span style={{ color: '#dc2626' }}>⛔ Đã quá hạn {Math.abs(getDaysUntilExpiry(ingForm.expiryDate))} ngày</span>
+                          ) : getDaysUntilExpiry(ingForm.expiryDate) === 0 ? (
+                            <span style={{ color: '#d97706' }}>⚠️ Hết hạn hôm nay</span>
+                          ) : (
+                            <span style={{ color: '#16a34a' }}>✅ Còn {getDaysUntilExpiry(ingForm.expiryDate)} ngày ({formatDate(ingForm.expiryDate)})</span>
+                          )}
+                        </span>
+                      )}
+                    </label>
                     <input
                       type="date"
                       value={ingForm.expiryDate || ''}
@@ -1058,7 +1301,20 @@ const InventoryManagement = () => {
                     />
                   </div>
                   <div className="form-group">
-                    <label>Hạn Dùng Sau Mở Nắp</label>
+                    <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>🍾 Hạn Dùng Sau Mở Nắp (Opened)</span>
+                      {ingForm.openedExpiryDate && (
+                        <span style={{ fontSize: '0.78rem', fontWeight: 600 }}>
+                          {getDaysUntilExpiry(ingForm.openedExpiryDate) < 0 ? (
+                            <span style={{ color: '#dc2626' }}>⛔ Quá hạn {Math.abs(getDaysUntilExpiry(ingForm.openedExpiryDate))} ngày</span>
+                          ) : getDaysUntilExpiry(ingForm.openedExpiryDate) === 0 ? (
+                            <span style={{ color: '#d97706' }}>⚠️ Hết hạn hôm nay</span>
+                          ) : (
+                            <span style={{ color: '#16a34a' }}>✅ Còn {getDaysUntilExpiry(ingForm.openedExpiryDate)} ngày ({formatDate(ingForm.openedExpiryDate)})</span>
+                          )}
+                        </span>
+                      )}
+                    </label>
                     <input
                       type="date"
                       value={ingForm.openedExpiryDate || ''}
@@ -1067,7 +1323,7 @@ const InventoryManagement = () => {
                   </div>
                 </div>
                 <div className="form-group">
-                  <label>Số Lượng Đã Mở Nắp ({ingForm.unit})</label>
+                  <label>Số Lượng Đã Mở Nắp Đang Dùng ({ingForm.unit})</label>
                   <input
                     type="number"
                     step="any"
@@ -1075,6 +1331,9 @@ const InventoryManagement = () => {
                     value={ingForm.openedStock || 0}
                     onChange={(e) => setIngForm({ ...ingForm, openedStock: Number(e.target.value) })}
                   />
+                  <small style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '4px', display: 'block' }}>
+                    Số lượng này sẽ được ưu tiên theo dõi hạn dùng sau mở nắp theo nguyên tắc FEFO.
+                  </small>
                 </div>
               </div>
 
@@ -1358,7 +1617,7 @@ const InventoryManagement = () => {
                     <tr key={d.id}>
                       <td><span className="code-badge">{d.ingredient?.code}</span></td>
                       <td className="font-semibold">{d.ingredient?.name}</td>
-                      <td>{d.quantity} {d.ingredient?.unit}</td>
+                      <td>{fmtQty(d.quantity)} {d.ingredient?.unit}</td>
                       <td>{formatPrice(d.unitPrice)}</td>
                       <td className="font-bold text-emerald">{formatPrice(d.totalPrice)}</td>
                     </tr>
@@ -1406,11 +1665,11 @@ const InventoryManagement = () => {
                     <tr key={d.id}>
                       <td><span className="code-badge">{d.ingredient?.code}</span></td>
                       <td className="font-semibold">{d.ingredient?.name}</td>
-                      <td>{d.systemStock} {d.ingredient?.unit}</td>
-                      <td className="font-bold">{d.actualStock} {d.ingredient?.unit}</td>
+                      <td>{fmtQty(d.systemStock)} {d.ingredient?.unit}</td>
+                      <td className="font-bold">{fmtQty(d.actualStock)} {d.ingredient?.unit}</td>
                       <td>
                         <span className={`diff-tag ${d.adjustmentQuantity > 0 ? 'text-emerald' : d.adjustmentQuantity < 0 ? 'text-danger' : ''}`}>
-                          {d.adjustmentQuantity > 0 ? `+${d.adjustmentQuantity}` : d.adjustmentQuantity} {d.ingredient?.unit}
+                          {d.adjustmentQuantity > 0 ? `+${fmtQty(d.adjustmentQuantity)}` : fmtQty(d.adjustmentQuantity)} {d.ingredient?.unit}
                         </span>
                       </td>
                       <td>{d.note || '-'}</td>

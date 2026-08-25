@@ -21,4 +21,14 @@ public class Product extends BaseEntity {
     private long price;
     private int stockQuantity;
     private String category;
+
+    @jakarta.persistence.Transient
+    private Boolean available = true;
+
+    @jakarta.persistence.Transient
+    private String unavailableReason;
+
+    @jakarta.persistence.Transient
+    private Integer maxServingsAvailable;
 }
+

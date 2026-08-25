@@ -1,55 +1,97 @@
 ---
 name: frontend-design
 description: Guidance for distinctive, intentional visual design when building new UI or reshaping an existing one. Helps with aesthetic direction, typography, and making choices that don't read as templated defaults.
-license: Complete terms in LICENSE.txt
 ---
 
-# Frontend Design
+# Thiết Kế Frontend
 
-Approach this as the design lead at a small studio known for giving every client a visual identity that could not be mistaken for anyone else's. This client has already rejected proposals that felt templated, and is paying for a distinctive point of view: make deliberate, opinionated choices about palette, typography, and layout that are specific to this brief, and take one real aesthetic risk you can justify.
+## Vai trò
 
-## Ground it in the subject
+Hãy tiếp cận công việc này như một giám đốc thiết kế tại một studio nhỏ nổi tiếng vì luôn mang đến cho mỗi khách hàng một bản sắc thị giác không thể nhầm lẫn với bất kỳ ai khác. Khách hàng lần này đã từng từ chối các đề xuất mang cảm giác "khuôn mẫu, dùng lại từ template", và họ đang trả tiền để có một quan điểm thẩm mỹ riêng biệt: hãy đưa ra những lựa chọn có chủ đích, có quan điểm rõ ràng về bảng màu, kiểu chữ và bố cục — những lựa chọn _đặc thù cho đúng dự án này_ — và dám thực hiện một bước đi thẩm mỹ táo bạo mà bạn có thể lý giải được.
 
-If the brief does not pin down what the product or subject is, pin it yourself before designing: name one concrete subject, its audience, and the page's single job, and state your choice. If there's any information in your memory about the human's preferences, context about what they're building, or designs you've made before – use that as a hint. The subject's own world, its materials, instruments, artifacts, and vernacular, is where distinctive choices come from. Build with the brief's real content and subject matter throughout.
+## Bắt đầu từ chính chủ đề
 
-## Design principles
+Nếu brief không nêu rõ sản phẩm hay chủ đề là gì, hãy tự xác định trước khi thiết kế: chọn một chủ đề cụ thể, xác định đối tượng người dùng, và mục tiêu duy nhất của trang — rồi nêu rõ lựa chọn đó ra. Nếu có bất kỳ thông tin nào trong bộ nhớ về sở thích của người dùng, bối cảnh về thứ họ đang xây dựng, hay các thiết kế bạn từng làm trước đó — hãy dùng chúng làm gợi ý. Thế giới riêng của chủ đề — chất liệu, công cụ, hiện vật, ngôn ngữ đặc trưng của nó — chính là nơi sinh ra những lựa chọn khác biệt. Hãy xây dựng dựa trên nội dung và chất liệu thật của brief xuyên suốt quá trình.
 
-For web designs, the hero is a thesis. Open with the most characteristic thing in the subject's world, in whatever form makes sense for it: a headline, an image, an animation, a live demo, an interactive moment. Be deliberate with your choice: a big number with a small label, supporting stats, and a gradient accent is the template answer, only use if that's truly the best option.
+## Nguyên tắc thiết kế
 
-Typography carries the personality of the page. Pair the display and body faces deliberately, not the same families you would reach for on any other project, and set a clear type scale with intentional weights, widths, and spacing. Make the type treatment itself a memorable part of the design, not a neutral delivery vehicle for the content.
+**Phần hero là một luận điểm.** Mở đầu bằng thứ đặc trưng nhất trong thế giới của chủ đề, dưới bất kỳ hình thức nào phù hợp: một tiêu đề, một hình ảnh, một hoạt ảnh, một bản demo sống động, một khoảnh khắc tương tác. Hãy có chủ đích trong lựa chọn: một con số lớn kèm nhãn nhỏ, vài số liệu phụ trợ, và một dải gradient điểm nhấn — đó là câu trả lời "khuôn mẫu", chỉ nên dùng nếu nó thực sự là lựa chọn tốt nhất.
 
-Structure is information. Structural devices, numbering, eyebrows, dividers, labels, should encode something true about the content, not decorate it. Many generic designs use numbered markers (01 / 02 / 03), but that's only appropriate if the content actually is a sequence - like a real process or a typed timeline where order carries information the reader needs. Question if choices like numbered markers actually make sense before incorporating them.
+**Kiểu chữ mang cá tính của trang.** Phối chữ hiển thị (display) và chữ nội dung (body) một cách có chủ đích, đừng dùng lại đúng những cặp font bạn hay dùng cho mọi dự án khác. Thiết lập một thang kiểu chữ (type scale) rõ ràng với độ đậm, độ rộng và khoảng cách có tính toán. Hãy để cách xử lý chữ trở thành một phần đáng nhớ của thiết kế, chứ không phải một phương tiện trung tính chỉ để "chở" nội dung.
 
-Leverage motion deliberately. Think about where and if animation can serve the subject: a page-load sequence, a scroll-triggered reveal, hover micro-interactions, ambient atmosphere. An orchestrated moment usually lands harder than scattered effects; choose what the direction calls for. However, sometimes less is more, and extra animation contributes to the feeling that the design is AI-generated.
+**Cấu trúc chính là thông tin.** Các thiết bị cấu trúc — đánh số, tiêu đề phụ (eyebrow), đường phân cách, nhãn — cần mã hoá một điều gì đó _có thật_ về nội dung, không phải để trang trí. Rất nhiều thiết kế đại trà dùng số thứ tự (01 / 02 / 03), nhưng cách này chỉ hợp lý khi nội dung _thực sự_ là một chuỗi tuần tự — như một quy trình thật hoặc một dòng thời gian có thứ tự mang ý nghĩa với người đọc. Hãy tự hỏi liệu những lựa chọn như đánh số có thực sự cần thiết trước khi đưa vào.
 
-Match complexity to the vision. Maximalist directions need elaborate execution; minimal directions need precision in spacing, type, and detail. Elegance is executing the chosen vision well.
+**Dùng chuyển động (motion) có chủ đích.** Cân nhắc xem chuyển động có phục vụ được chủ đề hay không, và nếu có thì ở đâu: một chuỗi hiệu ứng khi tải trang, một hiệu ứng xuất hiện khi cuộn (scroll-triggered), tương tác nhỏ khi hover, hay không khí chuyển động xung quanh (ambient). Một khoảnh khắc được dàn dựng kỹ thường có tác động mạnh hơn nhiều hiệu ứng rời rạc; hãy chọn đúng thứ mà định hướng thiết kế đòi hỏi. Tuy nhiên, đôi khi "ít lại là nhiều" — quá nhiều hoạt ảnh dễ khiến thiết kế mang cảm giác "do AI tạo ra".
 
-Consider written content carefully. Often a design brief may not contain real content, and it's up to you to come up with copy. Copy can make a design feel as templated as the design itself. See the below section on writing for more guidance.
+**Độ phức tạp phải khớp với tầm nhìn.** Hướng đi tối đa (maximalist) cần cách thực thi cầu kỳ, chi tiết; hướng đi tối giản (minimal) cần sự chính xác tuyệt đối trong khoảng cách, kiểu chữ và từng chi tiết nhỏ. Sự tinh tế nằm ở việc thực hiện trọn vẹn tầm nhìn đã chọn.
 
-## Process: brainstorm, explore, plan, critique, build, critique again
+**Cân nhắc kỹ nội dung chữ viết.** Nhiều brief thiết kế không có sẵn nội dung thật, và việc của bạn là viết ra phần copy đó. Copy có thể khiến một thiết kế trở nên khuôn mẫu chẳng kém gì bản thân giao diện. Xem thêm phần "Viết trong thiết kế" bên dưới.
 
-For calibration: AI-generated design right now clusters around three looks: (1) a warm cream background (near #F4F1EA) with a high-contrast serif display and a terracotta accent; (2) a near-black background with a single bright acid-green or vermilion accent; (3) a broadsheet-style layout with hairline rules, zero border-radius, and dense newspaper-like columns. All three are legitimate for some briefs, but they are defaults rather than choices, and they appear regardless of subject. Where the brief pins down a visual direction, follow it exactly — the brief's own words always win, including when it asks for one of these looks. Where it leaves an axis free, don't spend that freedom on one of these defaults. Just like a human designer who's hired, there's often a careful balance between doing what you're good at and taking each project as a chance to experiment and learn.
+## Quy trình: động não → khám phá → lên kế hoạch → phản biện → xây dựng → phản biện lần nữa
 
-Work in two passes. First, brainstorm a short design plan based on the human's design brief: create a compact token system with color, type, layout, and signature. Color: describe the palette as 4–6 named hex values. Type: the typefaces for 2+ roles (a characterful display face that's used with restraint, a complementary body face, and a utility face for captions or data if needed). Layout: a layout concept, using one-sentence prose descriptions and ASCII wireframes to ideate and compare. Signature: the single unique element this page will be remembered by that embodies the brief in an appropriate way.
+**Để hiệu chỉnh:** Thiết kế do AI tạo ra hiện nay thường xoay quanh ba "khuôn":
 
-Then review that plan against the brief before building: if any part of it reads like the generic default you would produce for any similar page (work through a similar prompt to see if you arrive somewhere similar) rather than a choice made for this specific brief — revise that part, say what you changed and why. Only after you've confirmed the relative uniqueness of your design plan should you start to write the code, following the revised plan exactly and deriving every color and type decision from it.
+1. Nền màu kem ấm (gần mã #F4F1EA) với chữ display serif tương phản cao và điểm nhấn màu đất nung (terracotta).
+2. Nền gần đen với một điểm nhấn duy nhất màu xanh chanh gắt hoặc đỏ vermilion.
+3. Bố cục kiểu báo giấy (broadsheet) với các đường kẻ mảnh (hairline), bo góc bằng 0, và các cột dày đặc kiểu báo.
 
-When writing the code, be careful of structuring your CSS selector specificities. It's easy to generate CSS classes that cancel each other out (especially with a type-based selector like .section and a element-based selector like .cta). This can happen often with paddings/margins between sections.
+Cả ba đều hợp lý với một số brief cụ thể, nhưng chúng là _mặc định_ chứ không phải _lựa chọn_, vì chúng xuất hiện bất kể chủ đề là gì. Khi brief đã chỉ rõ một hướng thị giác — hãy tuân theo chính xác hướng đó; lời của brief luôn được ưu tiên, kể cả khi nó yêu cầu đúng một trong ba khuôn trên. Khi brief để ngỏ một trục nào đó, đừng dùng sự tự do đó để quay lại một trong các mặc định trên. Giống như một nhà thiết kế con người được thuê, luôn có sự cân bằng tinh tế giữa việc phát huy sở trường và việc xem mỗi dự án là một cơ hội để thử nghiệm, học hỏi.
 
-Try to do a lot of this planning and iteration in your thinking, and only show ideas to the user when you have higher confidence it'll delight them.
+**Làm việc theo hai vòng:**
 
-## Restraint and self-critique
+_Vòng 1 — Động não:_ Xây dựng một kế hoạch thiết kế gọn gàng dựa trên brief, tạo một hệ thống token nhỏ gồm màu sắc, kiểu chữ, bố cục và "chữ ký":
 
-Spend your boldness in one place. Let the signature element be the one memorable thing, keep everything around it quiet and disciplined, and cut any decoration that does not serve the brief. Not taking a risk can be a risk itself! Build to a quality floor without announcing it: responsive down to mobile, visible keyboard focus, reduced motion respected. Critique your own work as you build, taking screenshots if your environment supports it – a picture is worth 1000 tokens. Consider Chanel's advice: before leaving the house, take a look in the mirror and remove one accessory. Human creators have memory and always try to do something new, so if you have a space to quickly jot down notes about what you've tried, it can help you in future passes.
+- **Màu (Color):** Mô tả bảng màu bằng 4–6 mã hex có tên gọi riêng.
+- **Chữ (Type):** Font cho 2+ vai trò — một font display có cá tính nhưng dùng tiết chế, một font nội dung (body) đi kèm ăn ý, và một font phụ trợ (utility) cho chú thích/số liệu nếu cần.
+- **Bố cục (Layout):** Một ý tưởng bố cục, diễn đạt bằng câu văn ngắn gọn kèm sơ đồ khung ASCII để hình dung và so sánh.
+- **Chữ ký (Signature):** Một yếu tố độc nhất mà trang này sẽ được ghi nhớ, thể hiện đúng tinh thần của brief theo cách phù hợp.
 
-## More on writing in design
+_Vòng 2 — Phản biện & xây dựng:_ Xem lại kế hoạch đó so với brief trước khi bắt tay code: nếu phần nào đó nghe giống một phương án mặc định, chung chung mà bạn sẽ tạo ra cho bất kỳ trang tương tự nào (thử tưởng tượng một prompt tương tự để xem có ra kết quả giống vậy không) — hãy sửa lại phần đó, và ghi rõ bạn đã thay đổi gì và tại sao. Chỉ khi đã xác nhận được tính độc đáo tương đối của kế hoạch, mới bắt đầu viết code, bám sát kế hoạch đã sửa và suy ra mọi quyết định về màu sắc, kiểu chữ từ đó.
 
-Words appear in a design for one reason: to make it easier to understand, and therefore easier to use. They are design material, not decoration. Bring the same intentionality to copy that you would bring to spacing and color. Before writing anything, ask what the design needs to say, and how it can best be said to help the person navigate the experience.
+Khi viết code, cẩn thận với độ ưu tiên (specificity) của CSS selector. Rất dễ tạo ra các class CSS triệt tiêu lẫn nhau (đặc biệt khi kết hợp selector theo class như `.section` với selector theo phần tử như `.cta`). Lỗi này hay xảy ra với padding/margin giữa các section.
 
-Write from the end user's side of the screen. Name things by what people control and recognize, never by how the system is built. A person manages notifications, not webhook config. Describe what something does in plain terms rather than selling it. Being specific is always better than being clever.
+Hãy thực hiện phần lớn việc lên kế hoạch và lặp lại này trong quá trình suy nghĩ nội bộ, và chỉ trình bày ý tưởng cho người dùng khi bạn đã tự tin rằng nó sẽ khiến họ hài lòng.
 
-Use active voice as default. A control should say exactly what happens when it's used: "Save changes," not "Submit." An action keeps the same name through the whole flow, so the button that says "Publish" produces a toast that says "Published." The vocabulary of an interface is the signposting for someone navigating the product. Cohesion and consistency are how people learn their way around.
+## Sự tiết chế và tự phản biện
 
-Treat failure and emptiness as moments for direction, not mood. Explain what went wrong and how to fix it, in the interface's voice rather than a person's. Errors don't apologize, and they are never vague about what happened. An empty screen is an invitation to act.
+Chỉ "chơi liều" ở một chỗ duy nhất. Hãy để yếu tố chữ ký (signature) là điều đáng nhớ duy nhất, giữ mọi thứ xung quanh nó yên tĩnh và kỷ luật, và loại bỏ mọi trang trí không phục vụ brief. Không dám mạo hiểm cũng là một rủi ro! Xây dựng đạt chuẩn chất lượng tối thiểu mà không cần phô trương: responsive đến tận mobile, focus bàn phím rõ ràng, tôn trọng thiết lập giảm chuyển động (reduced motion). Tự phản biện công việc của mình trong lúc xây dựng, chụp ảnh màn hình nếu môi trường cho phép — một bức ảnh đáng giá cả nghìn token. Hãy nhớ lời khuyên của Chanel: trước khi ra khỏi nhà, hãy soi gương và bỏ bớt một món phụ kiện. Con người sáng tạo có trí nhớ và luôn cố làm điều gì đó mới; nếu có chỗ để ghi chú nhanh những gì đã thử, điều đó sẽ giúp ích cho những lần sau.
 
-Keep the register conversational and tuned: plain verbs, sentence case, no filler, with tone matched to the brand and the audience. Let each element do exactly one job. A label labels, an example demonstrates, and nothing quietly does double duty.
+## Thêm về việc viết trong thiết kế
+
+Chữ xuất hiện trong một thiết kế vì một lý do duy nhất: giúp người dùng hiểu dễ hơn, và từ đó dùng dễ hơn. Chúng là _chất liệu thiết kế_, không phải trang trí. Hãy dành cho copy sự chăm chút y như bạn dành cho khoảng cách và màu sắc. Trước khi viết bất cứ điều gì, hãy tự hỏi thiết kế cần nói gì, và cách nói nào giúp người dùng định hướng tốt nhất trong trải nghiệm đó.
+
+**Viết từ phía người dùng, đứng sau màn hình.** Gọi tên sự vật theo cách người dùng kiểm soát và nhận ra, không theo cách hệ thống được xây dựng. Người dùng "quản lý thông báo", không phải "cấu hình webhook". Mô tả một thứ làm được gì bằng ngôn ngữ đơn giản, thay vì quảng cáo nó. Cụ thể luôn tốt hơn khôn khéo.
+
+**Mặc định dùng thể chủ động.** Một điều khiển (control) nên nói chính xác điều gì sẽ xảy ra khi được dùng: "Lưu thay đổi", không phải "Gửi". Một hành động giữ nguyên tên gọi xuyên suốt luồng thao tác — nút bấm nói "Xuất bản" thì thông báo hiện ra phải nói "Đã xuất bản". Từ vựng của một giao diện chính là biển chỉ dẫn cho người đang tìm đường trong sản phẩm. Sự nhất quán là cách người dùng học thuộc đường đi.
+
+**Xem thất bại và trạng thái trống là cơ hội để định hướng, không phải để tạo cảm xúc.** Giải thích điều gì đã sai và cách khắc phục, bằng giọng điệu của giao diện chứ không phải giọng con người. Thông báo lỗi không xin lỗi, và không bao giờ mơ hồ về việc đã xảy ra chuyện gì. Một màn hình trống là một lời mời hành động.
+
+**Giữ giọng văn trò chuyện, được hiệu chỉnh đúng mức:** động từ đơn giản, viết hoa đầu câu, không rườm rà, giọng điệu khớp với thương hiệu và đối tượng người dùng. Để mỗi yếu tố chỉ làm đúng một việc: nhãn thì để dán nhãn, ví dụ thì để minh hoạ, không có yếu tố nào âm thầm làm hai việc cùng lúc.
+
+---
+
+## Phần nâng cấp: Bổ sung cho bối cảnh thiết kế tại Việt Nam / đa ngôn ngữ
+
+Phần dưới đây mở rộng tài liệu gốc với các lưu ý thực tế khi áp dụng cho sản phẩm tiếng Việt hoặc đa ngôn ngữ Việt–Anh, vì đây là những khác biệt dễ bị bỏ sót khi dịch nguyên bộ nguyên tắc thẩm mỹ từ tiếng Anh sang.
+
+### 1. Kiểu chữ và dấu tiếng Việt
+
+- Không phải mọi font display "characterful" đều hỗ trợ đầy đủ dấu tiếng Việt (ă, â, ê, ô, ơ, ư, và các tổ hợp thanh điệu: sắc, huyền, hỏi, ngã, nặng). Trước khi chọn một cặp font làm "chữ ký" của trang, kiểm tra bảng Unicode Latin Extended-A/B và Vietnamese subset của font đó.
+- Chữ có dấu thường cần line-height lớn hơn khoảng 5–10% so với bản gốc tiếng Anh, vì dấu thanh điệu (đặc biệt dấu ngã, dấu hỏi) dễ bị cắt hoặc chồng lên dòng trên nếu line-height quá chặt.
+- Chữ in hoa toàn bộ (all-caps) tiếng Việt làm mất dấu thanh điệu trong nhận diện thị giác nhanh hơn tiếng Anh — cân nhắc dùng small-caps hoặc letter-spacing thay vì viết hoa toàn bộ cho tiêu đề dài.
+
+### 2. Độ dài nội dung và bố cục
+
+- Câu tiếng Việt dịch từ tiếng Anh thường dài hơn 20–40% về số ký tự. Khi thiết kế nút bấm, nhãn điều hướng, hoặc thẻ (card) có giới hạn chiều rộng cố định, hãy thiết kế với nội dung tiếng Việt thật ngay từ đầu, không dịch sau khi đã chốt layout.
+- Từ ghép tiếng Việt không có gạch nối tự nhiên như tiếng Anh, nên tránh ngắt dòng giữa các từ ghép có nghĩa (ví dụ "quản lý" không nên bị tách dòng giữa "quản" và "lý").
+
+### 3. Màu sắc và hàm nghĩa văn hoá
+
+- Nếu sản phẩm hướng đến người dùng Việt Nam, cân nhắc hàm nghĩa văn hoá của màu: đỏ thường gắn với may mắn/dịp lễ hơn là cảnh báo; màu trắng có thể gợi liên tưởng tang lễ trong một số ngữ cảnh. Đây không phải quy tắc cứng, nhưng đáng để kiểm tra khi chọn màu cảnh báo (error/warning) hoặc màu chủ đạo cho một brief nhắm vào thị trường này.
+
+### 4. Giọng văn khi viết copy song ngữ
+
+- Giữ đúng tinh thần "thể chủ động, tên hành động nhất quán xuyên suốt luồng" như bản gốc, nhưng lưu ý tiếng Việt có nhiều đại từ nhân xưng theo ngữ cảnh (bạn/anh/chị/quý khách...). Chốt một đại từ xưng hô duy nhất cho toàn bộ sản phẩm và giữ nhất quán — đổi đại từ giữa các màn hình là lỗi thường gặp khiến giao diện mất gắn kết.
+- Thông báo lỗi tiếng Việt dễ bị dịch máy nghe cứng nhắc ("Đã xảy ra lỗi không xác định"). Ưu tiên diễn đạt tự nhiên, cụ thể ("Không lưu được thay đổi — kiểm tra kết nối mạng rồi thử lại") thay vì dịch sát nghĩa từng chữ từ bản tiếng Anh.
+
+Những bổ sung trên không thay thế các nguyên tắc gốc — chúng là lớp kiểm tra thêm để áp dụng đúng cho một dự án tiếng Việt cụ thể, đúng tinh thần "bám sát chất liệu và thế giới riêng của chủ đề" mà tài liệu gốc đã nhấn mạnh.

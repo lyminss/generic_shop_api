@@ -76,7 +76,7 @@ public class OrderServiceImpl implements OrderService {
         order.setTotalPrice(totalPrice);
         orderRepository.save(order);
 
-        deductStockAndIngredients(order);
+        // Không trừ kho ở đây — kho sẽ bị trừ khi Barista đánh dấu READY từng item
         cartService.clearCart(email);
 
         return ResponseEntity.ok(toDTO(order));
@@ -124,7 +124,7 @@ public class OrderServiceImpl implements OrderService {
         order.setItems(orderItems);
         order.setTotalPrice(totalPrice);
         orderRepository.save(order);
-        deductStockAndIngredients(order);
+        // Không trừ kho ở đây — kho sẽ bị trừ khi Barista đánh dấu READY từng item
 
         return ResponseEntity.ok(toDTO(order));
     }
@@ -154,8 +154,9 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public ResponseEntity<?> getAllOrders() {
-        return ResponseEntity.ok(orderRepository.findAll().stream().map(this::toDTO).toList());
+        return ResponseEntity.ok(orderRepository.findAllByOrderByCreatedAtDesc().stream().map(this::toDTO).toList());
     }
+
 
     @Transactional
     @Override
@@ -198,6 +199,13 @@ public class OrderServiceImpl implements OrderService {
         OrderItem item = orderItemRepository.findById(itemId)
                 .orElseThrow(() -> new RuntimeException("OrderItem not found: " + itemId));
 
+        if (item.getPreparedStatus() == ItemPreparedStatus.READY) {
+            return ResponseEntity.badRequest().body("Món này đã được đánh dấu hoàn thành rồi.");
+        }
+
+        // === Trừ kho nguyên liệu TẠI ĐÂY khi barista xác nhận pha xong ===
+        deductStockForItem(item);
+
         item.setPreparedStatus(ItemPreparedStatus.READY);
         orderItemRepository.save(item);
 
@@ -229,57 +237,103 @@ public class OrderServiceImpl implements OrderService {
     // -----------------------------------------------
 
     private String checkIngredientStockForProduct(Product product, int qty) {
+        java.time.LocalDate today = java.time.LocalDate.now();
         for (RecipeItem ri : recipeItemRepository.findByProductId(product.getId())) {
-            double required = ri.getQuantity() * qty;
             Ingredient ing = ri.getIngredient();
-            if (ing.getCurrentStock() < required) {
-                return "Nguyên liệu '" + ing.getName() + "' không đủ để pha '" + product.getName()
-                        + "'. Tồn: " + ing.getCurrentStock() + " " + ing.getUnit()
-                        + ", Yêu cầu: " + required + " " + ing.getUnit();
+            if (ing == null) continue;
+
+            // Kiểm tra an toàn thực phẩm: Nguyên liệu tem nguyên đã quá hạn
+            if (ing.getExpiryDate() != null && ing.getExpiryDate().isBefore(today)) {
+                return "Nguyên liệu '" + ing.getName() + "' dùng cho món '" + product.getName()
+                        + "' đã HẾT HẠN SỬ DỤNG (" + ing.getExpiryDate() + "). Không thể tạo đơn!";
+            }
+
+            // Kiểm tra nguyên liệu đã mở nắp quá hạn
+            if (ing.getOpenedExpiryDate() != null && ing.getOpenedStock() != null && ing.getOpenedStock() > 0 && ing.getOpenedExpiryDate().isBefore(today)) {
+                return "Nguyên liệu mở nắp '" + ing.getName() + "' dùng cho món '" + product.getName()
+                        + "' đã QUÁ HẠN MỞ NẮP (" + ing.getOpenedExpiryDate() + "). Vui lòng kiểm tra và xử lý lô hàng!";
+            }
+
+            double requiredInIngUnit = com.example.generic_shop.util.UnitConverter.convertToIngredientUnit(
+                    ri.getQuantity() * qty, ri.getUnit(), ing.getUnit());
+            double currentStock = ing.getCurrentStock() != null ? ing.getCurrentStock() : 0.0;
+
+            if (currentStock < requiredInIngUnit) {
+                String reqDisplay = (ri.getUnit() != null && !ri.getUnit().equalsIgnoreCase(ing.getUnit()))
+                        ? String.format("%.1f %s (%.3f %s)", ri.getQuantity() * qty, ri.getUnit(), requiredInIngUnit, ing.getUnit())
+                        : String.format("%.3f %s", requiredInIngUnit, ing.getUnit());
+
+                return "Nguyên liệu '" + ing.getName() + "' không đủ để pha " + qty + "x '" + product.getName()
+                        + "'. Tồn: " + currentStock + " " + ing.getUnit()
+                        + ", Yêu cầu: " + reqDisplay;
             }
         }
         return null;
     }
 
-    private void deductStockAndIngredients(Order order) {
-        String ref = "ORD-" + order.getId();
-        for (OrderItem item : order.getItems()) {
-            Product p = item.getProduct();
-            p.setStockQuantity(p.getStockQuantity() - item.getQuantity());
-            productRepository.save(p);
+    /**
+     * Trừ kho sản phẩm + nguyên liệu cho MỘT OrderItem khi Barista xác nhận pha xong.
+     * Được gọi trong markItemReady — KHÔNG gọi khi tạo đơn.
+     */
+    private void deductStockForItem(OrderItem item) {
+        String ref = "ORD-" + item.getOrder().getId();
+        Product p = item.getProduct();
+        p.setStockQuantity(Math.max(0, p.getStockQuantity() - item.getQuantity()));
+        productRepository.save(p);
 
-            for (RecipeItem ri : recipeItemRepository.findByProductId(p.getId())) {
-                Ingredient ing = ri.getIngredient();
-                double consumed = ri.getQuantity() * item.getQuantity();
-                double before = ing.getCurrentStock();
-                double after = before - consumed;
-                ing.setCurrentStock(after);
-                ingredientRepository.save(ing);
+        for (RecipeItem ri : recipeItemRepository.findByProductId(p.getId())) {
+            Ingredient ing = ri.getIngredient();
+            if (ing == null) continue;
 
-                InventoryTransaction log = new InventoryTransaction();
-                log.setIngredient(ing);
-                log.setType(InventoryTransactionType.EXPORT_PREPARATION);
-                log.setQuantity(-consumed);
-                log.setStockBefore(before);
-                log.setStockAfter(after);
-                log.setReferenceCode(ref);
-                log.setNote("Pha chế " + item.getQuantity() + "x " + p.getName());
-                inventoryTransactionRepository.save(log);
+            double consumed = com.example.generic_shop.util.UnitConverter.convertToIngredientUnit(
+                    ri.getQuantity() * item.getQuantity(), ri.getUnit(), ing.getUnit());
+
+            double before = ing.getCurrentStock() != null ? ing.getCurrentStock() : 0.0;
+            double after = Math.max(0.0, before - consumed);
+            ing.setCurrentStock(after);
+
+            // Trừ ưu tiên từ openedStock nếu có
+            if (ing.getOpenedStock() != null && ing.getOpenedStock() > 0) {
+                double opConsumed = Math.min(ing.getOpenedStock(), consumed);
+                ing.setOpenedStock(Math.max(0.0, ing.getOpenedStock() - opConsumed));
             }
+
+            ingredientRepository.save(ing);
+
+            InventoryTransaction log = new InventoryTransaction();
+            log.setIngredient(ing);
+            log.setType(InventoryTransactionType.EXPORT_PREPARATION);
+            log.setQuantity(-consumed);
+            log.setStockBefore(before);
+            log.setStockAfter(after);
+            log.setReferenceCode(ref);
+            log.setNote("Barista pha xong: " + item.getQuantity() + "x " + p.getName());
+            inventoryTransactionRepository.save(log);
         }
     }
 
+    /**
+     * Hoàn kho khi hủy đơn — CHỈ hoàn những item đã READY (đã thực sự trừ kho).
+     * Item còn PENDING chưa bị trừ kho nên không cần hoàn.
+     */
     private void restoreStockAndIngredients(Order order) {
         String ref = "ORD-" + order.getId();
         for (OrderItem item : order.getItems()) {
+            // Chỉ hoàn nếu món đó đã được barista xác nhận (đã trừ kho)
+            if (item.getPreparedStatus() != ItemPreparedStatus.READY) continue;
+
             Product p = item.getProduct();
             p.setStockQuantity(p.getStockQuantity() + item.getQuantity());
             productRepository.save(p);
 
             for (RecipeItem ri : recipeItemRepository.findByProductId(p.getId())) {
                 Ingredient ing = ri.getIngredient();
-                double refunded = ri.getQuantity() * item.getQuantity();
-                double before = ing.getCurrentStock();
+                if (ing == null) continue;
+
+                double refunded = com.example.generic_shop.util.UnitConverter.convertToIngredientUnit(
+                        ri.getQuantity() * item.getQuantity(), ri.getUnit(), ing.getUnit());
+
+                double before = ing.getCurrentStock() != null ? ing.getCurrentStock() : 0.0;
                 double after = before + refunded;
                 ing.setCurrentStock(after);
                 ingredientRepository.save(ing);
@@ -291,11 +345,12 @@ public class OrderServiceImpl implements OrderService {
                 log.setStockBefore(before);
                 log.setStockAfter(after);
                 log.setReferenceCode(ref);
-                log.setNote("Hoàn kho hủy đơn #" + order.getId());
+                log.setNote("Hoàn kho hủy đơn #" + order.getId() + " (món đã pha)");
                 inventoryTransactionRepository.save(log);
             }
         }
     }
+
 
     private OrderDTO toDTO(Order order) {
         OrderDTO dto = new OrderDTO();
@@ -304,13 +359,17 @@ public class OrderServiceImpl implements OrderService {
         dto.setOrderStatus(order.getOrderStatus());
         dto.setShippingAddress(order.getShippingAddress());
         dto.setCreatedAt(order.getCreatedAt());
+        dto.setUpdatedAt(order.getUpdatedAt());
 
         if (order.getItems() != null) {
             dto.setItems(order.getItems().stream().map(item -> {
                 OrderItemDTO d = new OrderItemDTO();
                 d.setId(item.getId());
-                d.setProductId(item.getProduct().getId());
-                d.setProductName(item.getProduct().getName());
+                if (item.getProduct() != null) {
+                    d.setProductId(item.getProduct().getId());
+                    d.setProductName(item.getProduct().getName());
+                    d.setProductImage(item.getProduct().getImage());
+                }
                 d.setQuantity(item.getQuantity());
                 d.setPrice(item.getPrice());
                 d.setSubtotal(item.getQuantity() * item.getPrice());
@@ -321,3 +380,4 @@ public class OrderServiceImpl implements OrderService {
         return dto;
     }
 }
+

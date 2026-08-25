@@ -70,10 +70,11 @@ const ProductDetail = () => {
       toast.info("Vui lòng đăng nhập để thêm món vào giỏ hàng");
       return;
     }
-    if (product.stockQuantity === 0) {
-      toast.error("Món này hiện đã hết hàng");
+    if (product.available === false || product.stockQuantity === 0) {
+      toast.error(product.unavailableReason || "Món này hiện đang tạm ngưng do hết hoặc quá hạn nguyên liệu");
       return;
     }
+
     
     // Customization notes string
     const notes = `${selectedSize.name}, ${selectedIce}, ${selectedSugar}` + 
@@ -110,7 +111,8 @@ const ProductDetail = () => {
     );
   }
 
-  const inStock = product.stockQuantity > 0;
+  const isUnavailable = product.available === false || product.stockQuantity === 0;
+  const inStock = !isUnavailable;
   const unitPrice = calculateUnitPrice();
   const totalPrice = unitPrice * quantity;
 
@@ -147,11 +149,11 @@ const ProductDetail = () => {
           <div className="flex items-center gap-2 mb-3">
             {inStock ? (
               <span className="stock-tag-ok">
-                <CheckCircle size={15} /> Sẵn sàng pha chế ({product.stockQuantity} ly)
+                <CheckCircle size={15} /> Sẵn sàng phục vụ ({product.maxServingsAvailable ?? product.stockQuantity} ly)
               </span>
             ) : (
-              <span className="stock-tag-out">
-                <XCircle size={15} /> Tạm hết hàng
+              <span className="stock-tag-out" style={{ background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5' }}>
+                <XCircle size={15} /> {product.unavailableReason || 'Tạm ngưng phục vụ'}
               </span>
             )}
           </div>

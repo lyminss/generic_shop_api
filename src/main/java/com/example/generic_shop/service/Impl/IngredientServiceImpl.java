@@ -16,6 +16,7 @@ public class IngredientServiceImpl implements IngredientService {
 
     private final IngredientRepository ingredientRepository;
     private final RecipeItemRepository recipeItemRepository;
+    private final com.example.generic_shop.repository.InventoryTransactionRepository inventoryTransactionRepository;
 
     @Override
     public List<Ingredient> getAllIngredients() {
@@ -75,8 +76,6 @@ public class IngredientServiceImpl implements IngredientService {
         return ingredientRepository.save(existing);
     }
 
-
-
     @Transactional
     @Override
     public void deleteIngredient(Long id) {
@@ -86,4 +85,69 @@ public class IngredientServiceImpl implements IngredientService {
         }
         ingredientRepository.delete(existing);
     }
+
+    @Transactional
+    @Override
+    public Ingredient discardExpiredStock(Long id) {
+        Ingredient ing = getIngredientById(id);
+        java.time.LocalDate today = java.time.LocalDate.now();
+
+        boolean sealedExpired = ing.getExpiryDate() != null && ing.getExpiryDate().isBefore(today);
+        boolean openedExpired = ing.getOpenedExpiryDate() != null && ing.getOpenedStock() != null && ing.getOpenedStock() > 0 && ing.getOpenedExpiryDate().isBefore(today);
+
+        if (!sealedExpired && !openedExpired) {
+            throw new RuntimeException("Nguyên liệu '" + ing.getName() + "' chưa hết hạn sử dụng!");
+        }
+
+        double beforeStock = ing.getCurrentStock() != null ? ing.getCurrentStock() : 0.0;
+        double discardedAmount = 0.0;
+        String noteReason = "";
+
+        if (sealedExpired) {
+            discardedAmount = beforeStock;
+            ing.setCurrentStock(0.0);
+            ing.setOpenedStock(0.0);
+            noteReason = "Xuất hủy toàn bộ tồn do hết hạn tem nguyên (HSD: " + ing.getExpiryDate() + ")";
+        } else if (openedExpired) {
+            double opened = ing.getOpenedStock() != null ? ing.getOpenedStock() : 0.0;
+            discardedAmount = Math.min(beforeStock, opened);
+            ing.setCurrentStock(Math.max(0.0, beforeStock - discardedAmount));
+            ing.setOpenedStock(0.0);
+            noteReason = "Xuất hủy phần mở nắp quá hạn (HSD mở nắp: " + ing.getOpenedExpiryDate() + ")";
+        }
+
+        Ingredient saved = ingredientRepository.save(ing);
+
+        if (discardedAmount > 0) {
+            com.example.generic_shop.entity.InventoryTransaction tx = new com.example.generic_shop.entity.InventoryTransaction();
+            tx.setIngredient(saved);
+            tx.setType(com.example.generic_shop.enums.InventoryTransactionType.EXPIRED_DISCARD);
+            tx.setQuantity(-discardedAmount);
+            tx.setStockBefore(beforeStock);
+            tx.setStockAfter(saved.getCurrentStock());
+            tx.setReferenceCode("EXP-" + ing.getCode() + "-" + (System.currentTimeMillis() % 100000));
+            tx.setNote(noteReason);
+            inventoryTransactionRepository.save(tx);
+        }
+
+        return saved;
+    }
+
+    @Transactional
+    @Override
+    public java.util.List<Ingredient> discardAllExpiredStock() {
+        java.util.List<Ingredient> all = ingredientRepository.findAll();
+        java.util.List<Ingredient> result = new java.util.ArrayList<>();
+        java.time.LocalDate today = java.time.LocalDate.now();
+
+        for (Ingredient ing : all) {
+            boolean sealedExpired = ing.getExpiryDate() != null && ing.getExpiryDate().isBefore(today);
+            boolean openedExpired = ing.getOpenedExpiryDate() != null && ing.getOpenedStock() != null && ing.getOpenedStock() > 0 && ing.getOpenedExpiryDate().isBefore(today);
+            if ((sealedExpired || openedExpired) && ing.getCurrentStock() != null && ing.getCurrentStock() > 0) {
+                result.add(discardExpiredStock(ing.getId()));
+            }
+        }
+        return result;
+    }
 }
+

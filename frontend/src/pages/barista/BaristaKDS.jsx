@@ -85,10 +85,14 @@ const BaristaKDS = () => {
     }
   };
 
-  const processingOrders = orders.filter(
+  const sortedOrders = [...orders].sort(
+    (a, b) => (b.id || 0) - (a.id || 0) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+  );
+  const processingOrders = sortedOrders.filter(
     (o) => o.orderStatus === 'PROCESSING' || o.orderStatus === 'SHIPPING'
   );
-  const completedHistory = orders.filter((o) => o.orderStatus === 'COMPLETED');
+  const completedHistory = sortedOrders.filter((o) => o.orderStatus === 'COMPLETED');
+
 
   const getElapsedMinutes = (dateStr) => {
     if (!dateStr) return 0;

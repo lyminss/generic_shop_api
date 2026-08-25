@@ -98,7 +98,10 @@ export const ingredientService = {
   create: (data) => api.post('/ingredients', data),
   update: (id, data) => api.put(`/ingredients/${id}`, data),
   delete: (id) => api.delete(`/ingredients/${id}`),
+  discardExpired: (id) => api.post(`/ingredients/${id}/discard-expired`),
+  discardAllExpired: () => api.post('/ingredients/discard-all-expired'),
 };
+
 
 // Recipe endpoints
 export const recipeService = {

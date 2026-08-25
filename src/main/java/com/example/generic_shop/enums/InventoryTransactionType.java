@@ -4,5 +4,7 @@ public enum InventoryTransactionType {
     IMPORT,             // Nhập kho
     EXPORT_PREPARATION, // Trừ kho pha chế món
     ADJUSTMENT,         // Điều chỉnh kiểm kê
-    RETURN              // Hoàn trả tồn kho khi hủy đơn
+    RETURN,             // Hoàn trả tồn kho khi hủy đơn
+    EXPIRED_DISCARD     // Xuất hủy nguyên liệu hết hạn sử dụng
 }
+

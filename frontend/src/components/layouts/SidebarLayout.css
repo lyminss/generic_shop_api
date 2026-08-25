@@ -394,9 +394,12 @@
 /* Page content */
 .sidebar-content {
   flex: 1;
-  padding: 24px;
+  padding: 2rem 2.5rem 4rem;
+  background-color: #faf9f6;
   overflow-y: auto;
+  min-height: calc(100vh - 56px);
 }
+
 
 /* ========== RESPONSIVE ========== */
 @media (max-width: 768px) {

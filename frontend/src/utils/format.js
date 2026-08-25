@@ -34,6 +34,28 @@ export const formatTimeAgo = (dateInput) => {
 };
 
 /**
+ * Formats date into standard DD/MM/YYYY string
+ * e.g., "2026-08-25" -> "25/08/2026"
+ */
+export const formatDate = (dateInput) => {
+  if (!dateInput) return '—';
+  // If string in YYYY-MM-DD format, split directly to prevent timezone shifts
+  const str = String(dateInput).trim();
+  const datePart = str.includes('T') ? str.split('T')[0] : str.split(' ')[0];
+  const parts = datePart.split('-');
+  if (parts.length === 3 && parts[0].length === 4) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return String(dateInput);
+  return d.toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+};
+
+/**
  * Formats date to standard Vietnamese datetime string
  */
 export const formatDateTime = (dateInput) => {
@@ -46,4 +68,15 @@ export const formatDateTime = (dateInput) => {
     month: '2-digit',
     year: 'numeric',
   });
+};/**
+ * Formats a stock quantity number cleanly — removes floating-point noise.
+ * e.g., 4.970000000000001  → "4.97"
+ *       5.0                → "5"
+ *       0.025              → "0.025"
+ * @param {number} value - the quantity
+ * @param {number} [maxDecimals=3] - max decimal places (default 3)
+ */
+export const fmtQty = (value, maxDecimals = 3) => {
+  if (value === null || value === undefined || isNaN(value)) return '0';
+  return parseFloat(Number(value).toFixed(maxDecimals)).toString();
 };

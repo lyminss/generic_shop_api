@@ -1,0 +1,74 @@
+/* =====================================================================
+   TÚC TẮC TEA — ADMIN USERS MODULE (QUẢN LÝ THÀNH VIÊN & PHÂN QUYỀN)
+   Matching AdminStats Layout, Spacing, Hero Banner, Metric Grid & Bento Table
+   ===================================================================== */
+
+@import './AdminCommon.css';
+
+/* =================== Role Badges =================== */
+.role-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.7rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+.role-pill.admin { background: var(--caramel-light); color: var(--caramel-dark); border: 1px solid var(--caramel-line); }
+.role-pill.user { background: var(--surface-sunken); color: var(--ink-soft); border: 1px solid var(--line); }
+
+/* =================== Role Toggle Buttons =================== */
+.role-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 11px;
+  font-size: 0.75rem;
+  font-weight: 750;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.role-action-btn.promote {
+  background: #fdf2f4;
+  color: #9f1239;
+  border-color: #fecdd3;
+}
+.role-action-btn.promote:hover {
+  background: #ffe4e6;
+}
+
+.role-action-btn.demote {
+  background: #fefce8;
+  color: #854d0e;
+  border-color: #fef08a;
+}
+.role-action-btn.demote:hover {
+  background: #fef9c3;
+}
+
+/* =================== Avatar Gradients =================== */
+.user-avatar-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.82rem;
+  flex-shrink: 0;
+}
+
+.user-avatar-badge.admin {
+  background: linear-gradient(135deg, #7c5c9c 0%, #4d3568 100%);
+  color: #ffffff;
+}
+
+.user-avatar-badge.user {
+  background: linear-gradient(135deg, #5c7a4e 0%, #324729 100%);
+  color: #ffffff;
+}

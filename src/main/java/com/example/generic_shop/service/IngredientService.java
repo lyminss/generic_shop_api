@@ -11,4 +11,7 @@ public interface IngredientService {
     Ingredient createIngredient(Ingredient ingredient);
     Ingredient updateIngredient(Long id, Ingredient ingredient);
     void deleteIngredient(Long id);
+    Ingredient discardExpiredStock(Long id);
+    List<Ingredient> discardAllExpiredStock();
 }
+

@@ -12,12 +12,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 
 @Component
 @RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
+
 
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
@@ -62,19 +64,36 @@ public class DataInitializer implements CommandLineRunner {
         Map<String, Ingredient> result = new HashMap<>();
 
         java.time.LocalDate today = java.time.LocalDate.now();
+
+        // Format: code, name, unit, currentStock, minAlert, costPrice, expiryDate, openedStock, openedExpiryDate
+        // openedStock > 0 = có hộp/gói/chai đang dùng dở (đã khui), openedExpiryDate = hạn sau khi mở
+        // Quy tắc: chỉ set openedStock khi thực sự có container đã khui đang dùng dở
         Object[][] ingData = {
-            {"NL001", "Cà Phê Hạt Arabica Thượng Hạng", "kg", 5.0, 1.0, 250000.0, today.plusDays(90), 0.0, null},
-            {"NL002", "Sữa Tươi Thanh Trùng Vinamilk", "chai", 10.0, 2.0, 35000.0, today.plusDays(10), 1.0, today.plusDays(3)},
-            {"NL003", "Sữa Đặc Ngôi Sao Phương Nam", "chai", 5.0, 1.0, 60000.0, today.plusDays(60), 1.0, today.plusDays(15)},
-            {"NL004", "Lục Trà Thái Nguyên Đặc Sản", "kg", 3.0, 0.5, 300000.0, today.plusDays(120), 0.0, null},
-            {"NL005", "Trà Đen Cốt Đậm Đượm Vị", "kg", 4.0, 0.5, 280000.0, today.plusDays(100), 0.0, null},
-            {"NL006", "Đường Nước Thanh Ngọt Bắp", "chai", 8.0, 1.5, 20000.0, today.plusDays(180), 1.0, today.plusDays(30)},
-            {"NL007", "Trân Châu Đen Dẻo Ô Long", "kg", 6.0, 1.0, 50000.0, today.plusDays(7), 1.0, today.plusDays(1)},
-            {"NL008", "Bột Kem Béo Thực Vật Béo Ngậy", "kg", 5.0, 0.8, 120000.0, today.plusDays(45), 0.0, null},
-            {"NL009", "Siro Đào Giòn Pháp Monin", "chai", 2.0, 0.4, 180000.0, today.plusDays(30), 1.0, today.plusDays(7)},
-            {"NL010", "Siro Vải Thiều Ngâm Đường", "chai", 2.0, 0.4, 175000.0, today.plusDays(25), 0.0, null},
-            {"NL011", "Sốt Matcha Uji Nhật Bản", "kg", 1.5, 0.3, 450000.0, today.plusDays(15), 0.5, today.plusDays(4)},
-            {"NL012", "Kem Cheese Macchiato Béo Mặn", "chai", 3.0, 0.5, 150000.0, today.plusDays(5), 1.0, today.plusDays(2)}
+            // ✅ ĐỦ HÀNG – tất cả còn nguyên seal, tồn kho an toàn
+            {"NL001", "Cà Phê Hạt Arabica Thượng Hạng", "kg",   5.0,  1.0, 250000.0, today.plusDays(90),  0.0, null},
+            {"NL004", "Lục Trà Thái Nguyên Đặc Sản",    "kg",   3.0,  0.5, 300000.0, today.plusDays(120), 0.0, null},
+            {"NL005", "Trà Đen Cốt Đậm Đượm Vị",        "kg",   4.0,  0.5, 280000.0, today.plusDays(100), 0.0, null},
+            {"NL008", "Bột Kem Béo Thực Vật",            "kg",   5.0,  0.8, 120000.0, today.plusDays(60),  0.0, null},
+            {"NL010", "Siro Vải Thiều Ngâm Đường",       "chai", 4.0,  0.5, 175000.0, today.plusDays(80),  0.0, null},
+
+            // 🟠 CÓ HỘP ĐANG MỞ – tổng tồn bao gồm cả phần đang dùng dở
+            // Ví dụ: NL002 = 10 chai tổng, trong đó 1 chai đã khui nắp đang dùng (hạn mở ngắn hơn)
+            //        NL011 = 1.5 kg tổng = 1 gói kín + 0.5 kg trong túi đang mở
+            {"NL002", "Sữa Tươi Thanh Trùng Vinamilk",  "chai", 10.0, 2.0,  35000.0, today.plusDays(10), 1.0,  today.plusDays(3)},
+            {"NL011", "Sốt Matcha Uji Nhật Bản",         "kg",   1.5,  0.3, 450000.0, today.plusDays(40), 0.5,  today.plusDays(5)},
+
+            // 🟡 GẦN HẾT HẠN (≤ 7 ngày) – tất cả còn nguyên seal
+            {"NL003", "Sữa Đặc Ngôi Sao Phương Nam",    "chai", 5.0,  1.0,  60000.0, today.plusDays(7),  0.0, null},
+            {"NL006", "Đường Nước Thanh Ngọt",           "chai", 8.0,  1.5,  20000.0, today.plusDays(5),  0.0, null},
+            {"NL009", "Siro Đào Giòn Pháp Monin",        "chai", 3.0,  0.4, 180000.0, today.plusDays(6),  0.0, null},
+            {"NL012", "Kem Cheese Macchiato Béo Mặn",    "chai", 3.0,  0.5, 150000.0, today.plusDays(2),  0.0, null},
+
+            // 🔴 HẾT HẠN (quá ngày)
+            {"NL007", "Trân Châu Đen Dẻo Ô Long",        "kg",  1.5,  1.0,  50000.0, today.minusDays(3), 0.0, null},
+
+            // ⚠️ GẦN HẾT HÀNG (tồn <= ngưỡng cảnh báo)
+            {"NL013", "Đá Viên Tinh Khiết",              "túi",  1.0,  2.0,  15000.0, today.plusDays(30),  0.0, null},
+            {"NL014", "Cốc Nhựa PET 500ml",              "cái",  50.0, 100.0, 800.0,  today.plusDays(365), 0.0, null},
         };
 
         for (Object[] item : ingData) {
@@ -91,18 +110,11 @@ public class DataInitializer implements CommandLineRunner {
             Ingredient ing = ingredientRepository.findByCode(code).orElseGet(() -> {
                 Ingredient newIng = new Ingredient();
                 newIng.setCode(code);
-                newIng.setName(name);
-                newIng.setUnit(unit);
-                newIng.setCurrentStock(currentStock);
-                newIng.setMinStockAlert(minAlert);
-                newIng.setCostPrice(costPrice);
-                newIng.setExpiryDate(expDate);
-                newIng.setOpenedStock(openedStock);
-                newIng.setOpenedExpiryDate(openedExpDate);
-                return ingredientRepository.save(newIng);
+                return newIng;
             });
 
-            // Sync units and values to kg / chai
+            // Always sync all fields on startup
+            ing.setName(name);
             ing.setUnit(unit);
             ing.setCurrentStock(currentStock);
             ing.setMinStockAlert(minAlert);
@@ -115,14 +127,14 @@ public class DataInitializer implements CommandLineRunner {
             result.put(code, ing);
         }
 
-
-
-
         System.out.println(">>> Seeded " + result.size() + " Ingredients successfully.");
         return result;
     }
 
+
+    @Transactional
     private void seedProductsAndRecipes(Map<String, Ingredient> ingMap) {
+
         // List of 10 Products with specs & recipe BOMs
         List<ProductSeedSpec> productsToSeed = Arrays.asList(
             new ProductSeedSpec(
@@ -131,9 +143,9 @@ public class DataInitializer implements CommandLineRunner {
                 "https://images.unsplash.com/photo-1541167760496-1628856ab772?w=500&auto=format&fit=crop",
                 35000L, 100, "Cà Phê",
                 Arrays.asList(
-                    new RecipeSpec("NL001", 25.0),
-                    new RecipeSpec("NL003", 30.0),
-                    new RecipeSpec("NL006", 15.0)
+                    new RecipeSpec("NL001", 25.0, "g"),
+                    new RecipeSpec("NL003", 30.0, "ml"),
+                    new RecipeSpec("NL006", 15.0, "ml")
                 )
             ),
             new ProductSeedSpec(
@@ -142,8 +154,8 @@ public class DataInitializer implements CommandLineRunner {
                 "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=500&auto=format&fit=crop",
                 29000L, 100, "Cà Phê",
                 Arrays.asList(
-                    new RecipeSpec("NL001", 25.0),
-                    new RecipeSpec("NL006", 15.0)
+                    new RecipeSpec("NL001", 25.0, "g"),
+                    new RecipeSpec("NL006", 15.0, "ml")
                 )
             ),
             new ProductSeedSpec(
@@ -152,9 +164,9 @@ public class DataInitializer implements CommandLineRunner {
                 "https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=500&auto=format&fit=crop",
                 39000L, 100, "Cà Phê",
                 Arrays.asList(
-                    new RecipeSpec("NL001", 15.0),
-                    new RecipeSpec("NL002", 80.0),
-                    new RecipeSpec("NL003", 25.0)
+                    new RecipeSpec("NL001", 15.0, "g"),
+                    new RecipeSpec("NL002", 80.0, "ml"),
+                    new RecipeSpec("NL003", 25.0, "ml")
                 )
             ),
             new ProductSeedSpec(
@@ -163,10 +175,10 @@ public class DataInitializer implements CommandLineRunner {
                 "https://images.unsplash.com/photo-1558857563-b371033873b8?w=500&auto=format&fit=crop",
                 42000L, 100, "Trà Sữa",
                 Arrays.asList(
-                    new RecipeSpec("NL005", 15.0),
-                    new RecipeSpec("NL008", 30.0),
-                    new RecipeSpec("NL006", 20.0),
-                    new RecipeSpec("NL007", 50.0)
+                    new RecipeSpec("NL005", 15.0, "g"),
+                    new RecipeSpec("NL008", 30.0, "g"),
+                    new RecipeSpec("NL006", 20.0, "ml"),
+                    new RecipeSpec("NL007", 50.0, "g")
                 )
             ),
             new ProductSeedSpec(
@@ -175,10 +187,10 @@ public class DataInitializer implements CommandLineRunner {
                 "https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=500&auto=format&fit=crop",
                 49000L, 100, "Trà Sữa",
                 Arrays.asList(
-                    new RecipeSpec("NL005", 15.0),
-                    new RecipeSpec("NL008", 25.0),
-                    new RecipeSpec("NL006", 20.0),
-                    new RecipeSpec("NL012", 40.0)
+                    new RecipeSpec("NL005", 15.0, "g"),
+                    new RecipeSpec("NL008", 25.0, "g"),
+                    new RecipeSpec("NL006", 20.0, "ml"),
+                    new RecipeSpec("NL012", 40.0, "ml")
                 )
             ),
             new ProductSeedSpec(
@@ -187,10 +199,10 @@ public class DataInitializer implements CommandLineRunner {
                 "https://images.unsplash.com/photo-1536256263959-770b48d82b0a?w=500&auto=format&fit=crop",
                 45000L, 100, "Trà Sữa",
                 Arrays.asList(
-                    new RecipeSpec("NL011", 20.0),
-                    new RecipeSpec("NL002", 100.0),
-                    new RecipeSpec("NL003", 15.0),
-                    new RecipeSpec("NL006", 15.0)
+                    new RecipeSpec("NL011", 20.0, "g"),
+                    new RecipeSpec("NL002", 100.0, "ml"),
+                    new RecipeSpec("NL003", 15.0, "ml"),
+                    new RecipeSpec("NL006", 15.0, "ml")
                 )
             ),
             new ProductSeedSpec(
@@ -199,9 +211,9 @@ public class DataInitializer implements CommandLineRunner {
                 "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=500&auto=format&fit=crop",
                 45000L, 100, "Trà Trái Cây",
                 Arrays.asList(
-                    new RecipeSpec("NL004", 10.0),
-                    new RecipeSpec("NL009", 30.0),
-                    new RecipeSpec("NL006", 15.0)
+                    new RecipeSpec("NL004", 10.0, "g"),
+                    new RecipeSpec("NL009", 30.0, "ml"),
+                    new RecipeSpec("NL006", 15.0, "ml")
                 )
             ),
             new ProductSeedSpec(
@@ -210,9 +222,9 @@ public class DataInitializer implements CommandLineRunner {
                 "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=500&auto=format&fit=crop",
                 42000L, 100, "Trà Trái Cây",
                 Arrays.asList(
-                    new RecipeSpec("NL004", 10.0),
-                    new RecipeSpec("NL010", 30.0),
-                    new RecipeSpec("NL006", 15.0)
+                    new RecipeSpec("NL004", 10.0, "g"),
+                    new RecipeSpec("NL010", 30.0, "ml"),
+                    new RecipeSpec("NL006", 15.0, "ml")
                 )
             ),
             new ProductSeedSpec(
@@ -221,9 +233,9 @@ public class DataInitializer implements CommandLineRunner {
                 "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=500&auto=format&fit=crop",
                 39000L, 100, "Trà Đặc Sắc",
                 Arrays.asList(
-                    new RecipeSpec("NL004", 10.0),
-                    new RecipeSpec("NL006", 15.0),
-                    new RecipeSpec("NL012", 50.0)
+                    new RecipeSpec("NL004", 10.0, "g"),
+                    new RecipeSpec("NL006", 15.0, "ml"),
+                    new RecipeSpec("NL012", 50.0, "ml")
                 )
             ),
             new ProductSeedSpec(
@@ -232,9 +244,9 @@ public class DataInitializer implements CommandLineRunner {
                 "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=500&auto=format&fit=crop",
                 42000L, 100, "Cà Phê",
                 Arrays.asList(
-                    new RecipeSpec("NL001", 20.0),
-                    new RecipeSpec("NL003", 20.0),
-                    new RecipeSpec("NL012", 40.0)
+                    new RecipeSpec("NL001", 20.0, "g"),
+                    new RecipeSpec("NL003", 20.0, "ml"),
+                    new RecipeSpec("NL012", 40.0, "ml")
                 )
             )
         );
@@ -251,23 +263,21 @@ public class DataInitializer implements CommandLineRunner {
                 return productRepository.save(p);
             });
 
-            // Seed Recipe Items if not exist
-            List<RecipeItem> existingRecipes = recipeItemRepository.findByProductId(product.getId());
-            if (existingRecipes.isEmpty()) {
-                for (RecipeSpec rSpec : spec.recipes) {
-                    Ingredient ing = ingMap.get(rSpec.ingredientCode);
-                    if (ing != null) {
-                        RecipeItem recipeItem = new RecipeItem();
-                        recipeItem.setProduct(product);
-                        recipeItem.setIngredient(ing);
-                        recipeItem.setQuantity(rSpec.quantity);
-                        recipeItem.setUnit(ing.getUnit());
-                        recipeItemRepository.save(recipeItem);
-                    }
+            // Resync or seed recipe items
+            recipeItemRepository.deleteByProductId(product.getId());
+            for (RecipeSpec rSpec : spec.recipes) {
+                Ingredient ing = ingMap.get(rSpec.ingredientCode);
+                if (ing != null) {
+                    RecipeItem recipeItem = new RecipeItem();
+                    recipeItem.setProduct(product);
+                    recipeItem.setIngredient(ing);
+                    recipeItem.setQuantity(rSpec.quantity);
+                    recipeItem.setUnit(rSpec.unit != null ? rSpec.unit : ing.getUnit());
+                    recipeItemRepository.save(recipeItem);
                 }
-                System.out.println(">>> Seeded Recipe for Product: " + product.getName());
             }
         }
+        System.out.println(">>> Synchronized all Recipes with correct units (g, ml, chai, kg).");
     }
 
     private static class ProductSeedSpec {
@@ -293,10 +303,13 @@ public class DataInitializer implements CommandLineRunner {
     private static class RecipeSpec {
         String ingredientCode;
         Double quantity;
+        String unit;
 
-        RecipeSpec(String ingredientCode, Double quantity) {
+        RecipeSpec(String ingredientCode, Double quantity, String unit) {
             this.ingredientCode = ingredientCode;
             this.quantity = quantity;
+            this.unit = unit;
         }
     }
 }
+

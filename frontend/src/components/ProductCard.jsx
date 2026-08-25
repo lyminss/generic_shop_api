@@ -8,17 +8,30 @@ import { useEffect, useState } from 'react';
 import { reviewService } from '../services/api';
 import './ProductCard.css';
 
-const getStockStatus = (qty) => {
-  if (qty === 0) return { label: 'Hết hàng', cls: 'stock-out' };
-  if (qty <= 5) return { label: `Còn ${qty} ly`, cls: 'stock-low' };
-  return { label: 'Sẵn sàng', cls: 'stock-ok' };
+const getStockStatus = (product) => {
+  if (product.available === false) {
+    if (product.unavailableReason?.includes('hết hạn')) {
+      return { label: 'Tạm ngưng (NL quá hạn)', cls: 'stock-out', isUnavailable: true };
+    }
+    if (product.unavailableReason?.includes('Hết nguyên liệu')) {
+      return { label: 'Hết nguyên liệu', cls: 'stock-out', isUnavailable: true };
+    }
+    return { label: product.unavailableReason || 'Tạm ngưng', cls: 'stock-out', isUnavailable: true };
+  }
+  const qty = product.stockQuantity ?? 999;
+  if (qty === 0) return { label: 'Hết hàng', cls: 'stock-out', isUnavailable: true };
+  if (product.maxServingsAvailable !== undefined && product.maxServingsAvailable > 0 && product.maxServingsAvailable <= 5) {
+    return { label: `Còn ${product.maxServingsAvailable} ly`, cls: 'stock-low', isUnavailable: false };
+  }
+  if (qty <= 5) return { label: `Còn ${qty} ly`, cls: 'stock-low', isUnavailable: false };
+  return { label: 'Sẵn sàng', cls: 'stock-ok', isUnavailable: false };
 };
 
 const ProductCard = ({ product }) => {
   const { addToCart } = useCart();
   const { user } = useAuth();
   const toast = useToast();
-  const stock = getStockStatus(product.stockQuantity ?? 999);
+  const stock = getStockStatus(product);
   const [avgRating, setAvgRating] = useState(null);
   const [reviewCount, setReviewCount] = useState(0);
 
@@ -38,8 +51,8 @@ const ProductCard = ({ product }) => {
       toast.info("Vui lòng đăng nhập để thêm món vào giỏ hàng");
       return;
     }
-    if (product.stockQuantity === 0) {
-      toast.error("Món này hiện đã hết hàng");
+    if (stock.isUnavailable) {
+      toast.error(product.unavailableReason || "Món này hiện đang tạm ngưng do hết nguyên liệu hoặc nguyên liệu hết hạn");
       return;
     }
     addToCart(product.id, 1);
@@ -47,7 +60,7 @@ const ProductCard = ({ product }) => {
   };
 
   return (
-    <Link to={`/product/${product.id}`} className="product-card glass-card">
+    <Link to={`/product/${product.id}`} className={`product-card glass-card ${stock.isUnavailable ? 'card-unavailable' : ''}`}>
       <div className="product-image">
         {product.image ? (
           <img src={product.image} alt={product.name} loading="lazy" />
@@ -96,10 +109,10 @@ const ProductCard = ({ product }) => {
             {formatPrice(product.price)}
           </span>
           <button
-            className={`add-cart-btn ${product.stockQuantity === 0 ? 'disabled' : ''}`}
+            className={`add-cart-btn ${stock.isUnavailable ? 'disabled' : ''}`}
             onClick={handleAddToCart}
-            title={product.stockQuantity === 0 ? 'Hết hàng' : 'Thêm vào giỏ'}
-            disabled={product.stockQuantity === 0}
+            title={stock.isUnavailable ? (product.unavailableReason || 'Tạm ngưng phục vụ') : 'Thêm vào giỏ'}
+            disabled={stock.isUnavailable}
             aria-label={`Thêm ${product.name} vào giỏ hàng`}
           >
             <ShoppingCart size={17} />

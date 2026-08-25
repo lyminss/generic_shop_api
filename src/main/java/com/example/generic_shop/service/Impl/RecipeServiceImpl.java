@@ -88,8 +88,12 @@ public class RecipeServiceImpl implements RecipeService {
 
             itemResponses.add(dto);
 
-            if (item.getQuantity() > 0) {
-                int possibleForThisIngredient = (int) (ing.getCurrentStock() / item.getQuantity());
+            double requiredPerServingInIngUnit = com.example.generic_shop.util.UnitConverter.convertToIngredientUnit(
+                    item.getQuantity(), item.getUnit(), ing.getUnit());
+
+            if (requiredPerServingInIngUnit > 0) {
+                double curStock = ing.getCurrentStock() != null ? ing.getCurrentStock() : 0.0;
+                int possibleForThisIngredient = (int) (curStock / requiredPerServingInIngUnit);
                 if (possibleForThisIngredient < minPossibleServings) {
                     minPossibleServings = possibleForThisIngredient;
                 }

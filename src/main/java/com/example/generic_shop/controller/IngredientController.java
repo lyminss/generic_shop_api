@@ -61,4 +61,23 @@ public class IngredientController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
+    @PostMapping("/{id}/discard-expired")
+    public ResponseEntity<?> discardExpired(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(ingredientService.discardExpiredStock(id));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/discard-all-expired")
+    public ResponseEntity<?> discardAllExpired() {
+        try {
+            return ResponseEntity.ok(ingredientService.discardAllExpiredStock());
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
 }
+

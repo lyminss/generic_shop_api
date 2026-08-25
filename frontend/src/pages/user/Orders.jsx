@@ -61,13 +61,17 @@ const Orders = () => {
     );
   }
 
+  const sortedOrders = [...orders].sort(
+    (a, b) => (b.id || 0) - (a.id || 0) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+  );
+
   return (
     <div className="orders-container animate-fade-in">
       <h1 className="page-title">Lịch sử đặt món</h1>
-      <p className="page-subtitle">Đã đặt {orders.length} đơn hàng</p>
+      <p className="page-subtitle">Đã đặt {sortedOrders.length} đơn hàng</p>
 
       <div className="orders-list">
-        {orders.map(order => {
+        {sortedOrders.map(order => {
           const st = STATUS_CONFIG[order.orderStatus] || { label: order.orderStatus, cls: '' };
           const previewItems = (order.items || []).slice(0, 3);
           return (

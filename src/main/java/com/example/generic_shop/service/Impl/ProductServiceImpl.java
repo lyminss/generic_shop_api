@@ -14,17 +14,22 @@ import com.example.generic_shop.service.ProductService;
 @RequiredArgsConstructor
 public class ProductServiceImpl implements ProductService {
     private final ProductRepository productRepository;
+    private final com.example.generic_shop.repository.RecipeItemRepository recipeItemRepository;
 
     //Get all
     @Override
     public List<Product> getAll(){
-        return productRepository.findAll();
+        List<Product> products = productRepository.findAll();
+        products.forEach(this::evaluateProductAvailability);
+        return products;
     }
 
     //Get filtered (search + category)
     @Override
     public List<Product> getFiltered(String category, String search) {
-        return productRepository.findFiltered(category, search);
+        List<Product> products = productRepository.findFiltered(category, search);
+        products.forEach(this::evaluateProductAvailability);
+        return products;
     }
 
     //Get distinct categories
@@ -41,8 +46,69 @@ public class ProductServiceImpl implements ProductService {
     //Get by id
     @Override
     public Product getById(Long id){
-        return productRepository.findById(id).orElseThrow(() -> new RuntimeException("Not found" +id));
+        Product product = productRepository.findById(id).orElseThrow(() -> new RuntimeException("Not found" +id));
+        evaluateProductAvailability(product);
+        return product;
     }
+
+    private void evaluateProductAvailability(Product product) {
+        if (product == null) return;
+        java.time.LocalDate today = java.time.LocalDate.now();
+
+        if (product.getStockQuantity() <= 0) {
+            product.setAvailable(false);
+            product.setUnavailableReason("Hết món");
+            product.setMaxServingsAvailable(0);
+            return;
+        }
+
+        List<com.example.generic_shop.entity.RecipeItem> recipeItems = recipeItemRepository.findByProductId(product.getId());
+        if (recipeItems == null || recipeItems.isEmpty()) {
+            product.setAvailable(true);
+            product.setMaxServingsAvailable(product.getStockQuantity());
+            return;
+        }
+
+        int minServingsFromIngredients = Integer.MAX_VALUE;
+
+        for (com.example.generic_shop.entity.RecipeItem ri : recipeItems) {
+            com.example.generic_shop.entity.Ingredient ing = ri.getIngredient();
+            if (ing == null) continue;
+
+            // 1. Kiểm tra nguyên liệu hết hạn
+            boolean sealedExpired = ing.getExpiryDate() != null && ing.getExpiryDate().isBefore(today);
+            boolean openedExpired = ing.getOpenedExpiryDate() != null && ing.getOpenedStock() != null && ing.getOpenedStock() > 0 && ing.getOpenedExpiryDate().isBefore(today);
+
+            if (sealedExpired || openedExpired) {
+                product.setAvailable(false);
+                String expDateStr = sealedExpired ? String.valueOf(ing.getExpiryDate()) : String.valueOf(ing.getOpenedExpiryDate());
+                product.setUnavailableReason("Tạm ngưng: Nguyên liệu '" + ing.getName() + "' đã hết hạn sử dụng (" + expDateStr + ")");
+                product.setMaxServingsAvailable(0);
+                return;
+            }
+
+            // 2. Kiểm tra tồn kho nguyên liệu với UnitConverter
+            double requiredPerServing = com.example.generic_shop.util.UnitConverter.convertToIngredientUnit(ri.getQuantity(), ri.getUnit(), ing.getUnit());
+            double currentStock = ing.getCurrentStock() != null ? ing.getCurrentStock() : 0.0;
+
+            if (requiredPerServing > 0) {
+                int possible = (int) (currentStock / requiredPerServing);
+                if (possible < minServingsFromIngredients) {
+                    minServingsFromIngredients = possible;
+                }
+                if (currentStock < requiredPerServing) {
+                    product.setAvailable(false);
+                    product.setUnavailableReason("Tạm ngưng: Hết nguyên liệu '" + ing.getName() + "'");
+                    product.setMaxServingsAvailable(0);
+                    return;
+                }
+            }
+        }
+
+        product.setAvailable(true);
+        product.setMaxServingsAvailable(Math.min(product.getStockQuantity(), minServingsFromIngredients == Integer.MAX_VALUE ? product.getStockQuantity() : minServingsFromIngredients));
+    }
+
 
     //Create
     @Override

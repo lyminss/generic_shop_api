@@ -78,7 +78,11 @@ const StaffDashboard = () => {
 
   // POS Cart Operations
   const handleAddToCart = (prod) => {
-    if (prod.stockQuantity === 0) { toast.error('Món này đã hết hàng'); return; }
+    if (prod.available === false || prod.stockQuantity === 0) {
+      toast.error(prod.unavailableReason || 'Món này đang tạm ngưng do hết hoặc quá hạn nguyên liệu');
+      return;
+    }
+
     setCartItems(prev => {
       const existing = prev.find(item => item.product.id === prod.id);
       if (existing) {
@@ -159,11 +163,13 @@ const StaffDashboard = () => {
   };
 
   const posTotal = cartItems.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
-  const newOrdersList = orders.filter(o => o.orderStatus === 'NEW');
+  const sortedOrders = [...orders].sort((a, b) => (b.id || 0) - (a.id || 0) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  const newOrdersList = sortedOrders.filter(o => o.orderStatus === 'NEW');
   const filteredProducts = products.filter(p =>
     (activeCategory === '' || p.category === activeCategory) &&
     (search === '' || p.name?.toLowerCase().includes(search.toLowerCase()))
   );
+
 
   return (
     <div className="staff-container animate-fade-in">
@@ -208,21 +214,31 @@ const StaffDashboard = () => {
               )}
 
               <div className="pos-grid">
-                {filteredProducts.map(prod => (
-                  <div
-                    key={prod.id}
-                    onClick={() => handleAddToCart(prod)}
-                    className={`pos-prod-card${prod.stockQuantity === 0 ? ' out-of-stock' : ''}`}
-                  >
-                    <div className="pos-prod-img">
-                      {prod.image ? <img src={prod.image} alt={prod.name} /> : <span>🧋</span>}
+                {filteredProducts.map(prod => {
+                  const isUnavailable = prod.available === false || prod.stockQuantity === 0;
+                  return (
+                    <div
+                      key={prod.id}
+                      onClick={() => handleAddToCart(prod)}
+                      className={`pos-prod-card${isUnavailable ? ' out-of-stock' : ''}`}
+                    >
+                      <div className="pos-prod-img">
+                        {prod.image ? <img src={prod.image} alt={prod.name} /> : <span>🧋</span>}
+                        {isUnavailable && (
+                          <div className="pos-out-badge" style={{
+                            position: 'absolute', top: '6px', right: '6px', background: '#dc2626', color: '#fff', fontSize: '10px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '4px'
+                          }}>
+                            Hết Món
+                          </div>
+                        )}
+                      </div>
+                      <div className="pos-prod-info">
+                        <h4>{prod.name}</h4>
+                        <p className="price">{formatPrice(prod.price)}</p>
+                      </div>
                     </div>
-                    <div className="pos-prod-info">
-                      <h4>{prod.name}</h4>
-                      <p className="price">{formatPrice(prod.price)}</p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -421,8 +437,9 @@ const StaffDashboard = () => {
                       </td>
                     </tr>
                   ) : (
-                    orders.map(ord => (
+                    sortedOrders.map(ord => (
                       <tr key={ord.id}>
+
                         <td className="font-bold">#{ord.id}</td>
                         <td className="text-muted">{new Date(ord.createdAt).toLocaleString('vi-VN')}</td>
                         <td className="text-truncate">{ord.shippingAddress}</td>

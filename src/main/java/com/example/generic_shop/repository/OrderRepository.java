@@ -18,6 +18,12 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     List<Order> findByCustomerOrderByCreatedAtDesc(User user);
 
+    List<Order> findByCustomerOrderByIdDesc(User user);
+
+    List<Order> findAllByOrderByCreatedAtDesc();
+
+    List<Order> findAllByOrderByIdDesc();
+
     /**
      * Kiểm tra xem user đã từng mua và hoàn tất đơn hàng có chứa sản phẩm này chưa.
      * Dùng để xác thực quyền đánh giá sản phẩm.
