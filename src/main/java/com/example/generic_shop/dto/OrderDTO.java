@@ -12,6 +12,10 @@ public class OrderDTO {
     private OrderStatus orderStatus;
     private Double totalPrice;
     private String shippingAddress;
+    private String customerName;
+    private String customerEmail;
+    private String customerPhone;
+    private String creatorRole;
     private Date createdAt;
     private Date updatedAt;
     private List<OrderItemDTO> items;

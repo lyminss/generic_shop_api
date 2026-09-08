@@ -8,6 +8,7 @@ import {
   CheckCircle,
   PackageCheck,
 } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { formatPrice, fmtQty } from '../../../utils/format';
 
 const StockReceiptDetailModal = ({ receipt, onClose }) => {
@@ -15,7 +16,7 @@ const StockReceiptDetailModal = ({ receipt, onClose }) => {
 
   const totalQty = receipt.details?.reduce((s, i) => s + (Number(i.quantity) || 0), 0) ?? 0;
 
-  return (
+  return createPortal(
     <div className="aodm-overlay" onClick={onClose}>
       <div className="aodm-panel" style={{ maxWidth: '860px', maxHeight: 'calc(100vh - 3rem)' }} onClick={(e) => e.stopPropagation()}>
         {/* ── Header ── */}
@@ -106,7 +107,12 @@ const StockReceiptDetailModal = ({ receipt, onClose }) => {
                         {d.ingredient?.name || `Nguyên liệu #${d.ingredientId}`}
                       </td>
                       <td style={{ textAlign: 'right', fontWeight: 700 }}>
-                        {fmtQty(d.quantity)} {d.ingredient?.unit || ''}
+                        <div>{fmtQty(d.quantity)} {d.ingredient?.unit || ''}</div>
+                        {d.ingredient?.purchaseUnit && d.ingredient.purchaseUnit.trim() !== d.ingredient.unit?.trim() && (d.ingredient.conversionRate > 1) && (
+                          <div style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 600 }}>
+                            (~ {(d.quantity / d.ingredient.conversionRate).toLocaleString('vi-VN', { maximumFractionDigits: 3 })} {d.ingredient.purchaseUnit})
+                          </div>
+                        )}
                       </td>
                       <td style={{ textAlign: 'right', color: '#64748b' }}>
                         {formatPrice(d.unitPrice)}
@@ -160,7 +166,8 @@ const StockReceiptDetailModal = ({ receipt, onClose }) => {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

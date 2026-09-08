@@ -101,11 +101,19 @@ public class CategoryServiceImpl implements CategoryService {
             category.setDisplayOrder(request.getDisplayOrder());
         }
 
-        // Nếu có thay đổi trạng thái active
-        if (request.getActive() != null && !request.getActive().equals(category.getActive())) {
-            setCategoryActive(id, request.getActive());
-        } else {
-            categoryRepository.save(category);
+        boolean activeChanged = request.getActive() != null && !request.getActive().equals(category.getActive());
+        if (request.getActive() != null) {
+            category.setActive(request.getActive());
+        }
+        categoryRepository.save(category);
+
+        if (activeChanged) {
+            List<Product> products = productRepository.findByCategoryIgnoreCase(newName);
+            String newProductStatus = Boolean.TRUE.equals(category.getActive()) ? "ACTIVE" : "STOPPED";
+            for (Product p : products) {
+                p.setStatus(newProductStatus);
+            }
+            productRepository.saveAll(products);
         }
 
         int count = productRepository.findByCategoryIgnoreCase(newName).size();

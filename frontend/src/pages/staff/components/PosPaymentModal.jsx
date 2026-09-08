@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Banknote,
   QrCode,
@@ -91,7 +92,7 @@ const PosPaymentModal = ({
   const transferContent = `POS ${orderCode || '1234'}`;
   const qrUrl = `https://api.vietqr.io/image/970403-040099604257-compact2.jpg?amount=${totalPrice}&addInfo=${encodeURIComponent(transferContent)}&accountName=NGUYEN%20LY%20DOAN%20LOC`;
 
-  return (
+  return createPortal(
     <div className="pos-payment-modal-overlay">
       <div className="pos-payment-modal">
         {/* Header */}
@@ -306,7 +307,8 @@ const PosPaymentModal = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

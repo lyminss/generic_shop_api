@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Plus,
@@ -23,27 +24,34 @@ const CreateStockReceiptModal = ({
 }) => {
   const [supplier, setSupplier] = useState('');
   const [note, setNote] = useState('');
-  const [items, setItems] = useState([{ ingredientId: '', quantity: 1, unitPrice: 0 }]);
+
+  const getInitialRow = (ing) => {
+    const hasConv = Boolean(ing?.purchaseUnit && ing.purchaseUnit.trim() !== ing.unit?.trim());
+    const rate = (hasConv && ing.conversionRate) ? ing.conversionRate : 1;
+    return {
+      ingredientId: ing?.id || '',
+      quantity: 1,
+      unitType: hasConv ? 'purchase' : 'base',
+      unitPrice: hasConv ? ((ing?.costPrice || 0) * rate) : (ing?.costPrice || 0),
+    };
+  };
+
+  const [items, setItems] = useState([]);
 
   useEffect(() => {
     if (isOpen) {
       setSupplier('');
       setNote('');
-      setItems([{ ingredientId: ingredients[0]?.id || '', quantity: 1, unitPrice: ingredients[0]?.costPrice || 0 }]);
+      setItems([getInitialRow(ingredients[0])]);
     }
   }, [isOpen, ingredients]);
 
   if (!isOpen) return null;
 
   const handleAddRow = () => {
-    const firstIng = ingredients[0];
     setItems([
       ...items,
-      {
-        ingredientId: firstIng?.id || '',
-        quantity: 1,
-        unitPrice: firstIng?.costPrice || 0,
-      },
+      getInitialRow(ingredients[0]),
     ]);
   };
 
@@ -58,11 +66,21 @@ const CreateStockReceiptModal = ({
     const next = [...items];
     next[idx][field] = val;
 
-    // Khi chọn nguyên liệu mới, tự động gợi ý giá vốn hiện tại nếu có
     if (field === 'ingredientId') {
       const selected = ingredients.find((i) => String(i.id) === String(val));
-      if (selected && selected.costPrice && !next[idx].unitPrice) {
-        next[idx].unitPrice = selected.costPrice;
+      const hasConv = Boolean(selected?.purchaseUnit && selected.purchaseUnit.trim() !== selected.unit?.trim());
+      next[idx].unitType = hasConv ? 'purchase' : 'base';
+      const rate = (hasConv && selected.conversionRate) ? selected.conversionRate : 1;
+      next[idx].unitPrice = (selected?.costPrice || 0) * (hasConv ? rate : 1);
+    }
+
+    if (field === 'unitType') {
+      const selected = ingredients.find((i) => String(i.id) === String(next[idx].ingredientId));
+      const rate = (selected && selected.conversionRate) ? selected.conversionRate : 1;
+      if (val === 'purchase' && rate > 0) {
+        next[idx].unitPrice = (Number(next[idx].unitPrice) || 0) * rate;
+      } else if (val === 'base' && rate > 0) {
+        next[idx].unitPrice = Math.round((Number(next[idx].unitPrice) || 0) / rate);
       }
     }
 
@@ -79,11 +97,21 @@ const CreateStockReceiptModal = ({
     onSave({
       supplier: supplier.trim(),
       note: note.trim(),
-      items: items.map((i) => ({
-        ingredientId: Number(i.ingredientId),
-        quantity: Number(i.quantity),
-        unitPrice: Number(i.unitPrice || 0),
-      })),
+      items: items.map((i) => {
+        const selected = ingredients.find((ing) => String(ing.id) === String(i.ingredientId));
+        const hasConv = Boolean(selected?.purchaseUnit && selected.purchaseUnit.trim() !== selected.unit?.trim());
+        const isPurchase = i.unitType === 'purchase' && hasConv;
+        const rate = isPurchase ? (selected?.conversionRate || 1) : 1;
+
+        const qtyBase = Number(i.quantity) * rate;
+        const unitPriceBase = rate > 0 ? Number(i.unitPrice || 0) / rate : Number(i.unitPrice || 0);
+
+        return {
+          ingredientId: Number(i.ingredientId),
+          quantity: qtyBase,
+          unitPrice: unitPriceBase,
+        };
+      }),
     });
   };
 
@@ -92,7 +120,7 @@ const CreateStockReceiptModal = ({
     0
   );
 
-  return (
+  return createPortal(
     <div className="aodm-overlay" onClick={onClose}>
       <div className="aodm-panel" style={{ maxWidth: '860px', maxHeight: 'calc(100vh - 3rem)' }} onClick={(e) => e.stopPropagation()}>
         {/* ── Header ── */}
@@ -194,26 +222,56 @@ const CreateStockReceiptModal = ({
                             <option value="">-- Chọn nguyên liệu --</option>
                             {ingredients.map((i) => (
                               <option key={i.id} value={i.id}>
-                                {i.code} - {i.name} ({i.unit})
+                                {i.code} - {i.name} ({i.unit}{i.purchaseUnit && i.purchaseUnit.trim() !== i.unit?.trim() ? ` | nhập ${i.purchaseUnit}` : ''})
                               </option>
                             ))}
                           </select>
                         </td>
 
                         <td>
-                          <div className="aodm-input-affix-wrap">
+                          <div className="aodm-input-affix-wrap" style={{ display: 'flex', alignItems: 'stretch' }}>
                             <input
                               type="number"
                               step="any"
-                              min="0.01"
+                              min="0.0001"
                               required
                               placeholder="1"
                               className="aodm-input"
+                              style={{ flex: 1 }}
                               value={row.quantity}
                               onChange={(e) => handleRowChange(idx, 'quantity', e.target.value)}
                             />
-                            <span className="aodm-input-affix">{selectedIng?.unit || ''}</span>
+                            {selectedIng?.purchaseUnit && selectedIng.purchaseUnit.trim() !== selectedIng.unit?.trim() ? (
+                              <select
+                                className="aodm-select"
+                                value={row.unitType || 'purchase'}
+                                onChange={(e) => handleRowChange(idx, 'unitType', e.target.value)}
+                                style={{
+                                  width: 'auto',
+                                  minWidth: '58px',
+                                  borderLeft: '1px solid #cbd5e1',
+                                  borderRadius: '0 8px 8px 0',
+                                  background: '#f1f5f9',
+                                  fontWeight: 700,
+                                  color: '#15803d',
+                                  padding: '0 8px',
+                                  fontSize: '0.8rem',
+                                  cursor: 'pointer',
+                                }}
+                                title="Chọn đơn vị nhập"
+                              >
+                                <option value="purchase">{selectedIng.purchaseUnit}</option>
+                                <option value="base">{selectedIng.unit}</option>
+                              </select>
+                            ) : (
+                              <span className="aodm-input-affix">{selectedIng?.unit || ''}</span>
+                            )}
                           </div>
+                          {selectedIng?.purchaseUnit && selectedIng.purchaseUnit.trim() !== selectedIng.unit?.trim() && row.unitType !== 'base' && (
+                            <small style={{ display: 'block', marginTop: '4px', fontSize: '0.72rem', color: '#16a34a', fontWeight: 600 }}>
+                              ↳ Quy đổi: {(Number(row.quantity || 0) * (selectedIng.conversionRate || 1)).toLocaleString('vi-VN')} {selectedIng.unit}
+                            </small>
+                          )}
                         </td>
 
                         <td>
@@ -228,7 +286,9 @@ const CreateStockReceiptModal = ({
                               value={row.unitPrice}
                               onChange={(e) => handleRowChange(idx, 'unitPrice', e.target.value)}
                             />
-                            <span className="aodm-input-affix">₫</span>
+                            <span className="aodm-input-affix" style={{ fontSize: '0.75rem' }}>
+                              ₫/{selectedIng?.purchaseUnit && selectedIng.purchaseUnit.trim() !== selectedIng.unit?.trim() && row.unitType !== 'base' ? selectedIng.purchaseUnit : (selectedIng?.unit || '')}
+                            </span>
                           </div>
                         </td>
 
@@ -315,7 +375,8 @@ const CreateStockReceiptModal = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

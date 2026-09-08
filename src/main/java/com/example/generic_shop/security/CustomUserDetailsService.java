@@ -19,14 +19,17 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         String role = user.getRole();
-        if (role == null || role.isEmpty()) {
-            role = "USER";
+        if (role == null || role.trim().isEmpty()) {
+            role = "ADMIN";
+        } else {
+            role = role.trim();
         }
         
         // .roles() automatically adds "ROLE_" prefix, so remove it if present in DB
-        if (role.startsWith("ROLE_")) {
+        if (role.toUpperCase().startsWith("ROLE_")) {
             role = role.substring(5);
         }
+        role = role.toUpperCase();
 
         return org.springframework.security.core.userdetails.User
                 .withUsername(user.getEmail())

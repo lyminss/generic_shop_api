@@ -11,7 +11,11 @@ export const ToastProvider = ({ children }) => {
 
   const addToast = useCallback((message, type = 'info', duration = 3500) => {
     const id = ++toastId;
-    setToasts(prev => [...prev, { id, message, type }]);
+    let safeMessage = message;
+    if (typeof message === 'object' && message !== null) {
+      safeMessage = message.message || message.error || JSON.stringify(message);
+    }
+    setToasts(prev => [...prev, { id, message: String(safeMessage ?? ''), type }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, duration);

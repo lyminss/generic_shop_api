@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import {
   Boxes,
@@ -23,7 +24,8 @@ import {
   Calendar,
   CalendarDays,
   Filter,
-  Check
+  Check,
+  PackagePlus
 } from 'lucide-react';
 import {
   ingredientService,
@@ -103,7 +105,9 @@ const InventoryManagement = () => {
   const [ingForm, setIngForm] = useState({
     code: '',
     name: '',
-    unit: 'chai',
+    unit: 'g',
+    purchaseUnit: 'kg',
+    conversionRate: 1000,
     currentStock: 0,
     minStockAlert: 100,
     costPrice: 0,
@@ -242,20 +246,18 @@ const InventoryManagement = () => {
   // ----------------------------------------------------
   const handleOpenAddIng = () => {
     setEditingIng(null);
-    const defaultExp = new Date();
-    defaultExp.setDate(defaultExp.getDate() + 30);
-    const defaultOpExp = new Date();
-    defaultOpExp.setDate(defaultOpExp.getDate() + 3);
     setIngForm({
       code: `NL${String(ingredients.length + 1).padStart(3, '0')}`,
       name: '',
-      unit: 'chai',
+      unit: 'g',
+      purchaseUnit: '',
+      conversionRate: 1,
       currentStock: 0,
       minStockAlert: 100,
       costPrice: 0,
-      expiryDate: defaultExp.toISOString().split('T')[0],
+      expiryDate: '',
       openedStock: 0,
-      openedExpiryDate: defaultOpExp.toISOString().split('T')[0],
+      openedExpiryDate: '',
     });
     setShowIngModal(true);
   };
@@ -266,6 +268,8 @@ const InventoryManagement = () => {
       code: ing.code,
       name: ing.name,
       unit: ing.unit,
+      purchaseUnit: ing.purchaseUnit || '',
+      conversionRate: ing.conversionRate ?? 1,
       currentStock: ing.currentStock,
       minStockAlert: ing.minStockAlert,
       costPrice: ing.costPrice,
@@ -467,26 +471,30 @@ const InventoryManagement = () => {
   // COMPUTED STATS & EXPIRY EVALUATION
   // ----------------------------------------------------
   const getIngredientExpiryInfo = (ing) => {
+    const currentStock = ing.currentStock || 0;
     const openedCount = ing.openedStock || 0;
-    const sealedCount = Math.max(0, (ing.currentStock || 0) - openedCount);
+    const sealedCount = Math.max(0, currentStock - openedCount);
     const opDays = (openedCount > 0 && ing.openedExpiryDate) ? getDaysUntilExpiry(ing.openedExpiryDate) : null;
-    const seDays = ing.expiryDate ? getDaysUntilExpiry(ing.expiryDate) : null;
+    const seDays = (sealedCount > 0 && ing.expiryDate) ? getDaysUntilExpiry(ing.expiryDate) : null;
 
-    const isOpenedExpired = opDays !== null && opDays < 0;
-    const isSealedExpired = seDays !== null && seDays < 0;
+    const isOpenedExpired = currentStock > 0 && opDays !== null && opDays < 0;
+    const isSealedExpired = currentStock > 0 && seDays !== null && seDays < 0;
     const isExpired = isOpenedExpired || isSealedExpired;
 
     const minDays = (() => {
+      if (currentStock <= 0) return 9999;
       if (opDays !== null && seDays !== null) return Math.min(opDays, seDays);
       return opDays ?? seDays ?? 9999;
     })();
 
-    const isUrgent = !isExpired && minDays <= 3;
-    const isWarning = !isExpired && minDays > 3 && minDays <= 7;
-    const isSafe = !isExpired && minDays > 7;
-    const isLow = ing.currentStock <= ing.minStockAlert;
+    const isUrgent = currentStock > 0 && !isExpired && minDays <= 3;
+    const isWarning = currentStock > 0 && !isExpired && minDays > 3 && minDays <= 7;
+    const isSafe = currentStock > 0 && !isExpired && minDays > 7;
+    const isLow = currentStock <= ing.minStockAlert;
+    const isOutOfStock = currentStock <= 0;
 
     return {
+      currentStock,
       openedCount,
       sealedCount,
       opDays,
@@ -499,6 +507,7 @@ const InventoryManagement = () => {
       isWarning,
       isSafe,
       isLow,
+      isOutOfStock,
     };
   };
 
@@ -510,7 +519,8 @@ const InventoryManagement = () => {
   const expiredCount = computedIngredients.filter(i => i._info.isExpired).length;
   const urgentCount = computedIngredients.filter(i => i._info.isUrgent).length;
   const expiringSoonCount = computedIngredients.filter(i => i._info.isUrgent || i._info.isWarning).length;
-  const lowStockCount = computedIngredients.filter(i => i._info.isLow).length;
+  const outOfStockCount = computedIngredients.filter(i => i._info.isOutOfStock).length;
+  const lowStockCount = computedIngredients.filter(i => i._info.isLow && !i._info.isOutOfStock).length;
   const safeCount = computedIngredients.filter(i => i._info.isSafe).length;
   const totalStockValue = ingredients.reduce((sum, i) => sum + (i.currentStock * i.costPrice), 0);
 
@@ -521,11 +531,12 @@ const InventoryManagement = () => {
 
       let matchesTab = true;
       if (expiryFilterTab === 'expired') matchesTab = ing._info.isExpired;
+      else if (expiryFilterTab === 'out_of_stock') matchesTab = ing._info.isOutOfStock;
       else if (expiryFilterTab === 'urgent') matchesTab = (ing._info.isUrgent || ing._info.isWarning);
-      else if (expiryFilterTab === 'low_stock') matchesTab = ing._info.isLow;
+      else if (expiryFilterTab === 'low_stock') matchesTab = (ing._info.isLow && !ing._info.isOutOfStock);
       else if (expiryFilterTab === 'safe') matchesTab = ing._info.isSafe;
 
-      const matchesLowCheckbox = showLowStockOnly ? ing._info.isLow : true;
+      const matchesLowCheckbox = showLowStockOnly ? (ing._info.isLow || ing._info.isOutOfStock) : true;
 
       return matchesSearch && matchesTab && matchesLowCheckbox;
     })
@@ -568,6 +579,41 @@ const InventoryManagement = () => {
               onClick={handleDiscardAllExpired}
             >
               <Trash2 size={16} /> Xuất hủy {expiredCount} lô hết hạn
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* CẢNH BÁO NGUYÊN LIỆU HẾT HÀNG (TỒN KHO = 0) */}
+      {outOfStockCount > 0 && (
+        <div className="expiry-alert-banner animate-fade-in" style={{ background: '#fef2f2', border: '1.5px solid #fecaca', marginBottom: '1rem' }}>
+          <div className="banner-left">
+            <div className="banner-icon-box" style={{ background: '#dc2626', color: '#fff' }}>
+              <AlertOctagon size={26} />
+            </div>
+            <div>
+              <h4 className="banner-title" style={{ color: '#991b1b' }}>
+                🚫 CẢNH BÁO TỒN KHO: Có {outOfStockCount} nguyên liệu ĐÃ HẾT HÀNG (Tồn kho = 0)!
+              </h4>
+              <p className="banner-desc" style={{ color: '#b91c1c' }}>
+                Các nguyên liệu này hiện đã hết sạch trong kho. Vui lòng tạo phiếu nhập kho bổ sung ngay để không làm gián đoạn pha chế phục vụ khách.
+              </p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              className={`btn-banner-action ${expiryFilterTab === 'out_of_stock' ? 'active-filter' : ''}`}
+              style={{ background: '#dc2626', color: '#fff', border: '1px solid #b91c1c' }}
+              onClick={() => setExpiryFilterTab(prev => prev === 'out_of_stock' ? 'all' : 'out_of_stock')}
+            >
+              <Filter size={16} /> {expiryFilterTab === 'out_of_stock' ? 'Đang lọc hết hàng (Tắt)' : `Lọc ${outOfStockCount} món hết hàng`}
+            </button>
+            <button
+              className="btn-banner-action"
+              style={{ background: '#059669', color: '#fff', border: '1px solid #047857' }}
+              onClick={() => setShowReceiptModal(true)}
+            >
+              <PackagePlus size={16} /> Nhập kho ngay
             </button>
           </div>
         </div>
@@ -619,6 +665,16 @@ const InventoryManagement = () => {
               </button>
 
               <button
+                className={`pill-btn pill-danger ${expiryFilterTab === 'out_of_stock' ? 'active' : ''}`}
+                style={expiryFilterTab === 'out_of_stock' ? { background: '#dc2626', color: '#fff', borderColor: '#b91c1c' } : {}}
+                onClick={() => setExpiryFilterTab('out_of_stock')}
+              >
+                <AlertOctagon size={14} />
+                Hết hàng
+                {outOfStockCount > 0 && <span className="pill-badge badge-red">{outOfStockCount}</span>}
+              </button>
+
+              <button
                 className={`pill-btn pill-urgent ${expiryFilterTab === 'urgent' ? 'active' : ''}`}
                 onClick={() => setExpiryFilterTab('urgent')}
               >
@@ -632,7 +688,7 @@ const InventoryManagement = () => {
                 onClick={() => setExpiryFilterTab('low_stock')}
               >
                 <AlertTriangle size={14} />
-                Gần hết hàng
+                Sắp hết hàng
                 {lowStockCount > 0 && <span className="pill-badge badge-amber">{lowStockCount}</span>}
               </button>
 
@@ -696,6 +752,8 @@ const InventoryManagement = () => {
                         description={
                           expiryFilterTab === 'expired'
                             ? 'Tuyệt vời! Hiện tại trong kho không có nguyên liệu nào bị quá hạn sử dụng.'
+                            : expiryFilterTab === 'out_of_stock'
+                            ? 'Tuyệt vời! Hiện tại trong kho không có nguyên liệu nào bị hết hàng.'
                             : 'Hiện không có nguyên liệu nào khớp với bộ lọc tìm kiếm.'
                         }
                         actionText="Thêm nguyên liệu mới"
@@ -708,6 +766,8 @@ const InventoryManagement = () => {
                     const info = ing._info;
                     const rowClass = info.isExpired
                       ? 'row-expired'
+                      : info.isOutOfStock
+                      ? 'row-out-of-stock'
                       : info.isUrgent
                       ? 'row-urgent'
                       : info.isLow
@@ -721,7 +781,22 @@ const InventoryManagement = () => {
                         </td>
                         <td>
                           <div className="font-semibold text-dark">{ing.name}</div>
-                          <small className="text-muted">Đơn vị: <strong>{ing.unit}</strong></small>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '2px' }}>
+                            <small className="text-muted">Đơn vị: <strong>{ing.unit}</strong></small>
+                            {ing.purchaseUnit && ing.purchaseUnit.trim() !== ing.unit?.trim() && (
+                              <span style={{
+                                fontSize: '0.72rem',
+                                background: '#ecfdf5',
+                                color: '#15803d',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                fontWeight: 600,
+                                border: '1px solid #bbf7d0'
+                              }}>
+                                1 {ing.purchaseUnit} = {(ing.conversionRate || 1).toLocaleString('vi-VN')} {ing.unit}
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         {/* CỘT HẠN SỬ DỤNG CỤ THỂ */}
@@ -793,9 +868,28 @@ const InventoryManagement = () => {
 
                         {/* CỘT TỔNG TỒN KHO */}
                         <td>
-                          <span className={`stock-amount ${info.isLow ? 'text-danger font-bold' : ''}`}>
-                            {fmtQty(ing.currentStock)} <span className="unit-chip">{ing.unit}</span>
-                          </span>
+                          {info.isOutOfStock ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span className="stock-amount text-danger font-bold">
+                                0 <span className="unit-chip">{ing.unit}</span>
+                              </span>
+                              <span style={{
+                                fontSize: '0.68rem',
+                                fontWeight: 800,
+                                background: '#fee2e2',
+                                color: '#b91c1c',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                border: '1px solid #fca5a5'
+                              }}>
+                                Hết hàng
+                              </span>
+                            </div>
+                          ) : (
+                            <span className={`stock-amount ${info.isLow ? 'text-danger font-bold' : ''}`}>
+                              {fmtQty(ing.currentStock)} <span className="unit-chip">{ing.unit}</span>
+                            </span>
+                          )}
                         </td>
 
                         <td>{fmtQty(ing.minStockAlert)} {ing.unit}</td>
@@ -823,12 +917,29 @@ const InventoryManagement = () => {
                                 </span>
                               )}
                             </div>
+                          ) : info.isOutOfStock ? (
+                            <div className="status-pill-wrap">
+                              <span
+                                className="inv-status-pill"
+                                style={{
+                                  background: '#fef2f2',
+                                  color: '#991b1b',
+                                  border: '1px solid #fecaca',
+                                  fontWeight: 700
+                                }}
+                                title="Nguyên liệu đã hết tồn kho hoàn toàn"
+                              >
+                                <span className="inv-status-beacon red"></span>
+                                <AlertOctagon size={12} className="inv-status-ico" />
+                                <span className="inv-status-text">Hết hàng</span>
+                              </span>
+                            </div>
                           ) : info.isLow ? (
                             <div className="status-pill-wrap">
                               <span className="inv-status-pill low-stock" title="Số lượng tồn kho thấp dưới ngưỡng">
                                 <span className="inv-status-beacon amber"></span>
                                 <AlertTriangle size={12} className="inv-status-ico" />
-                                <span className="inv-status-text">Gần hết hàng</span>
+                                <span className="inv-status-text">Sắp hết hàng</span>
                               </span>
                             </div>
                           ) : (
@@ -1200,148 +1311,302 @@ const InventoryManagement = () => {
       {/* ==================================================== */}
       {/* MODAL: THÊM / SỬA NGUYÊN LIỆU */}
       {/* ==================================================== */}
-      {showIngModal && (
-        <div className="modal-backdrop">
-          <div className="modal-card">
-            <div className="modal-header">
-              <h3>{editingIng ? 'Chỉnh Sửa Nguyên Liệu' : 'Thêm Nguyên Liệu Mới'}</h3>
-              <button className="btn-close" onClick={() => setShowIngModal(false)}><X size={20} /></button>
+      {showIngModal && createPortal(
+        <div className="aodm-overlay" onClick={() => setShowIngModal(false)}>
+          <div
+            className="aodm-panel"
+            style={{ maxWidth: '640px', maxHeight: 'calc(100vh - 3rem)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* ── Header ── */}
+            <div className="aodm-header">
+              <div className="aodm-header-left">
+                <div className="aodm-header-icon aodm-icon--emerald">
+                  <Boxes size={20} />
+                </div>
+                <div>
+                  <p className="aodm-eyebrow">Quản lý tồn kho nguyên liệu</p>
+                  <h2 className="aodm-title">{editingIng ? 'Chỉnh Sửa Nguyên Liệu' : 'Thêm Nguyên Liệu Mới'}</h2>
+                  <p className="aodm-date">
+                    <CalendarDays size={12} />
+                    {editingIng ? `Mã nguyên liệu: ${ingForm.code}` : 'Khai báo nguyên liệu, quy đổi đơn vị và định mức tồn'}
+                  </p>
+                </div>
+              </div>
+              <div className="aodm-header-right">
+                <span className="aodm-status-badge aodm-status--emerald">
+                  <span className="aodm-status-dot" style={{ background: '#10b981' }} />
+                  {editingIng ? 'Đang sửa' : 'Nguyên liệu mới'}
+                </span>
+                <button className="aodm-close-btn" onClick={() => setShowIngModal(false)} title="Đóng">
+                  <X size={18} />
+                </button>
+              </div>
             </div>
-            <form onSubmit={handleSaveIng}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label>Mã Nguyên Liệu (*)</label>
-                  <input
-                    type="text"
-                    required
-                    value={ingForm.code}
-                    disabled={!!editingIng}
-                    onChange={(e) => setIngForm({ ...ingForm, code: e.target.value })}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Tên Nguyên Liệu (*)</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ví dụ: Cà phê hạt Arabica, Sữa tươi Vinamilk..."
-                    value={ingForm.name}
-                    onChange={(e) => setIngForm({ ...ingForm, name: e.target.value })}
-                  />
-                </div>
-                <div className="form-grid-2">
-                  <div className="form-group">
-                    <label>Đơn Vị Tính (*)</label>
+
+            {/* ── Scrollable Body ── */}
+            <form id="ing-modal-form" onSubmit={handleSaveIng} className="aodm-body">
+              {/* Nhóm 1: Thông tin cơ bản */}
+              <div className="aodm-section">
+                <p className="aodm-section-label">
+                  <Boxes size={13} /> Thông tin định danh nguyên liệu
+                </p>
+                <div className="aodm-info-grid">
+                  <div className="aodm-info-cell">
+                    <label className="aodm-info-label">Mã Nguyên Liệu <span className="aodm-required">*</span></label>
                     <input
                       type="text"
                       required
-                      placeholder="chai, kg, lon, hộp..."
-                      value={ingForm.unit}
-                      onChange={(e) => setIngForm({ ...ingForm, unit: e.target.value })}
+                      className="aodm-input"
+                      value={ingForm.code}
+                      disabled={!!editingIng}
+                      onChange={(e) => setIngForm({ ...ingForm, code: e.target.value })}
                     />
-
                   </div>
-                  <div className="form-group">
-                    <label>Ngưỡng Cảnh Báo Sắp Hết (*)</label>
+                  <div className="aodm-info-cell">
+                    <label className="aodm-info-label">Tên Nguyên Liệu <span className="aodm-required">*</span></label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ví dụ: Cà phê hạt Arabica, Sữa tươi Vinamilk..."
+                      className="aodm-input"
+                      value={ingForm.name}
+                      onChange={(e) => setIngForm({ ...ingForm, name: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Nhóm 2: Đơn vị & Quy đổi */}
+              <div className="aodm-section">
+                <div style={{
+                  background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
+                  border: '1.5px solid #86efac',
+                  borderRadius: '12px',
+                  padding: '1rem 1.15rem',
+                }}>
+                  <p style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#15803d', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>⚖️</span> Đơn vị & Quy đổi
+                  </p>
+
+                  <div className="form-grid-2" style={{ marginBottom: '0.75rem' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label style={{ fontSize: '0.78rem' }}>
+                        Đơn vị pha chế / tồn kho (*)
+                        <span style={{ fontWeight: 400, color: '#64748b', marginLeft: 4 }}>g, ml, cái, lá...</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="g"
+                        className="aodm-input"
+                        value={ingForm.unit}
+                        onChange={(e) => setIngForm({ ...ingForm, unit: e.target.value })}
+                        style={{ fontWeight: 700 }}
+                      />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label style={{ fontSize: '0.78rem' }}>
+                        Đơn vị nhập hàng
+                        <span style={{ fontWeight: 400, color: '#64748b', marginLeft: 4 }}>kg, lít, thùng...</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="để trống nếu giống đơn vị trên"
+                        className="aodm-input"
+                        value={ingForm.purchaseUnit || ''}
+                        onChange={(e) => setIngForm({ ...ingForm, purchaseUnit: e.target.value || null })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Tỉ lệ quy đổi */}
+                  {ingForm.purchaseUnit && ingForm.purchaseUnit.trim() !== ingForm.unit.trim() && (
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label style={{ fontSize: '0.78rem' }}>
+                        Tỉ lệ quy đổi (*)
+                        <span style={{ fontWeight: 400, color: '#64748b', marginLeft: 4 }}>1 {ingForm.purchaseUnit} = ? {ingForm.unit}</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0.000001"
+                        step="any"
+                        required={!!ingForm.purchaseUnit && ingForm.purchaseUnit !== ingForm.unit}
+                        className="aodm-input"
+                        value={ingForm.conversionRate}
+                        onChange={(e) => setIngForm({ ...ingForm, conversionRate: Number(e.target.value) })}
+                      />
+                    </div>
+                  )}
+
+                  {/* Realtime preview banner */}
+                  <div style={{
+                    marginTop: '0.75rem',
+                    padding: '0.6rem 1rem',
+                    background: ingForm.purchaseUnit && ingForm.purchaseUnit.trim() !== ingForm.unit.trim()
+                      ? '#dcfce7'
+                      : '#f1f5f9',
+                    borderRadius: '8px',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    color: ingForm.purchaseUnit && ingForm.purchaseUnit.trim() !== ingForm.unit.trim()
+                      ? '#15803d'
+                      : '#475569',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}>
+                    {ingForm.purchaseUnit && ingForm.purchaseUnit.trim() !== ingForm.unit.trim() ? (
+                      <>
+                        <span>✅</span>
+                        <span>
+                          1 <strong>{ingForm.purchaseUnit || '?'}</strong>
+                          {' = '}
+                          <strong style={{ color: '#166534' }}>{(ingForm.conversionRate || 1).toLocaleString('vi-VN')} {ingForm.unit || '?'}</strong>
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span>ℹ️</span>
+                        <span>Nhập hàng theo đúng đơn vị <strong>{ingForm.unit || '...'}</strong> — không cần quy đổi.</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Nhóm 3: Định mức & Giá vốn */}
+              <div className="aodm-section">
+                <p className="aodm-section-label">
+                  <TrendingUp size={13} /> Định mức tồn & Giá vốn
+                </p>
+                <div className="aodm-info-grid">
+                  <div className="aodm-info-cell">
+                    <label className="aodm-info-label">Ngưỡng Cảnh Báo Sắp Hết <span className="aodm-required">*</span></label>
                     <input
                       type="number"
                       step="any"
                       min="0"
                       required
+                      className="aodm-input"
                       value={ingForm.minStockAlert}
                       onChange={(e) => setIngForm({ ...ingForm, minStockAlert: Number(e.target.value) })}
                     />
                   </div>
-                </div>
-                <div className="form-grid-2">
-                  <div className="form-group">
-                    <label>Tồn Kho Khởi Tạo</label>
+                  <div className="aodm-info-cell">
+                    <label className="aodm-info-label">Tồn Kho Khởi Tạo ({ingForm.unit})</label>
                     <input
                       type="number"
                       step="any"
                       min="0"
                       disabled={!!editingIng}
+                      className="aodm-input"
                       value={ingForm.currentStock}
                       onChange={(e) => setIngForm({ ...ingForm, currentStock: Number(e.target.value) })}
                     />
                   </div>
-                  <div className="form-group">
-                    <label>Giá Vốn Trung Bình / Đơn Vị (VNĐ)</label>
+                  <div className="aodm-info-cell aodm-info-cell--full">
+                    <label className="aodm-info-label">Giá Vốn Trung Bình / Đơn Vị Gốc (VNĐ)</label>
                     <input
                       type="number"
                       step="any"
                       min="0"
+                      className="aodm-input"
                       value={ingForm.costPrice}
                       onChange={(e) => setIngForm({ ...ingForm, costPrice: Number(e.target.value) })}
                     />
                   </div>
                 </div>
-                <div className="form-grid-2">
-                  <div className="form-group">
-                    <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span>📦 Hạn Dùng Tem Nguyên (Seal)</span>
+              </div>
+
+              {/* Nhóm 4: Hạn sử dụng & Quản lý FEFO */}
+              <div className="aodm-section">
+                <p className="aodm-section-label">
+                  <CalendarDays size={13} /> Hạn sử dụng (FEFO) - Tùy chọn tự nhập
+                </p>
+                <div className="aodm-info-grid">
+                  <div className="aodm-info-cell">
+                    <label className="aodm-info-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>📦 HSD Tem Nguyên (Seal)</span>
                       {ingForm.expiryDate && (
-                        <span style={{ fontSize: '0.78rem', fontWeight: 600 }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>
                           {getDaysUntilExpiry(ingForm.expiryDate) < 0 ? (
-                            <span style={{ color: '#dc2626' }}>⛔ Đã quá hạn {Math.abs(getDaysUntilExpiry(ingForm.expiryDate))} ngày</span>
+                            <span style={{ color: '#dc2626' }}>⛔ Quá hạn {Math.abs(getDaysUntilExpiry(ingForm.expiryDate))} ngày</span>
                           ) : getDaysUntilExpiry(ingForm.expiryDate) === 0 ? (
                             <span style={{ color: '#d97706' }}>⚠️ Hết hạn hôm nay</span>
                           ) : (
-                            <span style={{ color: '#16a34a' }}>✅ Còn {getDaysUntilExpiry(ingForm.expiryDate)} ngày ({formatDate(ingForm.expiryDate)})</span>
+                            <span style={{ color: '#16a34a' }}>✅ Còn {getDaysUntilExpiry(ingForm.expiryDate)} ngày</span>
                           )}
                         </span>
                       )}
                     </label>
                     <input
                       type="date"
+                      className="aodm-input"
                       value={ingForm.expiryDate || ''}
                       onChange={(e) => setIngForm({ ...ingForm, expiryDate: e.target.value })}
                     />
                   </div>
-                  <div className="form-group">
-                    <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span>🍾 Hạn Dùng Sau Mở Nắp (Opened)</span>
+                  <div className="aodm-info-cell">
+                    <label className="aodm-info-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>🍾 HSD Sau Mở Nắp (Opened)</span>
                       {ingForm.openedExpiryDate && (
-                        <span style={{ fontSize: '0.78rem', fontWeight: 600 }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>
                           {getDaysUntilExpiry(ingForm.openedExpiryDate) < 0 ? (
                             <span style={{ color: '#dc2626' }}>⛔ Quá hạn {Math.abs(getDaysUntilExpiry(ingForm.openedExpiryDate))} ngày</span>
                           ) : getDaysUntilExpiry(ingForm.openedExpiryDate) === 0 ? (
                             <span style={{ color: '#d97706' }}>⚠️ Hết hạn hôm nay</span>
                           ) : (
-                            <span style={{ color: '#16a34a' }}>✅ Còn {getDaysUntilExpiry(ingForm.openedExpiryDate)} ngày ({formatDate(ingForm.openedExpiryDate)})</span>
+                            <span style={{ color: '#16a34a' }}>✅ Còn {getDaysUntilExpiry(ingForm.openedExpiryDate)} ngày</span>
                           )}
                         </span>
                       )}
                     </label>
                     <input
                       type="date"
+                      className="aodm-input"
                       value={ingForm.openedExpiryDate || ''}
                       onChange={(e) => setIngForm({ ...ingForm, openedExpiryDate: e.target.value })}
                     />
                   </div>
+                  <div className="aodm-info-cell aodm-info-cell--full">
+                    <label className="aodm-info-label">Số Lượng Đã Mở Nắp Đang Dùng ({ingForm.unit})</label>
+                    <input
+                      type="number"
+                      step="any"
+                      min="0"
+                      className="aodm-input"
+                      value={ingForm.openedStock || 0}
+                      onChange={(e) => setIngForm({ ...ingForm, openedStock: Number(e.target.value) })}
+                    />
+                    <small style={{ color: '#64748b', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>
+                      Số lượng này sẽ được ưu tiên theo dõi hạn dùng sau mở nắp theo nguyên tắc FEFO.
+                    </small>
+                  </div>
                 </div>
-                <div className="form-group">
-                  <label>Số Lượng Đã Mở Nắp Đang Dùng ({ingForm.unit})</label>
-                  <input
-                    type="number"
-                    step="any"
-                    min="0"
-                    value={ingForm.openedStock || 0}
-                    onChange={(e) => setIngForm({ ...ingForm, openedStock: Number(e.target.value) })}
-                  />
-                  <small style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '4px', display: 'block' }}>
-                    Số lượng này sẽ được ưu tiên theo dõi hạn dùng sau mở nắp theo nguyên tắc FEFO.
-                  </small>
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn-secondary" onClick={() => setShowIngModal(false)}>Hủy</button>
-                <button type="submit" className="btn-primary">Lưu Nguyên Liệu</button>
               </div>
             </form>
+
+            {/* ── Fixed Footer ── */}
+            <div className="aodm-footer">
+              <div className="aodm-footer-left">
+                <CheckCircle size={14} className="text-stone-400" />
+                <p className="aodm-footer-note">
+                  Nguyên liệu sẽ được cập nhật vào kho ngay sau khi lưu.
+                </p>
+              </div>
+              <div className="aodm-footer-actions">
+                <button type="button" className="aodm-btn-cancel" onClick={() => setShowIngModal(false)}>
+                  Hủy
+                </button>
+                <button type="submit" form="ing-modal-form" className="aodm-btn-submit">
+                  <CheckCircle size={15} /> {editingIng ? 'Lưu Thay Đổi' : 'Thêm Nguyên Liệu'}
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ==================================================== */}
@@ -1358,7 +1623,7 @@ const InventoryManagement = () => {
       {/* ==================================================== */}
       {/* MODAL: TẠO PHIẾU KIỂM KÊ / ĐIỀU CHỈNH KHO */}
       {/* ==================================================== */}
-      {showAdjModal && (
+      {showAdjModal && createPortal(
         <div className="aodm-overlay" onClick={() => setShowAdjModal(false)}>
           <div className="aodm-panel" style={{ maxWidth: '860px', maxHeight: 'calc(100vh - 3rem)' }} onClick={(e) => e.stopPropagation()}>
             {/* ── Header ── */}
@@ -1544,7 +1809,8 @@ const InventoryManagement = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ==================================================== */}
@@ -1558,7 +1824,7 @@ const InventoryManagement = () => {
       {/* ==================================================== */}
       {/* MODAL: XEM CHI TIẾT PHIẾU ĐIỀU CHỈNH */}
       {/* ==================================================== */}
-      {selectedAdjustment && (
+      {selectedAdjustment && createPortal(
         <div className="aodm-overlay" onClick={() => setSelectedAdjustment(null)}>
           <div className="aodm-panel" style={{ maxWidth: '860px', maxHeight: 'calc(100vh - 3rem)' }} onClick={(e) => e.stopPropagation()}>
             {/* ── Header ── */}
@@ -1683,7 +1949,8 @@ const InventoryManagement = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

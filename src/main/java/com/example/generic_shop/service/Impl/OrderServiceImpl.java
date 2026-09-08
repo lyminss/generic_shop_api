@@ -363,6 +363,20 @@ public class OrderServiceImpl implements OrderService {
         dto.setCreatedAt(order.getCreatedAt());
         dto.setUpdatedAt(order.getUpdatedAt());
 
+        if (order.getCustomer() != null) {
+            com.example.generic_shop.entity.User u = order.getCustomer();
+            String firstName = u.getFirstName() != null ? u.getFirstName() : "";
+            String lastName = u.getLastName() != null ? u.getLastName() : "";
+            String fullName = (firstName + " " + lastName).trim();
+            if (fullName.isEmpty()) {
+                fullName = u.getEmail();
+            }
+            dto.setCustomerName(fullName);
+            dto.setCustomerEmail(u.getEmail());
+            dto.setCustomerPhone(u.getPhone());
+            dto.setCreatorRole(u.getRole());
+        }
+
         if (order.getItems() != null) {
             dto.setItems(order.getItems().stream().map(item -> {
                 OrderItemDTO d = new OrderItemDTO();

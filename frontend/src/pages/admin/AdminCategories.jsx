@@ -112,7 +112,8 @@ const AdminCategories = () => {
       setShowModal(false);
       fetchCategories();
     } catch (err) {
-      toast.error(err.response?.data || 'Không thể lưu danh mục');
+      const msg = err.response?.data?.message || err.response?.data?.error || (typeof err.response?.data === 'string' ? err.response?.data : null) || 'Không thể lưu danh mục';
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -132,7 +133,8 @@ const AdminCategories = () => {
       setConfirmToggle(null);
       fetchCategories();
     } catch (err) {
-      toast.error(err.response?.data || 'Không thể đổi trạng thái danh mục');
+      const msg = err.response?.data?.message || err.response?.data?.error || (typeof err.response?.data === 'string' ? err.response?.data : null) || 'Không thể đổi trạng thái danh mục';
+      toast.error(msg);
     } finally {
       setToggling(false);
     }

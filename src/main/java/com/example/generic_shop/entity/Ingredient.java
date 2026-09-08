@@ -43,6 +43,21 @@ public class Ingredient extends BaseEntity {
 
     @Column(name = "opened_expiry_date")
     private java.time.LocalDate openedExpiryDate; // Hạn sử dụng sau khi mở nắp (FEFO)
+
+    /**
+     * Đơn vị nhập hàng (purchase unit), ví dụ: kg, lít, thùng, hộp.
+     * Có thể null — nghĩa là nhập theo đúng unit tính tồn kho.
+     */
+    @Column(name = "purchase_unit")
+    private String purchaseUnit;
+
+    /**
+     * Tỉ lệ quy đổi: 1 purchaseUnit = conversionRate × unit.
+     * Ví dụ: purchaseUnit=kg, unit=g → conversionRate=1000.
+     * Mặc định 1.0 (không cần quy đổi).
+     */
+    @Column(name = "conversion_rate", nullable = false)
+    private Double conversionRate = 1.0;
 }
 
 

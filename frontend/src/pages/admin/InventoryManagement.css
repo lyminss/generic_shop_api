@@ -253,6 +253,11 @@
   animation: rowGlowExpired 2.5s ease-in-out infinite;
 }
 
+.inv-table tbody tr.row-out-of-stock {
+  background: #fff5f5 !important;
+  border-left: 3.5px solid #e11d48;
+}
+
 .inv-table tbody tr.row-urgent {
   background: #fffaf5 !important;
   border-left: 3.5px solid #ea580c;
@@ -817,7 +822,8 @@
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 1rem;
+  padding: 1.5rem 1rem;
+  overflow-y: auto;
 }
 
 .modal-card {
@@ -826,11 +832,20 @@
   box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.3);
   width: 100%;
   max-width: min(92vw, 560px);
-  max-height: 88vh;
+  max-height: calc(100vh - 3rem);
+  margin: auto;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   box-sizing: border-box;
+}
+
+.modal-card form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .modal-lg .modal-card { max-width: min(94vw, 760px); }
@@ -842,6 +857,7 @@
   justify-content: space-between;
   align-items: center;
   background: var(--surface-alt);
+  flex-shrink: 0;
 }
 
 .modal-header h3 { margin: 0; font-family: var(--font-display); font-size: 1.15rem; font-weight: 750; color: var(--ink); }
@@ -865,6 +881,8 @@
 .modal-body {
   padding: 1.35rem;
   overflow-y: auto;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -897,6 +915,7 @@
   justify-content: flex-end;
   gap: 10px;
   background: var(--surface-alt);
+  flex-shrink: 0;
 }
 
 .detail-meta-grid {

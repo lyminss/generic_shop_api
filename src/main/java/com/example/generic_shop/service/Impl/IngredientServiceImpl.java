@@ -73,6 +73,13 @@ public class IngredientServiceImpl implements IngredientService {
         if (ingredientDetails.getOpenedExpiryDate() != null) {
             existing.setOpenedExpiryDate(ingredientDetails.getOpenedExpiryDate());
         }
+        // Unit conversion fields
+        existing.setPurchaseUnit(ingredientDetails.getPurchaseUnit()); // nullable — null means same as unit
+        if (ingredientDetails.getConversionRate() != null && ingredientDetails.getConversionRate() > 0) {
+            existing.setConversionRate(ingredientDetails.getConversionRate());
+        } else {
+            existing.setConversionRate(1.0);
+        }
         return ingredientRepository.save(existing);
     }
 
@@ -105,15 +112,22 @@ public class IngredientServiceImpl implements IngredientService {
 
         if (sealedExpired) {
             discardedAmount = beforeStock;
+            noteReason = "Xuất hủy toàn bộ tồn do hết hạn tem nguyên (HSD cũ: " + ing.getExpiryDate() + ")";
             ing.setCurrentStock(0.0);
             ing.setOpenedStock(0.0);
-            noteReason = "Xuất hủy toàn bộ tồn do hết hạn tem nguyên (HSD: " + ing.getExpiryDate() + ")";
+            ing.setExpiryDate(null);
+            ing.setOpenedExpiryDate(null);
         } else if (openedExpired) {
             double opened = ing.getOpenedStock() != null ? ing.getOpenedStock() : 0.0;
             discardedAmount = Math.min(beforeStock, opened);
-            ing.setCurrentStock(Math.max(0.0, beforeStock - discardedAmount));
+            noteReason = "Xuất hủy phần mở nắp quá hạn (HSD mở nắp cũ: " + ing.getOpenedExpiryDate() + ")";
+            double newStock = Math.max(0.0, beforeStock - discardedAmount);
+            ing.setCurrentStock(newStock);
             ing.setOpenedStock(0.0);
-            noteReason = "Xuất hủy phần mở nắp quá hạn (HSD mở nắp: " + ing.getOpenedExpiryDate() + ")";
+            ing.setOpenedExpiryDate(null);
+            if (newStock <= 0) {
+                ing.setExpiryDate(null);
+            }
         }
 
         Ingredient saved = ingredientRepository.save(ing);
@@ -142,8 +156,8 @@ public class IngredientServiceImpl implements IngredientService {
 
         for (Ingredient ing : all) {
             boolean sealedExpired = ing.getExpiryDate() != null && ing.getExpiryDate().isBefore(today);
-            boolean openedExpired = ing.getOpenedExpiryDate() != null && ing.getOpenedStock() != null && ing.getOpenedStock() > 0 && ing.getOpenedExpiryDate().isBefore(today);
-            if ((sealedExpired || openedExpired) && ing.getCurrentStock() != null && ing.getCurrentStock() > 0) {
+            boolean openedExpired = ing.getOpenedExpiryDate() != null && ing.getOpenedExpiryDate().isBefore(today);
+            if (sealedExpired || openedExpired) {
                 result.add(discardExpiredStock(ing.getId()));
             }
         }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import { orderService, recipeService } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
@@ -572,7 +573,7 @@ const BaristaKDS = () => {
       )}
 
       {/* ================= MODAL: XEM CÔNG THỨC MÓN ================= */}
-      {recipeModalOpen && (
+      {recipeModalOpen && createPortal(
         <div className="kds-recipe-modal-overlay" onClick={() => setRecipeModalOpen(false)}>
           <div className="kds-recipe-modal" onClick={(e) => e.stopPropagation()}>
             <div className="kds-recipe-header">
@@ -643,7 +644,8 @@ const BaristaKDS = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

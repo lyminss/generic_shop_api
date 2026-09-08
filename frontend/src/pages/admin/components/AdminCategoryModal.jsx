@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Layers,
@@ -58,7 +59,7 @@ const AdminCategoryModal = ({
 
   const isCategoryActive = formData.active === true;
 
-  return (
+  return createPortal(
     <div className="aodm-overlay" onClick={onClose}>
       <div className="aodm-panel" onClick={(e) => e.stopPropagation()}>
         {/* ── Header ── */}
@@ -246,7 +247,8 @@ const AdminCategoryModal = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

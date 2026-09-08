@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   UtensilsCrossed,
@@ -69,7 +70,7 @@ const AdminProductModal = ({ isOpen, onClose, onSave, editingProduct, submitting
 
   const isStatusActive = formData.status === 'ACTIVE';
 
-  return (
+  return createPortal(
     <div className="aodm-overlay" onClick={onClose}>
       <div className="aodm-panel" onClick={(e) => e.stopPropagation()}>
         {/* ── Header ── */}
@@ -310,7 +311,8 @@ const AdminProductModal = ({ isOpen, onClose, onSave, editingProduct, submitting
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { adminService, orderService, productService } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 import { formatPrice, formatTimeAgo } from '../../utils/format';
@@ -765,7 +766,7 @@ const AdminStats = () => {
       </div>
 
       {/* Selected Order Detail Modal */}
-      {selectedOrder && (
+      {selectedOrder && createPortal(
         <div className="modal-overlay" onClick={() => setSelectedOrder(null)}>
           <div
             className="modal-card max-w-lg"
@@ -823,7 +824,8 @@ const AdminStats = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

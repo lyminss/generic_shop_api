@@ -26,6 +26,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             "(:search IS NULL OR :search = '' OR LOWER(p.name) LIKE LOWER(CONCAT('%', :search, '%')))")
     List<Product> findFiltered(@Param("category") String category, @Param("search") String search);
 
+    List<Product> findByCategoryIgnoreCase(String category);
+
     List<Product> findByCategoryIgnoreCaseAndDeletedFalse(String category);
 
     /** Kiểm tra sản phẩm đã từng có trong đơn hàng chưa */

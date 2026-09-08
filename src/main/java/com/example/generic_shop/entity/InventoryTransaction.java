@@ -21,8 +21,8 @@ public class InventoryTransaction extends BaseEntity {
     private Ingredient ingredient;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private InventoryTransactionType type; // IMPORT, EXPORT_PREPARATION, ADJUSTMENT, RETURN
+    @Column(nullable = false, length = 50)
+    private InventoryTransactionType type; // IMPORT, EXPORT_PREPARATION, ADJUSTMENT, RETURN, EXPIRED_DISCARD
 
     @Column(nullable = false)
     private Double quantity; // Số lượng biến động (Dương là tăng, Âm là giảm)
