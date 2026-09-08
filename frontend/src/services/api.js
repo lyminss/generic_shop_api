@@ -42,8 +42,37 @@ export const productService = {
   },
   getCategories: () => api.get('/product/categories'),
   createProduct: (data) => api.post('/product', data),
+  create: (data) => api.post('/product', data),
   updateProduct: (id, data) => api.put(`/product/${id}`, data),
+  update: (id, data) => api.put(`/product/${id}`, data),
+  updateStatus: (id, status) => api.patch(`/product/${id}/status`, { status }),
+  // Smart delete: returns { type: 'HARD'|'SOFT', message, orderCount? }
   deleteProduct: (id) => api.delete(`/product/${id}`),
+  delete: (id) => api.delete(`/product/${id}`),
+  // Check if product has orders (for pre-delete warning)
+  checkHasOrders: (id) => api.get(`/product/${id}/has-orders`),
+  // Trash management
+  getTrash: () => api.get('/product/trash'),
+  restore: (id) => api.patch(`/product/${id}/restore`),
+  permanentDelete: (id) => api.delete(`/product/${id}/permanent`),
+};
+
+// Category endpoints
+export const categoryService = {
+  getAll: (activeOnly = false) => api.get(`/category${activeOnly ? '?activeOnly=true' : ''}`),
+  getActive: () => api.get('/category/active'),
+  getById: (id) => api.get(`/category/${id}`),
+  create: (data) => api.post('/category', data),
+  update: (id, data) => api.put(`/category/${id}`, data),
+  toggleActive: (id) => api.patch(`/category/${id}/toggle`),
+  setStatus: (id, active) => api.patch(`/category/${id}/status`, { active }),
+  delete: (id) => api.delete(`/category/${id}`),
+};
+
+// Production Capacity & Inventory Calculation endpoints
+export const capacityService = {
+  getOverview: () => api.get('/inventory/capacity'),
+  simulate: (data) => api.post('/inventory/capacity/simulate', data),
 };
 
 // Cart endpoints

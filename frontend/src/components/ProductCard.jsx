@@ -9,6 +9,9 @@ import { reviewService } from '../services/api';
 import './ProductCard.css';
 
 const getStockStatus = (product) => {
+  if (product.status === 'STOPPED') {
+    return { label: 'Ngừng bán', cls: 'stock-out', isUnavailable: true };
+  }
   if (product.available === false) {
     if (product.unavailableReason?.includes('hết hạn')) {
       return { label: 'Tạm ngưng (NL quá hạn)', cls: 'stock-out', isUnavailable: true };

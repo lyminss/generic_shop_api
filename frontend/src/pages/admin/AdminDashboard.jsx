@@ -8,12 +8,14 @@ import AdminOverview from './AdminOverview';
 import AdminProducts from './AdminProducts';
 import AdminOrders from './AdminOrders';
 import AdminUsers from './AdminUsers';
+import AdminCategories from './AdminCategories';
 import InventoryManagement from './InventoryManagement';
 import AdminProductModal from './components/AdminProductModal';
 import './AdminDashboard.css';
 
 const getTabFromPath = (pathname) => {
   if (pathname.includes('/products')) return 'products';
+  if (pathname.includes('/categories')) return 'categories';
   if (pathname.includes('/inventory')) return 'inventory';
   if (pathname.includes('/orders')) return 'orders';
   if (pathname.includes('/users')) return 'users';
@@ -29,9 +31,11 @@ const AdminDashboard = () => {
   // Data States
   const [stats, setStats] = useState(null);
   const [products, setProducts] = useState([]);
+  const [trashedProducts, setTrashedProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [usersList, setUsersList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [trashLoading, setTrashLoading] = useState(false);
 
   // Modal State for Quick Add from Overview
   const [showProductModal, setShowProductModal] = useState(false);
@@ -93,6 +97,7 @@ const AdminDashboard = () => {
         stockQuantity: formData.stockQuantity === '' ? 100 : Number(formData.stockQuantity),
         image: formData.image,
         description: formData.description,
+        status: formData.status || 'ACTIVE',
       };
 
       if (editingId) {
@@ -115,13 +120,77 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleDeleteProduct = async (productId) => {
+  const handleDeleteProduct = async (productId, productName) => {
+    // Smart delete: backend quyết định HARD hay SOFT dựa vào đơn hàng
     try {
-      await productService.delete(productId);
-      toast.success('Đã xóa món ăn thành công');
-      setProducts((prev) => prev.filter((p) => p.id !== productId));
+      const res = await productService.delete(productId);
+      const result = res.data;
+      if (result.type === 'HARD') {
+        toast.success(`Đã xóa vĩnh viễn món "${productName}"`);
+        setProducts((prev) => prev.filter((p) => p.id !== productId));
+      } else {
+        // Soft delete → chuyển vào Thùng rác
+        toast.info(
+          `Món "${productName}" đã chuyển vào Thùng rác (có ${result.orderCount} đơn liên quan, lịch sử đơn hàng giữ nguyên).`
+        );
+        // Reload cả products lẫn trash
+        const [prodRes, trashRes] = await Promise.all([
+          productService.getAll(),
+          productService.getTrash(),
+        ]);
+        setProducts(prodRes.data || []);
+        setTrashedProducts(trashRes.data || []);
+      }
     } catch (err) {
       toast.error(err.response?.data || 'Không thể xóa món ăn');
+    }
+  };
+
+  const loadTrash = useCallback(async () => {
+    setTrashLoading(true);
+    try {
+      const res = await productService.getTrash();
+      setTrashedProducts(res.data || []);
+    } catch { /* silent */ } finally {
+      setTrashLoading(false);
+    }
+  }, []);
+
+  const handleRestoreProduct = async (productId, productName) => {
+    try {
+      await productService.restore(productId);
+      toast.success(`Đã khôi phục món "${productName}" → trạng thái Ngừng bán`);
+      const [prodRes, trashRes] = await Promise.all([
+        productService.getAll(),
+        productService.getTrash(),
+      ]);
+      setProducts(prodRes.data || []);
+      setTrashedProducts(trashRes.data || []);
+    } catch (err) {
+      toast.error(err.response?.data || 'Không thể khôi phục món ăn');
+    }
+  };
+
+  const handlePermanentDelete = async (productId, productName) => {
+    if (!window.confirm(`Xóa VĨNH VIỄN "${productName}"? Không thể hoàn tác!`)) return;
+    try {
+      await productService.permanentDelete(productId);
+      toast.success(`Đã xóa vĩnh viễn "${productName}"`);
+      setTrashedProducts((prev) => prev.filter((p) => p.id !== productId));
+    } catch (err) {
+      toast.error(err.response?.data || 'Không thể xóa vĩnh viễn');
+    }
+  };
+
+  const handleToggleProductStatus = async (product) => {
+    const newStatus = product.status === 'STOPPED' ? 'ACTIVE' : 'STOPPED';
+    try {
+      await productService.updateStatus(product.id, newStatus);
+      toast.success(`Đã chuyển món "${product.name}" sang ${newStatus === 'ACTIVE' ? 'Đang bán' : 'Ngừng bán'}`);
+      const prodRes = await productService.getAll();
+      setProducts(prodRes.data || []);
+    } catch (err) {
+      toast.error('Không thể cập nhật trạng thái món');
     }
   };
 
@@ -180,11 +249,22 @@ const AdminDashboard = () => {
       {activeTab === 'products' && (
         <AdminProducts
           products={products}
+          trashedProducts={trashedProducts}
+          trashLoading={trashLoading}
           loading={loading}
           onSaveProduct={handleSaveProduct}
           onDeleteProduct={handleDeleteProduct}
+          onToggleProductStatus={handleToggleProductStatus}
+          onRestoreProduct={handleRestoreProduct}
+          onPermanentDelete={handlePermanentDelete}
+          onLoadTrash={loadTrash}
           submittingProduct={submittingProduct}
         />
+      )}
+
+      {/* Tab 2.5: Categories */}
+      {activeTab === 'categories' && (
+        <AdminCategories />
       )}
 
       {/* Tab 3: Orders */}

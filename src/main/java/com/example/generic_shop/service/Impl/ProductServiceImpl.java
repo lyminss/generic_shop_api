@@ -5,7 +5,10 @@ import com.example.generic_shop.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.example.generic_shop.service.ProductService;
@@ -16,15 +19,15 @@ public class ProductServiceImpl implements ProductService {
     private final ProductRepository productRepository;
     private final com.example.generic_shop.repository.RecipeItemRepository recipeItemRepository;
 
-    //Get all
+    //Get all — chỉ lấy sản phẩm chưa bị xóa mềm
     @Override
     public List<Product> getAll(){
-        List<Product> products = productRepository.findAll();
+        List<Product> products = productRepository.findByDeletedFalse();
         products.forEach(this::evaluateProductAvailability);
         return products;
     }
 
-    //Get filtered (search + category)
+    //Get filtered (search + category) — loại trừ sản phẩm đã xóa mềm
     @Override
     public List<Product> getFiltered(String category, String search) {
         List<Product> products = productRepository.findFiltered(category, search);
@@ -32,10 +35,10 @@ public class ProductServiceImpl implements ProductService {
         return products;
     }
 
-    //Get distinct categories
+    //Get distinct categories — chỉ từ sản phẩm chưa xóa
     @Override
     public List<String> getCategories() {
-        return productRepository.findAll().stream()
+        return productRepository.findByDeletedFalse().stream()
                 .map(Product::getCategory)
                 .filter(c -> c != null && !c.isBlank())
                 .distinct()
@@ -43,16 +46,30 @@ public class ProductServiceImpl implements ProductService {
                 .collect(Collectors.toList());
     }
 
-    //Get by id
+    //Get by id — luôn tìm kể cả đã xóa mềm (để admin xem trong Thùng rác)
     @Override
     public Product getById(Long id){
-        Product product = productRepository.findById(id).orElseThrow(() -> new RuntimeException("Not found" +id));
-        evaluateProductAvailability(product);
+        Product product = productRepository.findById(id).orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm #" + id));
+        if (!product.isDeleted()) {
+            evaluateProductAvailability(product);
+        }
         return product;
     }
 
     private void evaluateProductAvailability(Product product) {
         if (product == null) return;
+
+        // Sản phẩm bị xóa mềm → không evaluate
+        if (product.isDeleted()) return;
+
+        // 0. Kiểm tra trạng thái kinh doanh của món (Ngừng bán / Đang bán)
+        if ("STOPPED".equalsIgnoreCase(product.getStatus())) {
+            product.setAvailable(false);
+            product.setUnavailableReason("Món đang ngừng bán (Danh mục hoặc món tạm đóng)");
+            product.setMaxServingsAvailable(0);
+            return;
+        }
+
         java.time.LocalDate today = java.time.LocalDate.now();
 
         if (product.getStockQuantity() <= 0) {
@@ -146,14 +163,82 @@ public class ProductServiceImpl implements ProductService {
         product.setPrice(request.getPrice());
         product.setStockQuantity(request.getStockQuantity());
         product.setCategory(request.getCategory());
+        if (request.getStatus() != null && !request.getStatus().isBlank()) {
+            product.setStatus(request.getStatus());
+        }
 
+        Product saved = productRepository.save(product);
+        evaluateProductAvailability(saved);
+        return saved;
+    }
+
+    @Override
+    public Product updateProductStatus(Long id, String status) {
+        Product product = getById(id);
+        product.setStatus(status != null && !status.isBlank() ? status : "ACTIVE");
+        Product saved = productRepository.save(product);
+        evaluateProductAvailability(saved);
+        return saved;
+    }
+
+    // ─── SMART DELETE ───────────────────────────────────────────────────────────
+    @Override
+    public Map<String, Object> deleteProduct(Long id) {
+        Product product = getById(id);
+        Map<String, Object> result = new HashMap<>();
+
+        long orderCount = productRepository.countOrderItemsByProductId(id);
+
+        if (orderCount == 0) {
+            // Chưa có đơn hàng nào → Hard delete vĩnh viễn
+            productRepository.delete(product);
+            result.put("type", "HARD");
+            result.put("message", "Sản phẩm đã được xóa vĩnh viễn.");
+        } else {
+            // Đã có đơn hàng → Soft delete (giữ lịch sử)
+            product.setDeleted(true);
+            product.setDeletedAt(new Date());
+            product.setStatus("DELETED");
+            productRepository.save(product);
+            result.put("type", "SOFT");
+            result.put("orderCount", orderCount);
+            result.put("message", "Sản phẩm đã được chuyển vào Thùng rác (đã có " + orderCount + " đơn hàng liên quan, lịch sử được giữ nguyên).");
+        }
+
+        return result;
+    }
+
+    @Override
+    public boolean hasOrders(Long productId) {
+        return productRepository.countOrderItemsByProductId(productId) > 0;
+    }
+
+    // ─── TRASH (THÙNG RÁC) ─────────────────────────────────────────────────────
+    @Override
+    public List<Product> getDeletedProducts() {
+        return productRepository.findByDeletedTrue();
+    }
+
+    @Override
+    public Product restoreProduct(Long id) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm #" + id));
+        if (!product.isDeleted()) {
+            throw new RuntimeException("Sản phẩm này chưa bị xóa mềm.");
+        }
+        product.setDeleted(false);
+        product.setDeletedAt(null);
+        product.setStatus("STOPPED"); // Khôi phục về trạng thái Ngừng bán, admin xét lại mới bán
         return productRepository.save(product);
     }
 
-    //delete
     @Override
-    public void deleteProduct(Long id){
-        Product product = getById(id);
+    public void hardDeleteProduct(Long id) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm #" + id));
+        if (!product.isDeleted()) {
+            throw new RuntimeException("Chỉ có thể xóa vĩnh viễn sản phẩm đang trong Thùng rác.");
+        }
         productRepository.delete(product);
     }
 

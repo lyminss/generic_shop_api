@@ -56,6 +56,10 @@ public class CartServiceImpl implements CartService {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
 
+        if ("STOPPED".equalsIgnoreCase(product.getStatus())) {
+            throw new RuntimeException("Món '" + product.getName() + "' hiện đã ngừng bán, không thể thêm vào giỏ hàng!");
+        }
+
         CartItem item = cartItemRepository.findByCartAndProduct(cart, product).orElse(null);
 
         if (item == null){

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { productService } from '../../services/api';
+import { productService, categoryService } from '../../services/api';
 import ProductCard from '../../components/ProductCard';
 import './Home.css';
 import { Search, X, CupSoda, ChevronRight, Sparkles, SlidersHorizontal, Leaf } from 'lucide-react';
@@ -45,18 +45,28 @@ const Home = () => {
     return () => clearTimeout(t);
   }, [search]);
 
-  /* Fetch categories */
+  /* Fetch active categories */
   useEffect(() => {
-    productService.getCategories()
-      .then(res => setCategories(res.data || []))
-      .catch(() => {});
+    categoryService.getActive()
+      .then(res => {
+        const catNames = (res.data || []).map(c => c.name);
+        setCategories(catNames);
+      })
+      .catch(() => {
+        productService.getCategories()
+          .then(res => setCategories(res.data || []))
+          .catch(() => {});
+      });
   }, []);
 
-  /* Fetch products */
+  /* Fetch products (ẩn các món có trạng thái STOPPED) */
   useEffect(() => {
     setLoading(true);
     productService.getFiltered(activeCategory, debounced)
-      .then(res => setProducts(res.data || []))
+      .then(res => {
+        const list = (res.data || []).filter(p => p.status !== 'STOPPED');
+        setProducts(list);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [activeCategory, debounced]);

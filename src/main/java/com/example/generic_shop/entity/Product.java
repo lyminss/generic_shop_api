@@ -5,8 +5,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+import java.util.Date;
 
 @Entity
 @Table(name = "tbl_product")
@@ -22,13 +22,25 @@ public class Product extends BaseEntity {
     private int stockQuantity;
     private String category;
 
-    @jakarta.persistence.Transient
+    @Column(name = "status")
+    private String status = "ACTIVE"; // "ACTIVE" | "STOPPED" | "DELETED"
+
+    /** Soft-delete flag: true = đã xóa mềm, vẫn còn trong DB */
+    @Column(name = "deleted", nullable = false)
+    private boolean deleted = false;
+
+    /** Thời điểm soft-delete */
+    @Column(name = "deleted_at")
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date deletedAt;
+
+    @Transient
     private Boolean available = true;
 
-    @jakarta.persistence.Transient
+    @Transient
     private String unavailableReason;
 
-    @jakarta.persistence.Transient
+    @Transient
     private Integer maxServingsAvailable;
 }
 

@@ -36,6 +36,8 @@ import {
 import { useToast } from '../../context/ToastContext';
 import { formatPrice, formatTimeAgo, formatDate, formatDateTime, fmtQty } from '../../utils/format';
 import { TableSkeleton, EmptyState, ErrorState } from '../../components/common/StateViews';
+import CreateStockReceiptModal from './components/CreateStockReceiptModal';
+import StockReceiptDetailModal from './components/StockReceiptDetailModal';
 
 import './InventoryManagement.css';
 
@@ -394,26 +396,20 @@ const InventoryManagement = () => {
     setReceiptForm({ ...receiptForm, items: next });
   };
 
-  const handleSaveReceipt = async (e) => {
-    e.preventDefault();
+  const [submittingReceipt, setSubmittingReceipt] = useState(false);
+
+  const handleSaveReceiptModal = async (payload) => {
+    setSubmittingReceipt(true);
     try {
-      const payload = {
-        supplier: receiptForm.supplier,
-        note: receiptForm.note,
-        items: receiptForm.items.map(item => ({
-          ingredientId: Number(item.ingredientId),
-          quantity: Number(item.quantity),
-          unitPrice: Number(item.unitPrice)
-        }))
-      };
       await stockReceiptService.create(payload);
       toast.success('Tạo phiếu nhập kho thành công!');
       setShowReceiptModal(false);
-      setReceiptForm({ supplier: '', note: '', items: [{ ingredientId: '', quantity: 1, unitPrice: 0 }] });
       fetchReceipts();
       fetchIngredients();
     } catch (err) {
       toast.error(err.response?.data || 'Lỗi khi tạo phiếu nhập kho');
+    } finally {
+      setSubmittingReceipt(false);
     }
   };
 
@@ -1024,8 +1020,9 @@ const InventoryManagement = () => {
                 <tr>
                   <th>Mã Phiếu Nhập</th>
                   <th>Nhà Cung Cấp</th>
-                  <th>Tổng Tiền Nhập</th>
                   <th>Ghi Chú</th>
+                  <th>Số Mặt Hàng Nhập</th>
+                  <th>Tổng Tiền Nhập</th>
                   <th>Ngày Nhập Kho</th>
                   <th>Chi Tiết</th>
                 </tr>
@@ -1033,15 +1030,16 @@ const InventoryManagement = () => {
               <tbody>
                 {receipts.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="empty-table-td">Chưa có phiếu nhập kho nào</td>
+                    <td colSpan="7" className="empty-table-td">Chưa có phiếu nhập kho nào</td>
                   </tr>
                 ) : (
                   receipts.map(r => (
                     <tr key={r.id}>
                       <td><span className="code-badge-blue">{r.receiptCode}</span></td>
-                      <td className="font-semibold">{r.supplier || 'Không rõ'}</td>
-                      <td className="font-bold text-emerald">{formatPrice(r.totalAmount)}</td>
+                      <td><span className="supplier-tag">{r.supplier || 'Không rõ'}</span></td>
                       <td>{r.note || '-'}</td>
+                      <td>{r.details?.length || 0} nguyên liệu</td>
+                      <td className="font-bold text-emerald">{formatPrice(r.totalAmount)}</td>
                       <td>{new Date(r.createdAt).toLocaleString('vi-VN')}</td>
                       <td>
                         <button className="btn-icon btn-view" onClick={() => setSelectedReceipt(r)}>
@@ -1347,135 +1345,60 @@ const InventoryManagement = () => {
       )}
 
       {/* ==================================================== */}
-      {/* MODAL: TẠO PHIẾU NHẬP KHO */}
+      {/* MODAL: TẠO PHIẾU NHẬP KHO (HIỆN ĐẠI) */}
       {/* ==================================================== */}
-      {showReceiptModal && (
-        <div className="modal-backdrop modal-lg">
-          <div className="modal-card">
-            <div className="modal-header">
-              <h3>Tạo Phiếu Nhập Kho Nguyên Liệu Mới</h3>
-              <button className="btn-close" onClick={() => setShowReceiptModal(false)}><X size={20} /></button>
-            </div>
-            <form onSubmit={handleSaveReceipt}>
-              <div className="modal-body">
-                <div className="form-grid-2">
-                  <div className="form-group">
-                    <label>Nhà Cung Cấp</label>
-                    <input
-                      type="text"
-                      placeholder="Tên nhà cung cấp / Nguồn nhập..."
-                      value={receiptForm.supplier}
-                      onChange={(e) => setReceiptForm({ ...receiptForm, supplier: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Ghi Chú Phiếu Nhập</label>
-                    <input
-                      type="text"
-                      placeholder="Ghi chú thêm..."
-                      value={receiptForm.note}
-                      onChange={(e) => setReceiptForm({ ...receiptForm, note: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div className="modal-table-section">
-                  <div className="section-head-flex">
-                    <h4>Danh Sách Nguyên Liệu Nhập</h4>
-                    <button type="button" className="btn-secondary" onClick={handleAddReceiptRow}>
-                      <Plus size={16} /> Thêm Dòng
-                    </button>
-                  </div>
-
-                  <table className="inv-table">
-                    <thead>
-                      <tr>
-                        <th>Nguyên Liệu</th>
-                        <th>Số Lượng Nhập</th>
-                        <th>Đơn Giá Nhập (VNĐ)</th>
-                        <th>Thành Tiền (VNĐ)</th>
-                        <th>Xóa</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {receiptForm.items.map((row, idx) => {
-                        const total = (row.quantity || 0) * (row.unitPrice || 0);
-                        return (
-                          <tr key={idx}>
-                            <td>
-                              <select
-                                className="select-table-input"
-                                value={row.ingredientId}
-                                required
-                                onChange={(e) => handleReceiptRowChange(idx, 'ingredientId', e.target.value)}
-                              >
-                                <option value="">-- Chọn NL --</option>
-                                {ingredients.map(i => (
-                                  <option key={i.id} value={i.id}>{i.code} - {i.name} ({i.unit})</option>
-                                ))}
-                              </select>
-                            </td>
-                            <td>
-                              <input
-                                type="number"
-                                step="any"
-                                min="0.01"
-                                required
-                                className="input-table-num"
-                                value={row.quantity}
-                                onChange={(e) => handleReceiptRowChange(idx, 'quantity', e.target.value)}
-                              />
-                            </td>
-                            <td>
-                              <input
-                                type="number"
-                                step="any"
-                                min="0"
-                                required
-                                className="input-table-num"
-                                value={row.unitPrice}
-                                onChange={(e) => handleReceiptRowChange(idx, 'unitPrice', e.target.value)}
-                              />
-                            </td>
-                            <td className="font-bold text-emerald">{formatPrice(total)}</td>
-                            <td>
-                              <button type="button" className="btn-icon btn-delete" onClick={() => handleRemoveReceiptRow(idx)}>
-                                <Trash2 size={16} />
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn-secondary" onClick={() => setShowReceiptModal(false)}>Hủy</button>
-                <button type="submit" className="btn-primary">Tạo Phiếu Nhập Kho</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <CreateStockReceiptModal
+        isOpen={showReceiptModal}
+        onClose={() => setShowReceiptModal(false)}
+        onSave={handleSaveReceiptModal}
+        ingredients={ingredients}
+        submitting={submittingReceipt}
+      />
 
       {/* ==================================================== */}
       {/* MODAL: TẠO PHIẾU KIỂM KÊ / ĐIỀU CHỈNH KHO */}
       {/* ==================================================== */}
       {showAdjModal && (
-        <div className="modal-backdrop modal-lg">
-          <div className="modal-card">
-            <div className="modal-header">
-              <h3>Tạo Phiếu Kiểm Kê & Điều Chỉnh Kho</h3>
-              <button className="btn-close" onClick={() => setShowAdjModal(false)}><X size={20} /></button>
+        <div className="aodm-overlay" onClick={() => setShowAdjModal(false)}>
+          <div className="aodm-panel" style={{ maxWidth: '860px', maxHeight: 'calc(100vh - 3rem)' }} onClick={(e) => e.stopPropagation()}>
+            {/* ── Header ── */}
+            <div className="aodm-header">
+              <div className="aodm-header-left">
+                <div className="aodm-header-icon" style={{ background: 'linear-gradient(135deg, #d97706, #b45309)' }}>
+                  <FileDiff size={20} />
+                </div>
+                <div>
+                  <p className="aodm-eyebrow">Quản lý tồn kho nguyên liệu</p>
+                  <h2 className="aodm-title">Tạo Phiếu Kiểm Kê & Điều Chỉnh Kho</h2>
+                  <p className="aodm-date">
+                    <CalendarDays size={12} />
+                    Đối soát tồn sổ sách vs tồn thực tế & ghi nhận chênh lệch
+                  </p>
+                </div>
+              </div>
+              <div className="aodm-header-right">
+                <span className="aodm-status-badge" style={{ background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' }}>
+                  <span className="aodm-status-dot" style={{ background: '#d97706' }} />
+                  Phiếu mới
+                </span>
+                <button className="aodm-close-btn" onClick={() => setShowAdjModal(false)} title="Đóng">
+                  <X size={18} />
+                </button>
+              </div>
             </div>
-            <form onSubmit={handleSaveAdjustment}>
-              <div className="modal-body">
-                <div className="form-grid-2">
-                  <div className="form-group">
-                    <label>Lý Do Điều Chỉnh (*)</label>
+
+            {/* ── Scrollable Body ── */}
+            <form id="create-adj-form" onSubmit={handleSaveAdjustment} className="aodm-body">
+              {/* Section 1: Thông tin phiếu */}
+              <div className="aodm-section">
+                <p className="aodm-section-label">
+                  <Filter size={13} /> Lý do & Ghi chú kiểm kê
+                </p>
+                <div className="aodm-info-grid">
+                  <div className="aodm-info-cell">
+                    <label className="aodm-info-label">Lý Do Điều Chỉnh (*)</label>
                     <select
-                      className="select-custom"
+                      className="aodm-select"
                       value={adjForm.reason}
                       onChange={(e) => setAdjForm({ ...adjForm, reason: e.target.value })}
                     >
@@ -1486,34 +1409,40 @@ const InventoryManagement = () => {
                       <option value="Khác">Khác</option>
                     </select>
                   </div>
-                  <div className="form-group">
-                    <label>Ghi Chú Chi Tiết</label>
+                  <div className="aodm-info-cell">
+                    <label className="aodm-info-label">Ghi Chú Chi Tiết</label>
                     <input
                       type="text"
-                      placeholder="Diễn giải thêm..."
+                      placeholder="Diễn giải thêm về đợt kiểm kê này..."
+                      className="aodm-input"
                       value={adjForm.note}
                       onChange={(e) => setAdjForm({ ...adjForm, note: e.target.value })}
                     />
                   </div>
                 </div>
+              </div>
 
-                <div className="modal-table-section">
-                  <div className="section-head-flex">
-                    <h4>Danh Sách Nguyên Liệu Kiểm Kê</h4>
-                    <button type="button" className="btn-secondary" onClick={handleAddAdjRow}>
-                      <Plus size={16} /> Thêm Dòng
-                    </button>
-                  </div>
+              {/* Section 2: Danh sách nguyên liệu kiểm kê */}
+              <div className="aodm-section">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <p className="aodm-section-label" style={{ margin: 0 }}>
+                    <Boxes size={13} /> Danh sách nguyên liệu kiểm kê ({adjForm.items.length} dòng)
+                  </p>
+                  <button type="button" className="aodm-receipt-add-btn" onClick={handleAddAdjRow}>
+                    <Plus size={13} /> Thêm dòng
+                  </button>
+                </div>
 
-                  <table className="inv-table">
+                <div className="aodm-receipt-table-wrap">
+                  <table className="aodm-receipt-table">
                     <thead>
                       <tr>
-                        <th>Nguyên Liệu</th>
-                        <th>Tồn Hệ Thống</th>
-                        <th>Tồn Thực Tế Kiểm Đếm</th>
-                        <th>Chênh Lệch (+/-)</th>
-                        <th>Ghi Chú Dòng</th>
-                        <th>Xóa</th>
+                        <th style={{ width: '32%' }}>Nguyên Liệu</th>
+                        <th style={{ width: '16%' }}>Tồn Hệ Thống</th>
+                        <th style={{ width: '18%' }}>Tồn Thực Tế Kiểm Đếm</th>
+                        <th style={{ width: '14%' }}>Chênh Lệch</th>
+                        <th style={{ width: '16%' }}>Ghi Chú Dòng</th>
+                        <th style={{ width: '40px', textAlign: 'center' }}></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1526,7 +1455,7 @@ const InventoryManagement = () => {
                           <tr key={idx}>
                             <td>
                               <select
-                                className="select-table-input"
+                                className="aodm-select"
                                 value={row.ingredientId}
                                 required
                                 onChange={(e) => handleAdjRowChange(idx, 'ingredientId', e.target.value)}
@@ -1537,35 +1466,39 @@ const InventoryManagement = () => {
                                 ))}
                               </select>
                             </td>
-                            <td className="font-semibold">{fmtQty(systemStock)} {targetIng?.unit}</td>
+                            <td style={{ fontWeight: 600, color: '#374151' }}>{fmtQty(systemStock)} {targetIng?.unit}</td>
                             <td>
-                              <input
-                                type="number"
-                                step="any"
-                                min="0"
-                                required
-                                className="input-table-num"
-                                value={row.actualStock}
-                                onChange={(e) => handleAdjRowChange(idx, 'actualStock', e.target.value)}
-                              />
+                              <div className="aodm-input-affix-wrap">
+                                <input
+                                  type="number"
+                                  step="any"
+                                  min="0"
+                                  required
+                                  placeholder="0"
+                                  className="aodm-input"
+                                  value={row.actualStock}
+                                  onChange={(e) => handleAdjRowChange(idx, 'actualStock', e.target.value)}
+                                />
+                                <span className="aodm-input-affix">{targetIng?.unit || ''}</span>
+                              </div>
                             </td>
                             <td>
                               <span className={`diff-tag ${diff > 0 ? 'text-emerald' : diff < 0 ? 'text-danger' : ''}`}>
-                                {diff > 0 ? `+${fmtQty(diff)}` : fmtQty(diff)} {targetIng?.unit}
+                                {diff > 0 ? `+${fmtQty(diff)}` : fmtQty(diff)}
                               </span>
                             </td>
                             <td>
                               <input
                                 type="text"
                                 placeholder="Ghi chú..."
-                                className="input-table-text"
+                                className="aodm-input"
                                 value={row.note || ''}
                                 onChange={(e) => handleAdjRowChange(idx, 'note', e.target.value)}
                               />
                             </td>
-                            <td>
-                              <button type="button" className="btn-icon btn-delete" onClick={() => handleRemoveAdjRow(idx)}>
-                                <Trash2 size={16} />
+                            <td style={{ textAlign: 'center' }}>
+                              <button type="button" className="aodm-row-del-btn" onClick={() => handleRemoveAdjRow(idx)} title="Xóa dòng">
+                                <Trash2 size={15} />
                               </button>
                             </td>
                           </tr>
@@ -1575,111 +1508,179 @@ const InventoryManagement = () => {
                   </table>
                 </div>
               </div>
-              <div className="modal-footer">
-                <button type="button" className="btn-secondary" onClick={() => setShowAdjModal(false)}>Hủy</button>
-                <button type="submit" className="btn-primary">Xác Nhận Kiểm Kê & Điều Chỉnh</button>
+
+              {/* Section 3: Tóm tắt */}
+              <div className="aodm-payment-box">
+                <div className="aodm-payment-row">
+                  <span><Boxes size={13} /> Số nguyên liệu kiểm kê</span>
+                  <span>{adjForm.items.length} nguyên liệu</span>
+                </div>
+                <div className="aodm-payment-row">
+                  <span><TrendingUp size={13} /> Tổng chênh lệch</span>
+                  <span>
+                    {adjForm.items.reduce((sum, row) => {
+                      const ing = ingredients.find(i => String(i.id) === String(row.ingredientId));
+                      const sys = ing ? ing.currentStock : 0;
+                      return sum + ((row.actualStock || 0) - sys);
+                    }, 0).toFixed(2)} đơn vị
+                  </span>
+                </div>
               </div>
             </form>
-          </div>
-        </div>
-      )}
 
-      {/* ==================================================== */}
-      {/* MODAL: XEM CHI TIẾT PHIẾU NHẬP KHO */}
-      {/* ==================================================== */}
-      {selectedReceipt && (
-        <div className="modal-backdrop">
-          <div className="modal-card">
-            <div className="modal-header">
-              <h3>Chi Tiết Phiếu Nhập Kho: <span className="text-primary">{selectedReceipt.receiptCode}</span></h3>
-              <button className="btn-close" onClick={() => setSelectedReceipt(null)}><X size={20} /></button>
-            </div>
-            <div className="modal-body">
-              <div className="detail-meta-grid">
-                <p><strong>Nhà cung cấp:</strong> {selectedReceipt.supplier || 'Không rõ'}</p>
-                <p><strong>Ngày nhập:</strong> {new Date(selectedReceipt.createdAt).toLocaleString('vi-VN')}</p>
-                <p><strong>Ghi chú:</strong> {selectedReceipt.note || '-'}</p>
-                <p><strong>Tổng tiền nhập:</strong> <span className="text-emerald font-bold">{formatPrice(selectedReceipt.totalAmount)}</span></p>
+            {/* ── Footer ── */}
+            <div className="aodm-footer">
+              <div className="aodm-footer-left">
+                <CheckCircle size={14} className="text-stone-400" />
+                <p className="aodm-footer-note">
+                  Tồn kho sẽ được cập nhật theo số lượng thực tế sau khi xác nhận kiểm kê.
+                </p>
               </div>
-
-              <table className="inv-table">
-                <thead>
-                  <tr>
-                    <th>Mã NL</th>
-                    <th>Tên Nguyên Liệu</th>
-                    <th>Số Lượng Nhập</th>
-                    <th>Đơn Giá Nhập</th>
-                    <th>Thành Tiền</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedReceipt.details?.map(d => (
-                    <tr key={d.id}>
-                      <td><span className="code-badge">{d.ingredient?.code}</span></td>
-                      <td className="font-semibold">{d.ingredient?.name}</td>
-                      <td>{fmtQty(d.quantity)} {d.ingredient?.unit}</td>
-                      <td>{formatPrice(d.unitPrice)}</td>
-                      <td className="font-bold text-emerald">{formatPrice(d.totalPrice)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setSelectedReceipt(null)}>Đóng</button>
+              <div className="aodm-footer-actions">
+                <button type="button" className="aodm-btn-cancel" onClick={() => setShowAdjModal(false)}>Hủy</button>
+                <button type="submit" form="create-adj-form" className="aodm-btn-submit">
+                  <CheckCircle size={15} /> Xác Nhận Kiểm Kê & Điều Chỉnh
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* ==================================================== */}
+      {/* MODAL: XEM CHI TIẾT PHIẾU NHẬP KHO (HIỆN ĐẠI) */}
+      {/* ==================================================== */}
+      <StockReceiptDetailModal
+        receipt={selectedReceipt}
+        onClose={() => setSelectedReceipt(null)}
+      />
 
       {/* ==================================================== */}
       {/* MODAL: XEM CHI TIẾT PHIẾU ĐIỀU CHỈNH */}
       {/* ==================================================== */}
       {selectedAdjustment && (
-        <div className="modal-backdrop">
-          <div className="modal-card">
-            <div className="modal-header">
-              <h3>Chi Tiết Phiếu Kiểm Kê: <span className="text-amber">{selectedAdjustment.adjustmentCode}</span></h3>
-              <button className="btn-close" onClick={() => setSelectedAdjustment(null)}><X size={20} /></button>
+        <div className="aodm-overlay" onClick={() => setSelectedAdjustment(null)}>
+          <div className="aodm-panel" style={{ maxWidth: '860px', maxHeight: 'calc(100vh - 3rem)' }} onClick={(e) => e.stopPropagation()}>
+            {/* ── Header ── */}
+            <div className="aodm-header">
+              <div className="aodm-header-left">
+                <div className="aodm-header-icon" style={{ background: 'linear-gradient(135deg, #d97706, #b45309)' }}>
+                  <FileDiff size={20} />
+                </div>
+                <div>
+                  <p className="aodm-eyebrow">Chi tiết phiếu kiểm kê & điều chỉnh</p>
+                  <h2 className="aodm-title">{selectedAdjustment.adjustmentCode}</h2>
+                  <p className="aodm-date">
+                    <Calendar size={12} />
+                    {new Date(selectedAdjustment.createdAt).toLocaleString('vi-VN')}
+                  </p>
+                </div>
+              </div>
+              <div className="aodm-header-right">
+                <span className="aodm-status-badge" style={{ background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' }}>
+                  <span className="aodm-status-dot" style={{ background: '#d97706' }} />
+                  Đã điều chỉnh
+                </span>
+                <button className="aodm-close-btn" onClick={() => setSelectedAdjustment(null)} title="Đóng">
+                  <X size={18} />
+                </button>
+              </div>
             </div>
-            <div className="modal-body">
-              <div className="detail-meta-grid">
-                <p><strong>Lý do điều chỉnh:</strong> <span className="reason-tag">{selectedAdjustment.reason}</span></p>
-                <p><strong>Ngày lập phiếu:</strong> {new Date(selectedAdjustment.createdAt).toLocaleString('vi-VN')}</p>
-                <p><strong>Ghi chú:</strong> {selectedAdjustment.note || '-'}</p>
+
+            {/* ── Body ── */}
+            <div className="aodm-body">
+              {/* Section 1: Thông tin phiếu */}
+              <div className="aodm-section">
+                <p className="aodm-section-label">
+                  <Filter size={13} /> Thông tin phiếu kiểm kê
+                </p>
+                <div className="aodm-info-grid">
+                  <div className="aodm-info-cell">
+                    <span className="aodm-info-label">Lý do điều chỉnh</span>
+                    <span className="reason-tag" style={{ display: 'inline-block', marginTop: '4px' }}>{selectedAdjustment.reason}</span>
+                  </div>
+                  <div className="aodm-info-cell">
+                    <span className="aodm-info-label">Số nguyên liệu điều chỉnh</span>
+                    <span className="aodm-info-value" style={{ fontWeight: 700 }}>{selectedAdjustment.details?.length || 0} nguyên liệu</span>
+                  </div>
+                  <div className="aodm-info-cell aodm-info-cell--full">
+                    <span className="aodm-info-label">Ghi chú</span>
+                    <span className="aodm-info-value">{selectedAdjustment.note || 'Không có ghi chú thêm.'}</span>
+                  </div>
+                </div>
               </div>
 
-              <table className="inv-table">
-                <thead>
-                  <tr>
-                    <th>Mã NL</th>
-                    <th>Tên Nguyên Liệu</th>
-                    <th>Tồn Sổ Sách</th>
-                    <th>Tồn Thực Tế</th>
-                    <th>Chênh Lệch</th>
-                    <th>Ghi Chú Dòng</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedAdjustment.details?.map(d => (
-                    <tr key={d.id}>
-                      <td><span className="code-badge">{d.ingredient?.code}</span></td>
-                      <td className="font-semibold">{d.ingredient?.name}</td>
-                      <td>{fmtQty(d.systemStock)} {d.ingredient?.unit}</td>
-                      <td className="font-bold">{fmtQty(d.actualStock)} {d.ingredient?.unit}</td>
-                      <td>
-                        <span className={`diff-tag ${d.adjustmentQuantity > 0 ? 'text-emerald' : d.adjustmentQuantity < 0 ? 'text-danger' : ''}`}>
-                          {d.adjustmentQuantity > 0 ? `+${fmtQty(d.adjustmentQuantity)}` : fmtQty(d.adjustmentQuantity)} {d.ingredient?.unit}
-                        </span>
-                      </td>
-                      <td>{d.note || '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              {/* Section 2: Chi tiết nguyên liệu */}
+              <div className="aodm-section">
+                <p className="aodm-section-label">
+                  <Boxes size={13} /> Chi tiết nguyên liệu kiểm kê ({selectedAdjustment.details?.length || 0} dòng)
+                </p>
+                <div className="aodm-receipt-table-wrap">
+                  <table className="aodm-receipt-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '12%' }}>Mã NL</th>
+                        <th style={{ width: '28%' }}>Tên Nguyên Liệu</th>
+                        <th style={{ width: '16%', textAlign: 'right' }}>Tồn Sổ Sách</th>
+                        <th style={{ width: '16%', textAlign: 'right' }}>Tồn Thực Tế</th>
+                        <th style={{ width: '14%', textAlign: 'right' }}>Chênh Lệch</th>
+                        <th style={{ width: '14%' }}>Ghi Chú Dòng</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedAdjustment.details?.map(d => (
+                        <tr key={d.id}>
+                          <td>
+                            <span
+                              className="aodm-status-badge aodm-status--stone"
+                              style={{ fontSize: '0.68rem', padding: '2px 8px' }}
+                            >
+                              {d.ingredient?.code || `#${d.ingredientId}`}
+                            </span>
+                          </td>
+                          <td style={{ fontWeight: 700, color: '#0f172a' }}>{d.ingredient?.name}</td>
+                          <td style={{ textAlign: 'right', color: '#64748b' }}>{fmtQty(d.systemStock)} {d.ingredient?.unit}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 700 }}>{fmtQty(d.actualStock)} {d.ingredient?.unit}</td>
+                          <td style={{ textAlign: 'right' }}>
+                            <span className={`diff-tag ${d.adjustmentQuantity > 0 ? 'text-emerald' : d.adjustmentQuantity < 0 ? 'text-danger' : ''}`}>
+                              {d.adjustmentQuantity > 0 ? `+${fmtQty(d.adjustmentQuantity)}` : fmtQty(d.adjustmentQuantity)} {d.ingredient?.unit}
+                            </span>
+                          </td>
+                          <td style={{ color: '#64748b' }}>{d.note || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Section 3: Tổng kết */}
+              <div className="aodm-payment-box">
+                <div className="aodm-payment-row">
+                  <span><Boxes size={13} /> Số nguyên liệu điều chỉnh</span>
+                  <span>{selectedAdjustment.details?.length || 0} loại</span>
+                </div>
+                <div className="aodm-payment-divider" />
+                <div className="aodm-payment-row aodm-payment-total">
+                  <span><TrendingUp size={15} /> Tổng chênh lệch tuyệt đối</span>
+                  <span>
+                    {selectedAdjustment.details?.reduce((sum, d) => sum + Math.abs(d.adjustmentQuantity || 0), 0).toFixed(2)} đơn vị
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setSelectedAdjustment(null)}>Đóng</button>
+
+            {/* ── Footer ── */}
+            <div className="aodm-footer">
+              <div className="aodm-footer-left">
+                <CheckCircle size={14} className="text-stone-400" />
+                <p className="aodm-footer-note">
+                  Phiếu kiểm kê đã được ghi nhận và tồn kho đã được cập nhật theo số thực tế.
+                </p>
+              </div>
+              <div className="aodm-footer-actions">
+                <button type="button" className="aodm-btn-cancel" onClick={() => setSelectedAdjustment(null)}>Đóng</button>
+              </div>
             </div>
           </div>
         </div>

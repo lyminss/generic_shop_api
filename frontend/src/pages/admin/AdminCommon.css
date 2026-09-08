@@ -767,6 +767,447 @@
   .stats-panel-header { padding: 0.9rem; }
 }
 
+/* =====================================================================
+   ADMIN MODAL SYSTEM (aodm-*) - UNIFIED MODAL DESIGN
+   Compatible with AdminOrderDetailModal
+   ===================================================================== */
+.aodm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  animation: aodmFadeIn 0.18s ease;
+}
+
+@keyframes aodmFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.aodm-panel {
+  position: relative;
+  width: 100%;
+  max-width: 620px;
+  max-height: calc(100vh - 3rem);
+  margin: auto;
+  background: #fff;
+  border-radius: 24px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: aodmSlideUp 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes aodmSlideUp {
+  from { transform: translateY(20px) scale(0.97); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* Header */
+.aodm-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
+  background: #fafaf9;
+  flex-shrink: 0;
+}
+
+.aodm-header-left { display: flex; align-items: center; gap: 0.9rem; }
+
+.aodm-header-icon {
+  width: 44px; height: 44px;
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.aodm-icon--blue    { background: #eff6ff; color: #1d4ed8; }
+.aodm-icon--amber   { background: #fffbeb; color: #92400e; }
+.aodm-icon--indigo  { background: #eef2ff; color: #3730a3; }
+.aodm-icon--emerald { background: #ecfdf5; color: #065f46; }
+.aodm-icon--rose    { background: #fff1f2; color: #be123c; }
+.aodm-icon--stone   { background: #f5f5f4; color: #44403c; }
+
+.aodm-eyebrow {
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.07em; color: #94a3b8; margin: 0 0 2px;
+}
+
+.aodm-title {
+  font-size: 1.25rem; font-weight: 900;
+  color: #0f172a; margin: 0 0 3px; line-height: 1.15;
+}
+
+.aodm-date {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 0.73rem; color: #94a3b8; margin: 0;
+}
+
+.aodm-header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+.aodm-status-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 0.75rem; font-weight: 750;
+  padding: 5px 12px; border-radius: 999px; border: 1px solid;
+}
+.aodm-status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.aodm-status--blue    { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.aodm-status--amber   { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+.aodm-status--indigo  { background: #eef2ff; color: #3730a3; border-color: #c7d2fe; }
+.aodm-status--emerald { background: #ecfdf5; color: #065f46; border-color: #a7f3d0; }
+.aodm-status--rose    { background: #fff1f2; color: #be123c; border-color: #fecdd3; }
+.aodm-status--stone   { background: #f5f5f4; color: #44403c; border-color: #d6d3d1; }
+
+.aodm-close-btn {
+  padding: 6px; border-radius: 10px; border: none; background: transparent;
+  color: #94a3b8; cursor: pointer; transition: all 0.15s;
+  display: flex; align-items: center;
+}
+.aodm-close-btn:hover { background: #f1f5f9; color: #475569; }
+
+/* Body */
+.aodm-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.aodm-section { display: flex; flex-direction: column; gap: 8px; }
+
+.aodm-section-label {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 0.72rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.06em; color: #64748b; margin: 0;
+}
+
+/* Info Grid & Form Cards */
+.aodm-info-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 12px; padding: 1rem; background: #f8fafc;
+  border: 1px solid #e2e8f0; border-radius: 14px;
+}
+.aodm-info-cell { display: flex; flex-direction: column; gap: 5px; }
+.aodm-info-cell--full { grid-column: 1 / -1; }
+
+.aodm-info-label {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 0.7rem; font-weight: 750; text-transform: uppercase;
+  letter-spacing: 0.04em; color: #64748b; margin-bottom: 2px;
+}
+.aodm-required { color: #f43f5e; font-weight: 800; }
+
+/* Form Controls */
+.aodm-input,
+.aodm-select,
+.aodm-textarea {
+  width: 100%;
+  padding: 0.6rem 0.85rem;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0f172a;
+  outline: none;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.aodm-input:focus,
+.aodm-select:focus,
+.aodm-textarea:focus {
+  border-color: #2c5e3b;
+  box-shadow: 0 0 0 3px rgba(44, 94, 59, 0.12);
+}
+
+.aodm-input::placeholder,
+.aodm-textarea::placeholder {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.aodm-input-affix-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.aodm-input-affix {
+  position: absolute;
+  right: 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+  pointer-events: none;
+}
+
+/* Switcher segmented */
+.aodm-segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 3px;
+  background: #e2e8f0;
+  border-radius: 10px;
+  gap: 3px;
+}
+
+.aodm-segmented-btn {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 750;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.aodm-segmented-btn.active-emerald {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.15);
+}
+
+.aodm-segmented-btn.active-rose {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
+  box-shadow: 0 1px 3px rgba(244, 63, 94, 0.15);
+}
+
+.aodm-segmented-btn.active-amber {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  box-shadow: 0 1px 3px rgba(245, 158, 11, 0.15);
+}
+
+/* Item Image Row matching AODM Items */
+.aodm-media-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.aodm-media-thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #e2e8f0;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+}
+
+.aodm-media-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.aodm-media-input-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Notice box */
+.aodm-notice-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.aodm-notice-box--amber {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+
+/* Footer */
+.aodm-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.5rem;
+  border-top: 1px solid #f1f5f9;
+  background: #fafaf9;
+  flex-shrink: 0;
+  gap: 1rem;
+}
+
+.aodm-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  color: #64748b;
+}
+
+.aodm-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.aodm-btn-cancel {
+  padding: 0.5rem 1.25rem;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.84rem;
+  font-weight: 750;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.aodm-btn-cancel:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.aodm-btn-submit {
+  padding: 0.5rem 1.5rem;
+  background: #2c5e3b;
+  color: #fff;
+  font-size: 0.84rem;
+  font-weight: 750;
+  border: 1px solid #2c5e3b;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 10px rgba(44, 94, 59, 0.25);
+}
+.aodm-btn-submit:hover:not(:disabled) {
+  background: #234c2f;
+  border-color: #234c2f;
+  transform: translateY(-1px);
+}
+.aodm-btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Receipt Modal Table & Items */
+.aodm-receipt-table-wrap {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  overflow-y: auto;
+  min-height: 200px;
+  max-height: 380px;
+  background: #fff;
+}
+
+.aodm-receipt-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.82rem;
+}
+
+.aodm-receipt-table th {
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.65rem 0.9rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.aodm-receipt-table td {
+  padding: 0.65rem 0.9rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+  color: #1e293b;
+}
+
+.aodm-receipt-table tr:last-child td {
+  border-bottom: none;
+}
+
+.aodm-receipt-table tr:hover td {
+  background: #fafaf9;
+}
+
+.aodm-receipt-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0.35rem 0.85rem;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 750;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.aodm-receipt-add-btn:hover {
+  background: #dbeafe;
+  transform: translateY(-1px);
+}
+
+.aodm-row-del-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.aodm-row-del-btn:hover {
+  background: #fff1f2;
+  color: #e11d48;
+  border-color: #fecdd3;
+}
+
+@media (max-width: 480px) {
+  .aodm-info-grid { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 480px) {
   .admin-cards-grid,
   .stats-cards-grid,

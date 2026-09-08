@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Search,
   Plus,
@@ -12,17 +12,30 @@ import {
   CheckCircle2,
   Sparkles,
   Layers,
+  Cpu,
+  Eye,
+  EyeOff,
+  RotateCcw,
+  Trash,
+  ShieldAlert,
 } from 'lucide-react';
 import { formatPrice } from '../../utils/format';
 import { TableSkeleton, EmptyState } from '../../components/common/StateViews';
 import AdminProductModal from './components/AdminProductModal';
+import ProductionCapacityModal from './components/ProductionCapacityModal';
 import './AdminProducts.css';
 
 const AdminProducts = ({
   products = [],
+  trashedProducts = [],
+  trashLoading = false,
   loading = false,
   onSaveProduct,
   onDeleteProduct,
+  onToggleProductStatus,
+  onRestoreProduct,
+  onPermanentDelete,
+  onLoadTrash,
   submittingProduct = false,
 }) => {
   const [search, setSearch]         = useState('');
@@ -30,6 +43,8 @@ const AdminProducts = ({
   const [view, setView]             = useState('table'); // 'table' | 'grid'
   const [showModal, setShowModal]   = useState(false);
   const [editing, setEditing]       = useState(null);
+  const [showCapacityModal, setShowCapacityModal] = useState(false);
+  const [showTrash, setShowTrash]   = useState(false);
 
   const cats = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
   const available = products.filter(p => p.available !== false && p.stockQuantity > 0).length;
@@ -48,7 +63,14 @@ const AdminProducts = ({
     if (ok) setShowModal(false);
   };
   const handleDelete = (p) => {
-    if (window.confirm(`Xóa món "${p.name}" khỏi thực đơn?`)) onDeleteProduct(p.id);
+    if (window.confirm(`Xóa món "${p.name}" khỏi thực đơn?\n\nLưu ý: Nếu món đã có đơn hàng, món sẽ được chuyển vào Thùng rác thay vì xóa vĩnh viễn.`)) {
+      onDeleteProduct(p.id, p.name);
+    }
+  };
+
+  const handleOpenTrash = () => {
+    setShowTrash(true);
+    onLoadTrash?.();
   };
 
   return (
@@ -70,11 +92,37 @@ const AdminProducts = ({
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
+            onClick={() => setShowCapacityModal(true)}
+            className="stats-action-btn"
+            style={{ background: '#47275a', color: '#ffffff' }}
+          >
+            <Cpu size={17} /> Ước Tính Công Suất Kho
+          </button>
+          <button
+            type="button"
             onClick={openAdd}
             className="stats-action-btn"
             style={{ background: '#d97706', color: '#ffffff' }}
           >
             <Plus size={17} /> Thêm Món Mới
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenTrash}
+            className="stats-action-btn"
+            style={{ background: '#6b7280', color: '#ffffff', position: 'relative' }}
+          >
+            <Trash size={17} /> Thùng Rác
+            {trashedProducts.length > 0 && (
+              <span style={{
+                position: 'absolute', top: '-6px', right: '-6px',
+                background: '#ef4444', color: '#fff', borderRadius: '50%',
+                fontSize: '10px', fontWeight: 800, width: '18px', height: '18px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {trashedProducts.length}
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -334,9 +382,13 @@ const AdminProducts = ({
                   {/* Actions Footer */}
                   <div className="prod-card-footer">
                     <span className="prod-card-status-indicator">
-                      {isOff ? (
-                        <span className="text-rose-600 font-semibold flex items-center gap-1 text-[11px]">
-                          <span className="w-2 h-2 rounded-full bg-rose-500" /> Tạm dừng
+                      {p.status === 'STOPPED' ? (
+                        <span className="text-rose-600 font-bold flex items-center gap-1 text-[11px] bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> Ngừng bán
+                        </span>
+                      ) : isOff ? (
+                        <span className="text-amber-600 font-semibold flex items-center gap-1 text-[11px]">
+                          <span className="w-2 h-2 rounded-full bg-amber-500" /> Hết NL
                         </span>
                       ) : (
                         <span className="text-emerald-700 font-semibold flex items-center gap-1 text-[11px]">
@@ -348,11 +400,20 @@ const AdminProducts = ({
                     <div className="prod-card-actions">
                       <button
                         type="button"
+                        onClick={() => onToggleProductStatus?.(p)}
+                        className={`prod-action-btn ${p.status === 'STOPPED' ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100' : 'text-amber-700 bg-amber-50 hover:bg-amber-100'}`}
+                        title={p.status === 'STOPPED' ? 'Mở bán lại món này' : 'Ngừng bán món này'}
+                      >
+                        {p.status === 'STOPPED' ? <Eye size={13} /> : <EyeOff size={13} />}
+                        <span>{p.status === 'STOPPED' ? 'Mở bán' : 'Ngừng'}</span>
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => openEdit(p)}
                         className="prod-action-btn prod-action-btn--edit"
                         title="Chỉnh sửa món"
                       >
-                        <Edit size={14} />
+                        <Edit size={13} />
                         <span>Sửa</span>
                       </button>
                       <button
@@ -361,7 +422,7 @@ const AdminProducts = ({
                         className="prod-action-btn prod-action-btn--delete"
                         title="Xóa món"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   </div>
@@ -391,16 +452,17 @@ const AdminProducts = ({
                   <th style={{ textAlign: 'left', paddingLeft: '1.25rem' }}>Món ăn / Đồ uống</th>
                   <th>Danh mục</th>
                   <th style={{ textAlign: 'right' }}>Giá bán</th>
+                  <th style={{ textAlign: 'center' }}>Trạng thái bán</th>
                   <th>Tình trạng phục vụ</th>
                   <th style={{ textAlign: 'right', paddingRight: '1.25rem' }}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <TableSkeleton rows={5} cols={5} />
+                  <TableSkeleton rows={5} cols={6} />
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-20 text-center">
+                    <td colSpan={6} className="py-20 text-center">
                       <EmptyState
                         title="Chưa có món nào"
                         description="Thêm món ăn/đồ uống vào thực đơn để bắt đầu."
@@ -412,6 +474,7 @@ const AdminProducts = ({
                 ) : (
                   filtered.map((p) => {
                     const isOff = p.available === false;
+                    const isStopped = p.status === 'STOPPED';
                     return (
                       <tr key={p.id}>
                         {/* Món ăn + Thumbnail */}
@@ -447,9 +510,26 @@ const AdminProducts = ({
                           </span>
                         </td>
 
+                        {/* Trạng thái bán */}
+                        <td style={{ textAlign: 'center' }}>
+                          {isStopped ? (
+                            <span className="cat-status-badge hidden">
+                              <span className="cat-status-dot hidden" /> Ngừng bán
+                            </span>
+                          ) : (
+                            <span className="cat-status-badge active">
+                              <span className="cat-status-dot active" /> Đang bán
+                            </span>
+                          )}
+                        </td>
+
                         {/* Tình trạng */}
                         <td>
-                          {isOff ? (
+                          {isStopped ? (
+                            <span className="stock-indicator out inline-flex items-center gap-1">
+                              <AlertTriangle size={12} /> Tạm ngưng (Ngừng bán)
+                            </span>
+                          ) : isOff ? (
                             <span className="stock-indicator out inline-flex items-center gap-1">
                               <AlertTriangle size={12} /> Tạm ngưng ({p.unavailableReason || 'Hết NL'})
                             </span>
@@ -463,6 +543,14 @@ const AdminProducts = ({
                         {/* Thao tác */}
                         <td style={{ textAlign: 'right', paddingRight: '1.25rem' }}>
                           <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => onToggleProductStatus?.(p)}
+                              className={`action-icon-btn ${isStopped ? 'text-emerald-600 hover:bg-emerald-50' : 'text-amber-600 hover:bg-amber-50'}`}
+                              title={isStopped ? 'Mở bán lại món này' : 'Tạm ngừng bán món này'}
+                            >
+                              {isStopped ? <Eye size={15} /> : <EyeOff size={15} />}
+                            </button>
                             <button
                               type="button"
                               onClick={() => openEdit(p)}
@@ -499,6 +587,175 @@ const AdminProducts = ({
         editingProduct={editing}
         submitting={submittingProduct}
       />
+
+      {/* Production Capacity Estimator Modal */}
+      <ProductionCapacityModal
+        isOpen={showCapacityModal}
+        onClose={() => setShowCapacityModal(false)}
+      />
+
+      {/* ── THÙNG RÁC MODAL ── */}
+      {showTrash && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '1rem',
+          }}
+          onClick={(e) => e.target === e.currentTarget && setShowTrash(false)}
+        >
+          <div style={{
+            background: '#1c1917', borderRadius: '16px', width: '100%', maxWidth: '780px',
+            maxHeight: '85vh', display: 'flex', flexDirection: 'column',
+            border: '1px solid #44403c', overflow: 'hidden',
+            boxShadow: '0 25px 60px rgba(0,0,0,0.6)',
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: '1.25rem 1.5rem', borderBottom: '1px solid #44403c',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: 'linear-gradient(135deg, #292524, #1c1917)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{
+                  width: '38px', height: '38px', borderRadius: '10px',
+                  background: '#ef444420', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  border: '1px solid #ef444440',
+                }}>
+                  <Trash size={18} style={{ color: '#ef4444' }} />
+                </div>
+                <div>
+                  <h2 style={{ color: '#fafaf9', fontWeight: 800, fontSize: '1rem', margin: 0 }}>
+                    Thùng Rác Sản Phẩm
+                  </h2>
+                  <p style={{ color: '#78716c', fontSize: '0.75rem', margin: 0 }}>
+                    {trashedProducts.length} món đã xóa mềm · Có thể khôi phục hoặc xóa vĩnh viễn
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTrash(false)}
+                style={{
+                  background: '#292524', border: '1px solid #44403c', borderRadius: '8px',
+                  color: '#a8a29e', cursor: 'pointer', padding: '0.4rem 0.6rem',
+                  display: 'flex', alignItems: 'center',
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Warning banner */}
+            <div style={{
+              padding: '0.75rem 1.5rem',
+              background: 'rgba(239,68,68,0.1)',
+              borderBottom: '1px solid rgba(239,68,68,0.2)',
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+            }}>
+              <ShieldAlert size={15} style={{ color: '#f87171', flexShrink: 0 }} />
+              <span style={{ color: '#fca5a5', fontSize: '0.75rem', fontWeight: 600 }}>
+                Sản phẩm trong Thùng rác đã ẩn hoàn toàn khỏi thực đơn.
+                Xóa vĩnh viễn sẽ không thể hoàn tác. Lịch sử đơn hàng vẫn được giữ nguyên.
+              </span>
+            </div>
+
+            {/* Content */}
+            <div style={{ overflowY: 'auto', flex: 1, padding: '1rem 1.5rem' }}>
+              {trashLoading ? (
+                <div style={{ textAlign: 'center', padding: '3rem', color: '#78716c' }}>
+                  <div style={{ width: '32px', height: '32px', border: '3px solid #ef4444', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 1rem' }} />
+                  Đang tải Thùng rác...
+                </div>
+              ) : trashedProducts.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '4rem 2rem', color: '#78716c' }}>
+                  <Trash size={48} style={{ margin: '0 auto 1rem', opacity: 0.3 }} />
+                  <p style={{ fontWeight: 700, color: '#a8a29e', marginBottom: '0.5rem' }}>Thùng rác trống</p>
+                  <p style={{ fontSize: '0.8rem' }}>Không có sản phẩm nào trong Thùng rác.</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {trashedProducts.map((p) => (
+                    <div key={p.id} style={{
+                      background: '#292524', borderRadius: '12px', border: '1px solid #44403c',
+                      padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem',
+                    }}>
+                      {/* Thumbnail */}
+                      <div style={{
+                        width: '52px', height: '52px', borderRadius: '10px', overflow: 'hidden',
+                        background: '#3c2a1a', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {p.image ? (
+                          <img src={p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.7 }} />
+                        ) : (
+                          <span style={{ fontSize: '1.5rem' }}>🍵</span>
+                        )}
+                      </div>
+
+                      {/* Info */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ color: '#e7e5e4', fontWeight: 700, fontSize: '0.9rem', margin: '0 0 0.2rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {p.name}
+                        </p>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          {p.category && (
+                            <span style={{ fontSize: '0.7rem', color: '#a78bfa', background: '#4c1d9520', padding: '0.15rem 0.5rem', borderRadius: '20px', border: '1px solid #4c1d9540' }}>
+                              {p.category}
+                            </span>
+                          )}
+                          <span style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: 700 }}>
+                            {formatPrice(p.price)}
+                          </span>
+                          {p.deletedAt && (
+                            <span style={{ fontSize: '0.7rem', color: '#78716c' }}>
+                              Xóa: {new Date(p.deletedAt).toLocaleDateString('vi-VN')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          onClick={() => onRestoreProduct?.(p.id, p.name)}
+                          title="Khôi phục về Ngừng bán"
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '0.4rem',
+                            padding: '0.45rem 0.9rem', borderRadius: '8px', border: '1px solid #065f4640',
+                            background: '#065f4620', color: '#34d399', cursor: 'pointer',
+                            fontSize: '0.75rem', fontWeight: 700, transition: 'all 0.15s',
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = '#065f4640'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = '#065f4620'; }}
+                        >
+                          <RotateCcw size={13} /> Khôi phục
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onPermanentDelete?.(p.id, p.name)}
+                          title="Xóa vĩnh viễn khỏi hệ thống"
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '0.4rem',
+                            padding: '0.45rem 0.9rem', borderRadius: '8px', border: '1px solid #7f1d1d40',
+                            background: '#7f1d1d20', color: '#f87171', cursor: 'pointer',
+                            fontSize: '0.75rem', fontWeight: 700, transition: 'all 0.15s',
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = '#7f1d1d40'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = '#7f1d1d20'; }}
+                        >
+                          <Trash2 size={13} /> Xóa vĩnh viễn
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

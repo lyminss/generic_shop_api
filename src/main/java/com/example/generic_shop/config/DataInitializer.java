@@ -25,6 +25,7 @@ public class DataInitializer implements CommandLineRunner {
     private final ProductRepository productRepository;
     private final IngredientRepository ingredientRepository;
     private final RecipeItemRepository recipeItemRepository;
+    private final com.example.generic_shop.repository.CategoryRepository categoryRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -32,11 +33,38 @@ public class DataInitializer implements CommandLineRunner {
         // 1. Seed Accounts
         seedAccounts();
 
-        // 2. Seed Ingredients (Nguyên liệu)
+        // 2. Seed Categories (Danh mục)
+        seedCategories();
+
+        // 3. Seed Ingredients (Nguyên liệu)
         Map<String, Ingredient> ingMap = seedIngredients();
 
-        // 3. Seed Products & Recipes (Sản phẩm & Công thức pha chế)
+        // 4. Seed Products & Recipes (Sản phẩm & Công thức pha chế)
         seedProductsAndRecipes(ingMap);
+    }
+
+    private void seedCategories() {
+        String[][] defaultCats = {
+            {"Trà Sữa", "Các món trà sữa đậm đà thơm béo, kết hợp trân châu và kem cheese đặc trưng MinTea"},
+            {"Cà Phê", "Cà phê Robusta & Arabica đậm đà, thơm nồng phong vị Việt và hiện đại"},
+            {"Trà Trái Cây", "Trà hoa quả nhiệt đới tươi mát, thanh nhiệt giải khát sảng khoái"},
+            {"Đá Xay", "Đồ uống đá xay sinh tố mát lạnh phủ kem béo ngậy"}
+        };
+
+        int order = 1;
+        for (String[] item : defaultCats) {
+            String name = item[0];
+            String desc = item[1];
+            if (categoryRepository.findByNameIgnoreCase(name).isEmpty()) {
+                com.example.generic_shop.entity.Category c = new com.example.generic_shop.entity.Category();
+                c.setName(name);
+                c.setDescription(desc);
+                c.setActive(true);
+                c.setDisplayOrder(order++);
+                categoryRepository.save(c);
+                System.out.println(">>> Seeded Category: " + name);
+            }
+        }
     }
 
     private void seedAccounts() {
@@ -260,8 +288,14 @@ public class DataInitializer implements CommandLineRunner {
                 p.setPrice(spec.price);
                 p.setStockQuantity(spec.stockQuantity);
                 p.setCategory(spec.category);
+                p.setStatus("ACTIVE");
                 return productRepository.save(p);
             });
+
+            if (product.getStatus() == null || product.getStatus().isBlank()) {
+                product.setStatus("ACTIVE");
+                productRepository.save(product);
+            }
 
             // Resync or seed recipe items
             recipeItemRepository.deleteByProductId(product.getId());
