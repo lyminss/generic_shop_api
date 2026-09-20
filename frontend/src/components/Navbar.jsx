@@ -2,18 +2,21 @@ import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { useToast } from '../context/ToastContext';
 import { ShoppingCart, LogOut, User, UtensilsCrossed, Home, Menu, X, Shield, Coffee, ConciergeBell } from 'lucide-react';
 import './Navbar.css';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
   const { cart } = useCart();
+  const toast = useToast();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    toast.info('Đã đăng xuất thành công');
+    navigate('/login', { replace: true });
     setMobileOpen(false);
   };
 

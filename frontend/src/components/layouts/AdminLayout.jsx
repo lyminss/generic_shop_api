@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, useNavigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import {
   ChevronLeft,
   ChevronRight,
@@ -57,12 +58,14 @@ const adminNavItems = [
 
 const AdminLayout = () => {
   const { user, logout } = useAuth();
+  const toast = useToast();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    toast.info('Đã đăng xuất thành công');
+    navigate('/login', { replace: true });
   };
 
   const initials = user?.firstName

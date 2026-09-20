@@ -44,8 +44,10 @@ const Profile = () => {
         lastName: user.lastName || '',
         phone: user.phone || '',
       });
+      fetchAddresses();
+    } else {
+      setAddresses([]);
     }
-    fetchAddresses();
   }, [user]);
 
   // Sync state tab with query parameter
@@ -62,6 +64,7 @@ const Profile = () => {
   };
 
   const fetchAddresses = async () => {
+    if (!user) return;
     try {
       const res = await addressService.getMyAddresses();
       setAddresses(res.data);

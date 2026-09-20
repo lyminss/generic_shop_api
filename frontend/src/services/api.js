@@ -21,9 +21,26 @@ api.interceptors.request.use(
   }
 );
 
+// Add a response interceptor to handle 401 Unauthorized cleanly
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      const hadToken = localStorage.getItem('token');
+      if (hadToken) {
+        localStorage.removeItem('token');
+        window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Auth endpoints
 export const authService = {
   login: (data) => api.post('/auth/login', data),
+  googleLogin: (data) => api.post('/auth/google', data),
+  quickLogin: (data) => api.post('/auth/quick-login', data),
   register: (data) => api.post('/auth/register', data),
   getProfile: () => api.get('/auth/me'),
   updateProfile: (data) => api.put('/auth/me', data),

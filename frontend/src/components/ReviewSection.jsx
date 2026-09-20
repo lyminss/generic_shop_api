@@ -61,7 +61,11 @@ const ReviewSection = ({ productId }) => {
   }, [productId]);
 
   const fetchCanReview = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setCanReview(false);
+      setCanReviewReason('');
+      return;
+    }
     try {
       const res = await reviewService.canReview(productId);
       setCanReview(res.data.canReview);

@@ -15,6 +15,12 @@ export const CartProvider = ({ children }) => {
     } else {
       setCart(null);
     }
+
+    const handleShopLogout = () => {
+      setCart(null);
+    };
+    window.addEventListener('shop:logout', handleShopLogout);
+    return () => window.removeEventListener('shop:logout', handleShopLogout);
   }, [user]);
 
   const fetchCart = async () => {

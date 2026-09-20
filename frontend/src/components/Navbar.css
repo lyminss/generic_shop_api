@@ -44,19 +44,19 @@
   flex-direction: column;
 }
 
-.brand-title {
+.nav-brand .brand-title {
   font-family: var(--font-heading);
   font-size: 1.35rem;
   font-weight: 800;
-  color: var(--text-primary);
+  color: #1C1917 !important;
   line-height: 1.1;
   letter-spacing: -0.02em;
 }
 
-.brand-tagline {
+.nav-brand .brand-tagline {
   font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--brand-primary);
+  font-weight: 700;
+  color: #2C5E3B !important;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }

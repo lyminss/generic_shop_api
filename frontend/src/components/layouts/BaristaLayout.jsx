@@ -48,11 +48,13 @@ const BaristaLayout = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    toast.info('Đã đăng xuất thành công');
+    navigate('/login', { replace: true });
   };
 
   // Poll active orders for KDS
   const checkActiveTickets = useCallback(async () => {
+    if (!user) return;
     try {
       const res = await orderService.getAllOrders();
       const allOrders = res.data || [];

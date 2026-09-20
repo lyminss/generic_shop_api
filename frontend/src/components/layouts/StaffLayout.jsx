@@ -41,10 +41,15 @@ const StaffLayout = () => {
     }
   };
 
-  const handleLogout = () => { logout(); navigate('/login'); };
+  const handleLogout = () => {
+    logout();
+    toast.info('Đã đăng xuất thành công');
+    navigate('/login', { replace: true });
+  };
 
   // Check for new orders
   const checkNewOrders = useCallback(async () => {
+    if (!user) return;
     try {
       const res = await orderService.getAllOrders();
       const allOrders = res.data || [];

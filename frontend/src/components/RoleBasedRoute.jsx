@@ -4,14 +4,16 @@ import { useToast } from '../context/ToastContext';
 import { useEffect } from 'react';
 
 const RoleBasedRoute = ({ allowedRoles, children }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, isLoggingOut } = useAuth();
   const toast = useToast();
 
   useEffect(() => {
-    if (!loading && (!user || !allowedRoles.includes(user.role))) {
+    // Only toast if user IS logged in but lacks permission.
+    // If not logged in or during logout, silently navigate to login.
+    if (!loading && !isLoggingOut && user && !allowedRoles.includes(user.role)) {
       toast.error('Bạn không có quyền truy cập khu vực này!');
     }
-  }, [user, loading, allowedRoles, toast]);
+  }, [user, loading, isLoggingOut, allowedRoles, toast]);
 
   if (loading) {
     return (

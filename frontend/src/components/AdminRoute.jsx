@@ -4,14 +4,14 @@ import { useToast } from '../context/ToastContext';
 import { useEffect } from 'react';
 
 const AdminRoute = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, isLoggingOut } = useAuth();
   const toast = useToast();
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'ADMIN')) {
+    if (!loading && !isLoggingOut && user && user.role !== 'ADMIN') {
       toast.error('Bạn không có quyền truy cập trang quản trị!');
     }
-  }, [user, loading, toast]);
+  }, [user, loading, isLoggingOut, toast]);
 
   if (loading) {
     return (

@@ -27,7 +27,7 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
+                        .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/google", "/api/auth/quick-login").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/product/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/category/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/reviews/product/**").permitAll()
