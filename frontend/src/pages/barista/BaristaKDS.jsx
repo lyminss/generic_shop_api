@@ -442,6 +442,22 @@ const BaristaKDS = () => {
                               <div className="qty-box">{item.quantity}×</div>
                               <div className="item-name-group">
                                 <span className="item-name">{item.productName}</span>
+                                {item.options && (
+                                  <span className="badge-item-options" style={{
+                                    display: 'inline-block',
+                                    fontSize: '0.78rem',
+                                    fontWeight: 600,
+                                    color: '#b45309',
+                                    background: '#fef3c7',
+                                    border: '1px solid #fde68a',
+                                    padding: '2px 6px',
+                                    borderRadius: '6px',
+                                    marginTop: '2px',
+                                    lineHeight: 1.3
+                                  }}>
+                                    ✨ {item.options}
+                                  </span>
+                                )}
                                 {isDone ? (
                                   <span className="badge-item-done">✓ Đã pha</span>
                                 ) : (
@@ -553,7 +569,12 @@ const BaristaKDS = () => {
                       <div className="history-items-list">
                         {ord.items?.map((item) => (
                           <div key={item.id} className="history-item-row">
-                            <span>{item.quantity}× {item.productName}</span>
+                            <div>
+                              <span>{item.quantity}× {item.productName}</span>
+                              {item.options && (
+                                <div className="text-xs text-amber-500 font-medium">✨ {item.options}</div>
+                              )}
+                            </div>
                             <span className="text-emerald-400 text-xs font-semibold">✓ Đã pha</span>
                           </div>
                         ))}

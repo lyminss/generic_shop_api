@@ -484,15 +484,22 @@ const StaffDashboard = () => {
                               );
                             })()}
                             {ord.items?.map(i => (
-                              <div key={i.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem' }}>
-                                <span style={{ fontWeight: 600 }}>{i.quantity}× {i.productName}</span>
-                                {i.preparedStatus === 'READY' ? (
-                                  <span style={{ fontSize: '0.65rem', padding: '0px 5px', background: '#dcfce7', color: '#166534', borderRadius: '99px', fontWeight: 700 }}>
-                                    ✓ Đã pha
-                                  </span>
-                                ) : (
-                                  <span style={{ fontSize: '0.65rem', padding: '0px 5px', background: '#fef3c7', color: '#92400e', borderRadius: '99px', fontWeight: 700 }}>
-                                    ⏳ Chờ
+                              <div key={i.id} style={{ display: 'flex', flexDirection: 'column', gap: '1px', marginBottom: '2px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem' }}>
+                                  <span style={{ fontWeight: 600 }}>{i.quantity}× {i.productName}</span>
+                                  {i.preparedStatus === 'READY' ? (
+                                    <span style={{ fontSize: '0.65rem', padding: '0px 5px', background: '#dcfce7', color: '#166534', borderRadius: '99px', fontWeight: 700 }}>
+                                      ✓ Đã pha
+                                    </span>
+                                  ) : (
+                                    <span style={{ fontSize: '0.65rem', padding: '0px 5px', background: '#fef3c7', color: '#92400e', borderRadius: '99px', fontWeight: 700 }}>
+                                      ⏳ Chờ
+                                    </span>
+                                  )}
+                                </div>
+                                {i.options && (
+                                  <span style={{ fontSize: '0.72rem', color: '#b45309', fontWeight: 500 }}>
+                                    ✨ {i.options}
                                   </span>
                                 )}
                               </div>

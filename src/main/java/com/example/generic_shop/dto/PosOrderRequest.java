@@ -14,5 +14,7 @@ public class PosOrderRequest {
     public static class PosOrderItemDTO {
         private Long productId;
         private Integer quantity;
+        private String options;
+        private Double price;
     }
 }

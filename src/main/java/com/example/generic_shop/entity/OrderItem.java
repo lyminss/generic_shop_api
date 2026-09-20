@@ -24,6 +24,9 @@ public class OrderItem extends BaseEntity {
     private int quantity;
     private double price;
 
+    @Column(name = "options", length = 500)
+    private String options;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "prepared_status")
     private ItemPreparedStatus preparedStatus = ItemPreparedStatus.PENDING;

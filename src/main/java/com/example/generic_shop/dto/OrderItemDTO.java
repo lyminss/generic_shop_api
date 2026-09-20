@@ -12,5 +12,6 @@ public class OrderItemDTO {
     private int quantity;
     private double price;
     private double subtotal;
+    private String options;
     private ItemPreparedStatus preparedStatus;
 }

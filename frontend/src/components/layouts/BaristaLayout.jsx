@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { NavLink, useNavigate, Outlet } from 'react-router-dom';
+import { NavLink, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { orderService } from '../../services/api';
@@ -21,6 +21,7 @@ import './SidebarLayout.css';
 const BaristaLayout = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -91,10 +92,13 @@ const BaristaLayout = () => {
   }, [toast]);
 
   useEffect(() => {
+    // BaristaKDS already polls at /barista and /barista/history — skip duplicate polling there
+    const onKdsPage = location.pathname === '/barista' || location.pathname.startsWith('/barista/history');
     checkActiveTickets();
+    if (onKdsPage) return; // KDS component handles its own fetch loop
     const interval = setInterval(checkActiveTickets, 3000);
     return () => clearInterval(interval);
-  }, [checkActiveTickets]);
+  }, [checkActiveTickets, location.pathname]);
 
   const initials = user?.firstName
     ? user.firstName.charAt(0).toUpperCase()

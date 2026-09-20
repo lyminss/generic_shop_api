@@ -29,8 +29,9 @@ public class CartMapper {
         dto.setId(item.getId());
         dto.setProductId(item.getProduct().getId());
         dto.setProductName(item.getProduct().getName()); // tùy field thực tế trong Product
-// trong CartMapper.toItemDTO
-        dto.setPrice(item.getProduct().getPrice());
+        dto.setPrice(item.getCustomPrice() != null ? item.getCustomPrice().longValue() : item.getProduct().getPrice());
+        dto.setCustomPrice(item.getCustomPrice());
+        dto.setOptions(item.getOptions());
         dto.setQuantity(item.getQuantity());
         return dto;
     }

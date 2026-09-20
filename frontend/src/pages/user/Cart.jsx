@@ -110,8 +110,8 @@ const Cart = () => {
 
               <div className="item-details">
                 <h3 className="item-name">{item.productName}</h3>
-                {item.notes && (
-                  <span className="item-notes-badge">📝 {item.notes}</span>
+                {(item.options || item.notes) && (
+                  <span className="item-notes-badge">✨ {item.options || item.notes}</span>
                 )}
                 <p className="item-price">{formatPrice(item.price)}</p>
               </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { NavLink, useNavigate, Outlet } from 'react-router-dom';
+import { NavLink, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { orderService } from '../../services/api';
@@ -15,6 +15,7 @@ import './SidebarLayout.css';
 const StaffLayout = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -89,10 +90,13 @@ const StaffLayout = () => {
   }, []);
 
   useEffect(() => {
+    // StaffDashboard already polls at all /staff/* routes — skip duplicate polling there
+    const onStaffPage = location.pathname.startsWith('/staff');
     checkNewOrders();
+    if (onStaffPage) return; // Dashboard handles its own fetch loop
     const interval = setInterval(checkNewOrders, 3500);
     return () => clearInterval(interval);
-  }, [checkNewOrders]);
+  }, [checkNewOrders, location.pathname]);
 
   // Quick action from popup notification
   const handleConfirmOrderFromAlert = async (orderId) => {

@@ -45,6 +45,11 @@ public class CartServiceImpl implements CartService {
     //add to cart
     @Override
     public Cart addToCart(String email, Long productId, int quantity){
+        return addToCart(email, productId, quantity, null, null);
+    }
+
+    @Override
+    public Cart addToCart(String email, Long productId, int quantity, String options, Double customPrice){
 
         if (quantity <= 0) {
             throw new RuntimeException("Quantity must be greater than 0");
@@ -60,15 +65,28 @@ public class CartServiceImpl implements CartService {
             throw new RuntimeException("Món '" + product.getName() + "' hiện đã ngừng bán, không thể thêm vào giỏ hàng!");
         }
 
-        CartItem item = cartItemRepository.findByCartAndProduct(cart, product).orElse(null);
+        CartItem item = null;
+        if (options != null && !options.trim().isEmpty()) {
+            item = cartItemRepository.findByCartAndProductAndOptions(cart, product, options).orElse(null);
+        } else {
+            // Find item with null or empty options
+            item = cartItemRepository.findByCartAndProduct(cart, product)
+                    .filter(ci -> ci.getOptions() == null || ci.getOptions().trim().isEmpty())
+                    .orElse(null);
+        }
 
         if (item == null){
             item = new CartItem();
             item.setCart(cart);
             item.setProduct(product);
             item.setQuantity(quantity);
-        }else {
+            item.setOptions(options);
+            item.setCustomPrice(customPrice);
+        } else {
             item.setQuantity(item.getQuantity() + quantity);
+            if (customPrice != null) {
+                item.setCustomPrice(customPrice);
+            }
         }
 
         cartItemRepository.save(item);

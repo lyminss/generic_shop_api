@@ -28,4 +28,10 @@ public class CartItem {
     private Product product;
 
     private int quantity;
+
+    @Column(name = "options", length = 500)
+    private String options;
+
+    @Column(name = "custom_price")
+    private Double customPrice;
 }

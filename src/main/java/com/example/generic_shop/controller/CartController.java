@@ -30,8 +30,10 @@ public class CartController {
     @PostMapping("/add")
     public ResponseEntity<?> addToCart(Authentication auth,
             @RequestParam Long productId,
-            @RequestParam int quantity) {
-        Cart cart = cartService.addToCart(getEmail(auth), productId, quantity);
+            @RequestParam int quantity,
+            @RequestParam(required = false) String options,
+            @RequestParam(required = false) Double customPrice) {
+        Cart cart = cartService.addToCart(getEmail(auth), productId, quantity, options, customPrice);
         return ResponseEntity.ok(CartMapper.toDTO(cart));
     }
 

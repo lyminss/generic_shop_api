@@ -5,6 +5,7 @@ import com.example.generic_shop.entity.Cart;
 public interface CartService {
     Cart getCart(String email);
     Cart addToCart(String email, Long productId, int quantity);
+    Cart addToCart(String email, Long productId, int quantity, String options, Double customPrice);
     Cart updateCart(String email, Long productId, int quantity);
     void removeItem(String email, Long itemId);
     void clearCart(String email);

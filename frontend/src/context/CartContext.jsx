@@ -35,9 +35,9 @@ export const CartProvider = ({ children }) => {
     }
   };
 
-  const addToCart = async (productId, quantity = 1) => {
+  const addToCart = async (productId, quantity = 1, options = null, customPrice = null) => {
     try {
-      await cartService.addToCart(productId, quantity);
+      await cartService.addToCart(productId, quantity, options, customPrice);
       await fetchCart(); // Always re-fetch to ensure UI is in sync with backend
       return true;
     } catch (err) {

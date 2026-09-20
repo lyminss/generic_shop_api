@@ -80,7 +80,7 @@ const ProductDetail = () => {
     const notes = `${selectedSize.name}, ${selectedIce}, ${selectedSugar}` + 
       (selectedToppings.length > 0 ? `, Topping: ${selectedToppings.map(t => t.name).join(', ')}` : '');
 
-    addToCart(product.id, quantity, notes);
+    addToCart(product.id, quantity, notes, calculateUnitPrice());
     toast.success(`Đã thêm ${quantity}x "${product.name}" (${selectedSize.id}) vào giỏ hàng!`);
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 2000);

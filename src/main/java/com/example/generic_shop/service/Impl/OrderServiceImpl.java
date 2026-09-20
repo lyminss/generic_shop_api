@@ -67,9 +67,13 @@ public class OrderServiceImpl implements OrderService {
             oi.setOrder(order);
             oi.setProduct(cartItem.getProduct());
             oi.setQuantity(cartItem.getQuantity());
-            oi.setPrice(cartItem.getProduct().getPrice());
+            double itemPrice = (cartItem.getCustomPrice() != null) 
+                    ? cartItem.getCustomPrice() 
+                    : (double) cartItem.getProduct().getPrice();
+            oi.setPrice((long) itemPrice);
+            oi.setOptions(cartItem.getOptions());
             oi.setPreparedStatus(ItemPreparedStatus.PENDING);
-            totalPrice += cartItem.getQuantity() * cartItem.getProduct().getPrice();
+            totalPrice += cartItem.getQuantity() * itemPrice;
             orderItems.add(oi);
         }
         order.setItems(orderItems);
@@ -116,9 +120,11 @@ public class OrderServiceImpl implements OrderService {
             oi.setOrder(order);
             oi.setProduct(product);
             oi.setQuantity(itemDto.getQuantity());
-            oi.setPrice(product.getPrice());
+            double itemPrice = (itemDto.getPrice() != null) ? itemDto.getPrice() : (double) product.getPrice();
+            oi.setPrice((long) itemPrice);
+            oi.setOptions(itemDto.getOptions());
             oi.setPreparedStatus(ItemPreparedStatus.PENDING);
-            totalPrice += itemDto.getQuantity() * product.getPrice();
+            totalPrice += itemDto.getQuantity() * itemPrice;
             orderItems.add(oi);
         }
         order.setItems(orderItems);
@@ -388,6 +394,7 @@ public class OrderServiceImpl implements OrderService {
                 }
                 d.setQuantity(item.getQuantity());
                 d.setPrice(item.getPrice());
+                d.setOptions(item.getOptions());
                 d.setSubtotal(item.getQuantity() * item.getPrice());
                 d.setPreparedStatus(item.getPreparedStatus());
                 return d;

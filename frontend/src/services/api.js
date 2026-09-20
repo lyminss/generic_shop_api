@@ -95,7 +95,12 @@ export const capacityService = {
 // Cart endpoints
 export const cartService = {
   getCart: () => api.get('/cart'),
-  addToCart: (productId, quantity) => api.post(`/cart/add?productId=${productId}&quantity=${quantity}`),
+  addToCart: (productId, quantity, options, customPrice) => {
+    const params = new URLSearchParams({ productId, quantity });
+    if (options) params.append('options', options);
+    if (customPrice != null) params.append('customPrice', customPrice);
+    return api.post(`/cart/add?${params.toString()}`);
+  },
   updateCart: (productId, quantity) => api.put(`/cart/update?productId=${productId}&quantity=${quantity}`),
   removeItem: (itemId) => api.delete(`/cart/remove/${itemId}`),
 };

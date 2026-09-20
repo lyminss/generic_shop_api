@@ -198,8 +198,8 @@ const OrderDetail = () => {
                       {item.preparedStatus === 'READY' ? <><CheckCircle2 size={11} /> Xong</> : <><Clock size={11} /> Đang pha</>}
                     </span>
                   </div>
-                  {item.notes && (
-                    <p className="od-item-note">📝 {item.notes}</p>
+                  {(item.options || item.notes) && (
+                    <p className="od-item-note">✨ {item.options || item.notes}</p>
                   )}
                   <div className="od-item-bottom">
                     <span className="od-item-unit">{formatPrice(item.price)} × {item.quantity}</span>
