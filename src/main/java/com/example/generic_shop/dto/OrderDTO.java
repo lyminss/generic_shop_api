@@ -11,6 +11,11 @@ public class OrderDTO {
     private Long id;
     private OrderStatus orderStatus;
     private Double totalPrice;
+    private Double originalPrice;
+    private Double discountAmount;
+    private String voucherCode;
+    private String paymentMethod;
+    private String paymentStatus;
     private String shippingAddress;
     private String customerName;
     private String customerEmail;

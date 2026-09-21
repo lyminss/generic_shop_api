@@ -26,4 +26,19 @@ public class Order extends BaseEntity{
     private OrderStatus orderStatus;
     private Double totalPrice;
     private String shippingAddress;
+
+    /** CASH (tiền mặt) | QR_TRANSFER (chuyển khoản QR) */
+    private String paymentMethod;
+
+    /** UNPAID (chưa thanh toán) | WAITING_CONFIRMATION (chờ thu ngân kiểm tra tiền) | PAID (đã thanh toán) */
+    private String paymentStatus;
+
+    /** Mã voucher đã áp dụng */
+    private String voucherCode;
+
+    /** Số tiền được giảm */
+    private Double discountAmount;
+
+    /** Tổng tiền trước khi giảm */
+    private Double originalPrice;
 }

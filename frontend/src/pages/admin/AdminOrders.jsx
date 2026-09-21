@@ -16,8 +16,17 @@ import {
   Sparkles,
   User,
   UserCheck,
+  Printer,
+  Copy,
+  Check,
+  Coffee,
+  Calendar,
+  CreditCard,
+  Tag,
+  RefreshCw,
+  X,
 } from 'lucide-react';
-import { formatPrice, formatTimeAgo } from '../../utils/format';
+import { formatPrice, formatTimeAgo, formatDateTime } from '../../utils/format';
 import {
   ORDER_STATUS_CONFIG,
   normalizeOrderStatus,
@@ -25,6 +34,8 @@ import {
   getOrderCustomerInfo,
 } from '../../utils/orderHelpers';
 import AdminOrderDetailModal from './components/AdminOrderDetailModal';
+import PrintBillModal from '../../components/common/PrintBillModal';
+import { useToast } from '../../context/ToastContext';
 import './AdminOrders.css';
 
 const STATUS_CFG = ORDER_STATUS_CONFIG;
@@ -35,17 +46,28 @@ const PAGE_SIZE = 10;
 
 const AdminOrders = ({ orders = [], loading = false, onUpdateStatus }) => {
   const navigate = useNavigate();
+  const toast = useToast();
 
   // Filters & State
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [channelFilter, setChannelFilter] = useState('');
+  const [paymentFilter, setPaymentFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
-  const [sourceFilter, setSourceFilter] = useState('');
   const [page, setPage] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [printOrder, setPrintOrder] = useState(null);
+  const [copiedId, setCopiedId] = useState(null);
+  const [updatingId, setUpdatingId] = useState(null);
 
-  // Summary Metrics (Tabular nums)
+  const handleCopy = (id, e) => {
+    e?.stopPropagation();
+    navigator.clipboard.writeText(String(id));
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  // Summary Metrics
   const summary = useMemo(() => {
     const total = orders.length;
     let pending = 0;
@@ -53,27 +75,30 @@ const AdminOrders = ({ orders = [], loading = false, onUpdateStatus }) => {
     let shipping = 0;
     let completed = 0;
     let cancelled = 0;
+    let totalRevenue = 0;
 
     orders.forEach((o) => {
       const st = normalizeStatus(o.orderStatus);
       if (st === 'NEW') pending++;
       else if (st === 'PROCESSING') processing++;
       else if (st === 'SHIPPING') shipping++;
-      else if (st === 'COMPLETED') completed++;
-      else if (st === 'CANCEL') cancelled++;
+      else if (st === 'COMPLETED') {
+        completed++;
+        totalRevenue += Number(o.totalPrice || 0);
+      } else if (st === 'CANCEL') cancelled++;
     });
 
-    return { total, pending, processing, shipping, completed, cancelled };
+    return { total, pending, processing, shipping, completed, cancelled, totalRevenue };
   }, [orders]);
 
   // Status Tabs Definition
   const statusTabs = [
     { value: '', label: 'Tất cả', count: summary.total },
-    { value: 'NEW', label: 'Chờ duyệt', count: summary.pending },
-    { value: 'PROCESSING', label: 'Đang pha chế', count: summary.processing },
-    { value: 'SHIPPING', label: 'Đang giao', count: summary.shipping },
-    { value: 'COMPLETED', label: 'Hoàn thành', count: summary.completed },
-    { value: 'CANCEL', label: 'Đã hủy', count: summary.cancelled },
+    { value: 'NEW', label: 'Chờ duyệt', count: summary.pending, color: 'text-amber-700 bg-amber-50' },
+    { value: 'PROCESSING', label: 'Đang pha chế', count: summary.processing, color: 'text-purple-700 bg-purple-50' },
+    { value: 'SHIPPING', label: 'Đang giao', count: summary.shipping, color: 'text-teal-700 bg-teal-50' },
+    { value: 'COMPLETED', label: 'Hoàn thành', count: summary.completed, color: 'text-emerald-700 bg-emerald-50' },
+    { value: 'CANCEL', label: 'Đã hủy', count: summary.cancelled, color: 'text-rose-700 bg-rose-50' },
   ];
 
   // Filtering Logic
@@ -87,7 +112,7 @@ const AdminOrders = ({ orders = [], loading = false, onUpdateStatus }) => {
       if (q) {
         const idMatch = String(o.id).toLowerCase().includes(q);
         const addrMatch = o.shippingAddress?.toLowerCase().includes(q);
-        const custMatch = (o.customerEmail || o.customerName || '').toLowerCase().includes(q);
+        const custMatch = (o.customerEmail || o.customerName || o.customerPhone || '').toLowerCase().includes(q);
         const itemMatch = o.items?.some((i) => i.productName?.toLowerCase().includes(q));
         if (!idMatch && !addrMatch && !custMatch && !itemMatch) return false;
       }
@@ -102,10 +127,11 @@ const AdminOrders = ({ orders = [], loading = false, onUpdateStatus }) => {
         if (channelFilter === 'ONLINE' && ch.isPos) return false;
       }
 
-      if (sourceFilter) {
-        const ch = getChannel(o.shippingAddress);
-        if (sourceFilter === 'STAFF' && !ch.isPos) return false;
-        if (sourceFilter === 'CUSTOMER' && ch.isPos) return false;
+      if (paymentFilter) {
+        const isPaid = o.paymentStatus === 'PAID' || normalizeStatus(o.orderStatus) === 'COMPLETED' || getChannel(o.shippingAddress).isPos;
+        if (paymentFilter === 'PAID' && !isPaid) return false;
+        if (paymentFilter === 'UNPAID' && isPaid) return false;
+        if (paymentFilter === 'QR_WAITING' && (isPaid || o.paymentMethod !== 'QR_TRANSFER')) return false;
       }
 
       if (dateFilter && o.createdAt) {
@@ -115,26 +141,30 @@ const AdminOrders = ({ orders = [], loading = false, onUpdateStatus }) => {
 
       return true;
     });
-  }, [orders, search, statusFilter, channelFilter, sourceFilter, dateFilter]);
+  }, [orders, search, statusFilter, channelFilter, paymentFilter, dateFilter]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const pageData = filteredOrders.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  const hasActiveFilters = Boolean(search || statusFilter || channelFilter || sourceFilter || dateFilter);
+  const hasActiveFilters = Boolean(search || statusFilter || channelFilter || paymentFilter || dateFilter);
 
   const resetFilters = () => {
     setSearch('');
     setStatusFilter('');
     setChannelFilter('');
-    setSourceFilter('');
+    setPaymentFilter('');
     setDateFilter('');
     setPage(1);
   };
 
-  const handleStatusTab = (val) => {
-    setStatusFilter(val);
+  const handleQuickDate = (type) => {
+    if (type === 'TODAY') {
+      setDateFilter(new Date().toISOString().slice(0, 10));
+    } else {
+      setDateFilter('');
+    }
     setPage(1);
   };
 
@@ -153,274 +183,260 @@ const AdminOrders = ({ orders = [], loading = false, onUpdateStatus }) => {
 
   const getItemCount = (order) => (order.items ?? []).reduce((t, d) => t + Number(d.quantity ?? 1), 0);
 
+  // Quick next status action on row
+  const handleQuickNextStatus = async (e, order) => {
+    e.stopPropagation();
+    const current = normalizeStatus(order.orderStatus);
+    let next = null;
+    if (current === 'NEW') next = 'PROCESSING';
+    else if (current === 'PROCESSING') next = 'SHIPPING';
+    else if (current === 'SHIPPING') next = 'COMPLETED';
+
+    if (!next || !onUpdateStatus) return;
+
+    setUpdatingId(order.id);
+    try {
+      await onUpdateStatus(order.id, next);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   return (
     <div className="admin-orders-content animate-fade-in">
-      {/* ── 1. Hero Banner (Cohesive with AdminDashboard & AdminStats) ── */}
-      <section className="admin-hero-banner" aria-labelledby="orders-page-title">
-        <div>
-          <div className="orders-hero-badge">
-            <span className="orders-pulse-dot" aria-hidden="true" />
+      {/* ── 1. Hero Header ── */}
+      <section className="orders-hero">
+        <div className="orders-hero-left">
+          <div className="orders-live-badge">
+            <span className="orders-pulse-dot" />
             <span>Hệ thống thời gian thực</span>
           </div>
-          <h1 id="orders-page-title" className="admin-hero-title">
-            Quản Lý Đơn Hàng
-          </h1>
-          <p className="admin-hero-subtitle">
-            Giám sát tiến trình pha chế, điều phối đơn hàng và tiếp nhận xử lý toàn hệ thống theo thời gian thực.
+          <h1 className="orders-hero-title">Quản Lý Đơn Hàng</h1>
+          <p className="orders-hero-subtitle">
+            Giám sát đơn hàng, tiến độ pha chế của Barista và điều phối giao hàng cho khách.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="orders-hero-right">
           <button
             type="button"
             onClick={() => navigate('/staff')}
-            className="stats-action-btn"
-            style={{ background: 'var(--matcha-dark)', color: '#ffffff' }}
+            className="orders-btn-pos"
+            title="Mở giao diện quầy bán hàng POS"
           >
-            <Plus size={16} aria-hidden="true" />
-            <span>Tạo Đơn POS</span>
+            <Plus size={16} />
+            <span>Tạo Đơn Tại Quầy</span>
           </button>
         </div>
       </section>
 
-      {/* ── 2. Metric Cards Grid (MinTea stat-tiles with border-l-4) ── */}
-      <section className="stats-cards-grid" aria-label="Thống kê trạng thái đơn hàng">
-        {/* Card 1: Chờ duyệt */}
-        <div className="stat-tile accent-caramel order-stat-card border-l-amber flex flex-col justify-between">
-          <div className="flex justify-between items-start mb-2">
-            <p className="stat-tile-label">Chờ duyệt</p>
-            <div className="icon-tile" aria-hidden="true">
-              <Clock size={18} />
-            </div>
+      {/* ── 2. Stat Tiles Grid (Clickable) ── */}
+      <section className="orders-stats-grid" aria-label="Thống kê nhanh đơn hàng">
+        {/* Tất cả */}
+        <div
+          className={`orders-stat-card border-l-stone ${statusFilter === '' ? 'is-selected' : ''}`}
+          onClick={() => { setStatusFilter(''); setPage(1); }}
+        >
+          <div className="stat-card-header">
+            <span className="stat-card-label">Tất cả đơn</span>
+            <div className="stat-card-icon icon-stone"><Receipt size={17} /></div>
           </div>
-          <div>
-            <h3 className="stat-tile-value tabular-nums">{summary.pending}</h3>
-            <div className="stats-card-caption">Cần tiếp nhận & xác nhận</div>
-          </div>
+          <div className="stat-card-val tabular-nums">{summary.total}</div>
+          <div className="stat-card-foot">Doanh thu: {formatPrice(summary.totalRevenue)}</div>
         </div>
 
-        {/* Card 2: Đang pha chế */}
-        <div className="stat-tile accent-taro order-stat-card border-l-purple flex flex-col justify-between">
-          <div className="flex justify-between items-start mb-2">
-            <p className="stat-tile-label">Đang pha chế</p>
-            <div className="icon-tile" aria-hidden="true">
-              <Sparkles size={18} />
-            </div>
+        {/* Chờ duyệt (NEW) */}
+        <div
+          className={`orders-stat-card border-l-amber ${statusFilter === 'NEW' ? 'is-selected' : ''}`}
+          onClick={() => { setStatusFilter('NEW'); setPage(1); }}
+        >
+          <div className="stat-card-header">
+            <span className="stat-card-label">Chờ duyệt</span>
+            <div className="stat-card-icon icon-amber"><Clock size={17} /></div>
           </div>
-          <div>
-            <h3 className="stat-tile-value tabular-nums">{summary.processing}</h3>
-            <div className="stats-card-caption">Barista đang thực hiện</div>
-          </div>
+          <div className="stat-card-val text-amber-700 tabular-nums">{summary.pending}</div>
+          <div className="stat-card-foot">Cần tiếp nhận & xác nhận</div>
         </div>
 
-        {/* Card 3: Đang giao */}
-        <div className="stat-tile accent-teal order-stat-card border-l-teal flex flex-col justify-between">
-          <div className="flex justify-between items-start mb-2">
-            <p className="stat-tile-label">Đang giao</p>
-            <div className="icon-tile" aria-hidden="true">
-              <Truck size={18} />
-            </div>
+        {/* Đang pha chế (PROCESSING) */}
+        <div
+          className={`orders-stat-card border-l-purple ${statusFilter === 'PROCESSING' ? 'is-selected' : ''}`}
+          onClick={() => { setStatusFilter('PROCESSING'); setPage(1); }}
+        >
+          <div className="stat-card-header">
+            <span className="stat-card-label">Đang pha chế</span>
+            <div className="stat-card-icon icon-purple"><Coffee size={17} /></div>
           </div>
-          <div>
-            <h3 className="stat-tile-value tabular-nums">{summary.shipping}</h3>
-            <div className="stats-card-caption">Đang trên đường giao</div>
-          </div>
+          <div className="stat-card-val text-purple-800 tabular-nums">{summary.processing}</div>
+          <div className="stat-card-foot">Barista đang thực hiện</div>
         </div>
 
-        {/* Card 4: Hoàn thành */}
-        <div className="stat-tile accent-matcha order-stat-card border-l-emerald flex flex-col justify-between">
-          <div className="flex justify-between items-start mb-2">
-            <p className="stat-tile-label">Hoàn thành</p>
-            <div className="icon-tile" aria-hidden="true">
-              <CheckCircle2 size={18} />
-            </div>
+        {/* Đang giao (SHIPPING) */}
+        <div
+          className={`orders-stat-card border-l-teal ${statusFilter === 'SHIPPING' ? 'is-selected' : ''}`}
+          onClick={() => { setStatusFilter('SHIPPING'); setPage(1); }}
+        >
+          <div className="stat-card-header">
+            <span className="stat-card-label">Đang giao</span>
+            <div className="stat-card-icon icon-teal"><Truck size={17} /></div>
           </div>
-          <div>
-            <h3 className="stat-tile-value tabular-nums">{summary.completed}</h3>
-            <div className="stats-card-caption">
-              Tỷ lệ: {summary.total > 0 ? Math.round((summary.completed / summary.total) * 100) : 0}% thành công
-            </div>
+          <div className="stat-card-val text-teal-700 tabular-nums">{summary.shipping}</div>
+          <div className="stat-card-foot">Sẵn sàng / Đang giao</div>
+        </div>
+
+        {/* Hoàn thành (COMPLETED) */}
+        <div
+          className={`orders-stat-card border-l-emerald ${statusFilter === 'COMPLETED' ? 'is-selected' : ''}`}
+          onClick={() => { setStatusFilter('COMPLETED'); setPage(1); }}
+        >
+          <div className="stat-card-header">
+            <span className="stat-card-label">Hoàn thành</span>
+            <div className="stat-card-icon icon-emerald"><CheckCircle2 size={17} /></div>
           </div>
+          <div className="stat-card-val text-emerald-700 tabular-nums">{summary.completed}</div>
+          <div className="stat-card-foot">Giao dịch thành công</div>
         </div>
       </section>
 
-      {/* ── 3. Status Tabs Navigation Pills ── */}
-      <nav className="orders-tabs-nav" aria-label="Phân loại trạng thái đơn hàng">
+      {/* ── 3. Status Tabs ── */}
+      <div className="orders-status-tabs">
         {statusTabs.map((tab) => {
           const isActive = statusFilter === tab.value;
           return (
             <button
               key={tab.value}
               type="button"
-              onClick={() => handleStatusTab(tab.value)}
-              className={`orders-tab-pill ${isActive ? 'active' : ''}`}
-              aria-pressed={isActive}
+              onClick={() => { setStatusFilter(tab.value); setPage(1); }}
+              className={`status-tab-btn ${isActive ? 'active' : ''}`}
             >
               <span>{tab.label}</span>
-              <span className="orders-tab-count">{tab.count}</span>
+              <span className="status-tab-count">{tab.count}</span>
             </button>
           );
         })}
-      </nav>
+      </div>
 
-      {/* ── 4. Search & Filter Bar (Web Interface Guidelines compliant) ── */}
-      <div className="orders-filter-box" role="search" aria-label="Tìm kiếm và lọc đơn hàng">
-        <div className="orders-filter-header">
-          <div className="flex items-center gap-1.5 font-bold">
-            <Filter size={14} className="text-[#7c5c9c]" aria-hidden="true" />
-            <span>Bộ lọc tìm kiếm</span>
-          </div>
-          {hasActiveFilters && (
-            <span className="text-[11px] font-semibold text-rose-700">
-              Đang áp dụng bộ lọc tùy chỉnh
-            </span>
+      {/* ── 4. Search & Filter Bar ── */}
+      <div className="orders-filters-container">
+        <div className="orders-search-wrap">
+          <Search size={16} className="text-stone-400 flex-shrink-0 mr-2" />
+          <input
+            type="text"
+            placeholder="Tìm theo mã đơn (#12), tên khách, SĐT, địa chỉ, món nước..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            className="orders-search-input"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              className="p-1 rounded-md text-stone-400 hover:text-stone-700 hover:bg-stone-200"
+            >
+              <X size={14} />
+            </button>
           )}
         </div>
 
-        <div className="orders-filter-grid">
-          {/* Ô tìm kiếm */}
-          <div>
-            <label htmlFor="order-search-input" className="sr-only">
-              Tìm kiếm đơn hàng
-            </label>
-            <div className="orders-input-wrap">
-              <Search size={15} className="text-stone-400 flex-shrink-0 mr-2" aria-hidden="true" />
-              <input
-                id="order-search-input"
-                name="orderSearch"
-                type="search"
-                autoComplete="off"
-                spellCheck={false}
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="Mã đơn, tên khách, SĐT, tên món…"
-              />
-            </div>
-          </div>
+        <div className="orders-filter-selects">
+          {/* Kênh đơn */}
+          <select
+            value={channelFilter}
+            onChange={(e) => { setChannelFilter(e.target.value); setPage(1); }}
+            className="orders-select"
+          >
+            <option value="">Tất cả kênh</option>
+            <option value="POS">Tại quầy (POS)</option>
+            <option value="ONLINE">Giao hàng (Online)</option>
+          </select>
 
-          {/* Chọn loại đơn / Kênh */}
-          <div>
-            <label htmlFor="order-channel-select" className="sr-only">
-              Lọc theo loại đơn
-            </label>
-            <select
-              id="order-channel-select"
-              name="channelFilter"
-              value={channelFilter}
-              onChange={(e) => {
-                setChannelFilter(e.target.value);
-                setPage(1);
-              }}
-              className="orders-select-control"
-            >
-              <option value="">— Tất cả loại đơn —</option>
-              <option value="POS">Tại quầy (POS)</option>
-              <option value="ONLINE">Giao hàng / Mang đi (Online)</option>
-            </select>
-          </div>
+          {/* Thanh toán */}
+          <select
+            value={paymentFilter}
+            onChange={(e) => { setPaymentFilter(e.target.value); setPage(1); }}
+            className="orders-select"
+          >
+            <option value="">Tất cả thanh toán</option>
+            <option value="PAID">Đã thanh toán</option>
+            <option value="UNPAID">Chưa thanh toán</option>
+            <option value="QR_WAITING">⚠️ Chờ xác nhận QR</option>
+          </select>
 
-          {/* Lọc theo ngày */}
-          <div>
-            <label htmlFor="order-date-input" className="sr-only">
-              Lọc theo ngày đặt
-            </label>
-            <input
-              id="order-date-input"
-              name="orderDate"
-              type="date"
-              value={dateFilter}
-              onChange={(e) => {
-                setDateFilter(e.target.value);
-                setPage(1);
-              }}
-              className="orders-date-control"
-              title="Lọc theo ngày cụ thể"
-            />
-          </div>
+          {/* Ngày đặt */}
+          <input
+            type="date"
+            value={dateFilter}
+            onChange={(e) => { setDateFilter(e.target.value); setPage(1); }}
+            className="orders-select font-sans"
+            title="Lọc theo ngày đặt"
+          />
 
-          {/* Chọn nguồn đơn */}
-          <div>
-            <label htmlFor="order-source-select" className="sr-only">
-              Lọc theo nguồn đơn
-            </label>
-            <select
-              id="order-source-select"
-              name="sourceFilter"
-              value={sourceFilter}
-              onChange={(e) => {
-                setSourceFilter(e.target.value);
-                setPage(1);
-              }}
-              className="orders-select-control"
-            >
-              <option value="">— Tất cả nguồn —</option>
-              <option value="CUSTOMER">Khách tự đặt</option>
-              <option value="STAFF">Nhân viên tạo</option>
-            </select>
-          </div>
+          {/* Nút lọc Hôm nay */}
+          <button
+            type="button"
+            onClick={() => handleQuickDate(dateFilter ? '' : 'TODAY')}
+            className={`orders-quick-btn ${dateFilter === new Date().toISOString().slice(0, 10) ? 'active' : ''}`}
+          >
+            Hôm nay
+          </button>
 
-          {/* Nút reset */}
-          <div>
+          {/* Reset */}
+          {hasActiveFilters && (
             <button
               type="button"
               onClick={resetFilters}
-              disabled={!hasActiveFilters}
-              className="orders-reset-button"
-              aria-label="Xóa bộ lọc tìm kiếm"
+              className="orders-reset-btn"
+              title="Xóa tất cả bộ lọc"
             >
-              <RotateCcw size={14} aria-hidden="true" />
+              <RotateCcw size={14} />
               <span>Xóa lọc</span>
             </button>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* ── 5. Main Orders Bento Table Panel ── */}
-      <div className="stats-bento-panel">
-        <div className="stats-panel-header">
+      {/* ── 5. Main Orders Table ── */}
+      <div className="orders-table-card">
+        <div className="orders-table-header">
           <div>
-            <h3 className="stats-panel-title">
-              <PackageCheck size={18} className="text-purple-800" aria-hidden="true" />
-              Danh Sách Đơn Hàng
-            </h3>
-            <p className="text-xs text-stone-500 mt-0.5">
+            <h2 className="orders-table-title">
+              <PackageCheck size={18} className="text-[#5C4174]" />
+              <span>Danh Sách Đơn Hàng</span>
+            </h2>
+            <p className="orders-table-subtitle">
               Hiển thị {filteredOrders.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1}–
-              {Math.min(safePage * PAGE_SIZE, filteredOrders.length)} trên tổng số {filteredOrders.length} đơn hàng phù hợp.
+              {Math.min(safePage * PAGE_SIZE, filteredOrders.length)} trên tổng số {filteredOrders.length} đơn hàng.
             </p>
           </div>
 
-          <span className="text-xs font-bold px-3 py-1 bg-purple-50 text-purple-900 rounded-full border border-purple-200 tabular-nums">
+          <span className="orders-page-badge">
             Trang {safePage}/{totalPages}
           </span>
         </div>
 
-        {/* Loading State */}
         {loading ? (
-          <div className="p-16 text-center text-xs text-stone-500" aria-live="polite">
-            Đang tải danh sách đơn hàng…
+          <div className="p-16 text-center text-xs text-stone-500">
+            <RefreshCw size={24} className="animate-spin text-purple-700 mx-auto mb-2" />
+            Đang đồng bộ dữ liệu đơn hàng...
           </div>
         ) : filteredOrders.length === 0 ? (
-          /* Empty State */
-          <div className="flex flex-col items-center justify-center px-6 py-20 text-center" role="status">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-50 text-purple-800 mb-3">
-              <Receipt size={32} aria-hidden="true" />
+          <div className="orders-empty-state">
+            <div className="empty-icon-wrap">
+              <Receipt size={32} />
             </div>
-            <h4 className="text-sm font-bold text-stone-800">Không tìm thấy đơn hàng nào</h4>
-            <p className="mt-1 max-w-sm text-xs text-stone-500">
+            <h4>Không tìm thấy đơn hàng nào phù hợp</h4>
+            <p>
               {hasActiveFilters
-                ? 'Thử thay đổi từ khóa hoặc xóa bộ lọc để xem các đơn hàng khác.'
-                : 'Đơn hàng mới từ khách hoặc nhân viên sẽ tự động hiển thị tại đây.'}
+                ? 'Hãy thử thay đổi từ khóa tìm kiếm hoặc bấm Xóa lọc để xem lại tất cả.'
+                : 'Đơn hàng mới từ khách hoặc nhân viên quầy sẽ tự động hiển thị tại đây.'}
             </p>
             {hasActiveFilters && (
               <button
                 type="button"
                 onClick={resetFilters}
-                className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#5C4174] text-white text-xs font-bold hover:bg-[#3f1c54] transition-colors cursor-pointer"
+                className="orders-btn-empty-reset"
               >
-                <RotateCcw size={13} aria-hidden="true" />
+                <RotateCcw size={13} />
                 <span>Xóa bộ lọc</span>
               </button>
             )}
@@ -428,18 +444,18 @@ const AdminOrders = ({ orders = [], loading = false, onUpdateStatus }) => {
         ) : (
           <>
             {/* Desktop Table View */}
-            <div className="stats-table-wrapper hidden lg:block">
-              <table className="admin-data-table">
+            <div className="orders-table-wrap hidden lg:block">
+              <table className="orders-main-table">
                 <thead>
                   <tr>
-                    <th style={{ textAlign: 'left', paddingLeft: '1.25rem' }}>Đơn hàng</th>
-                    <th style={{ textAlign: 'left' }}>Khách hàng / Người tạo</th>
-                    <th>Loại đơn / Kênh</th>
-                    <th style={{ textAlign: 'center' }}>Tiến độ pha chế</th>
-                    <th>Thanh toán</th>
-                    <th style={{ textAlign: 'right' }}>Tổng tiền</th>
-                    <th>Trạng thái</th>
-                    <th style={{ textAlign: 'right', paddingRight: '1.25rem' }}>Thao tác</th>
+                    <th style={{ width: '13%' }}>Mã & Giờ</th>
+                    <th style={{ width: '20%' }}>Khách hàng / Kênh</th>
+                    <th style={{ width: '23%' }}>Món nước</th>
+                    <th style={{ width: '13%', textAlign: 'center' }}>Tiến độ pha</th>
+                    <th style={{ width: '14%' }}>Thanh toán</th>
+                    <th style={{ width: '12%', textAlign: 'right' }}>Tổng tiền</th>
+                    <th style={{ width: '12%', textAlign: 'center' }}>Trạng thái</th>
+                    <th style={{ width: '13%', textAlign: 'right' }}>Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -449,78 +465,80 @@ const AdminOrders = ({ orders = [], loading = false, onUpdateStatus }) => {
                     const ch = getChannel(order.shippingAddress);
                     const custInfo = getOrderCustomerInfo(order);
                     const barista = computeBaristaProgress(order.items);
-                    const isPaid = normStatus === 'COMPLETED' || ch.isPos;
+                    const isPaid = order.paymentStatus === 'PAID' || normStatus === 'COMPLETED' || ch.isPos;
+                    const isUpdating = updatingId === order.id;
 
                     return (
                       <tr
                         key={order.id}
-                        tabIndex={0}
-                        role="button"
                         onClick={() => setSelectedOrder(order)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            setSelectedOrder(order);
-                          }
-                        }}
-                        className={`order-table-row ${cfg.rowBorderCls}`}
-                        aria-label={`Xem chi tiết đơn hàng số ${order.id}`}
+                        className={`order-row ${cfg.rowBorderCls}`}
                       >
-                        {/* Cột 1: Mã đơn & Thời gian */}
-                        <td style={{ textAlign: 'left', paddingLeft: '1.25rem' }}>
-                          <span className="font-mono text-xs font-bold text-purple-900 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-200 tabular-nums">
-                            #{String(order.id).padStart(4, '0')}
-                          </span>
-                          <div className="mt-1 text-[11px] text-stone-500 flex items-center gap-1">
-                            <Clock size={11} className="text-stone-400" aria-hidden="true" />
+                        {/* Cột 1: Mã & Thời gian */}
+                        <td>
+                          <div className="flex items-center gap-1.5">
+                            <span className="order-id-badge">
+                              #{String(order.id).padStart(4, '0')}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => handleCopy(order.id, e)}
+                              className="order-copy-btn"
+                              title="Sao chép mã đơn"
+                            >
+                              {copiedId === order.id ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                            </button>
+                          </div>
+                          <div className="order-time-text">
+                            <Clock size={11} className="text-stone-400" />
                             <span>{formatTimeAgo(order.createdAt)}</span>
-                            <span>·</span>
-                            <span className="font-semibold text-stone-700">{getItemCount(order)} món</span>
                           </div>
                         </td>
 
-                        {/* Cột 2: Khách hàng / Người tạo */}
-                        <td style={{ textAlign: 'left', maxWidth: '15rem' }}>
+                        {/* Cột 2: Khách hàng / Kênh */}
+                        <td>
                           <div className="flex items-center gap-1.5 mb-1">
-                            <span
-                              className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold border ${
-                                custInfo.isPos
-                                  ? 'bg-amber-100 text-amber-900 border-amber-200'
-                                  : 'bg-purple-100 text-purple-900 border-purple-200'
-                              }`}
-                            >
-                              {custInfo.isPos ? (
-                                <UserCheck size={10} aria-hidden="true" />
-                              ) : (
-                                <User size={10} aria-hidden="true" />
-                              )}
-                              <span>{custInfo.badge}</span>
+                            <span className={`channel-tag ${ch.isPos ? 'pos' : 'online'}`}>
+                              {ch.isPos ? <UserCheck size={10} /> : <User size={10} />}
+                              <span>{ch.isPos ? 'Bán tại quầy' : 'Khách online'}</span>
                             </span>
                           </div>
-                          <p className="font-bold text-xs text-stone-900 truncate" title={custInfo.title}>
+                          <p className="order-cust-name" title={custInfo.title}>
                             {custInfo.title}
                           </p>
-                          <p className="text-[11px] text-stone-500 truncate mt-0.5" title={custInfo.subtitle}>
+                          <p className="order-cust-sub" title={custInfo.subtitle}>
                             {custInfo.subtitle}
                           </p>
                         </td>
 
-                        {/* Cột 3: Loại đơn / Kênh */}
+                        {/* Cột 3: Món nước */}
                         <td>
-                          <span className={`channel-pill ${ch.isPos ? 'pos' : 'online'}`}>
-                            {ch.label}
+                          <div className="order-items-preview">
+                            {order.items?.slice(0, 2).map((item, i) => (
+                              <div key={item.id ?? i} className="order-item-snippet truncate">
+                                <strong>{item.quantity}x</strong> {item.productName}
+                              </div>
+                            ))}
+                            {(order.items?.length || 0) > 2 && (
+                              <span className="order-more-items">
+                                +{(order.items?.length || 0) - 2} món khác
+                              </span>
+                            )}
+                          </div>
+                          <span className="order-item-count-tag">
+                            Tổng {getItemCount(order)} ly
                           </span>
                         </td>
 
-                        {/* Cột 4: Pha chế (Barista) */}
+                        {/* Cột 4: Tiến độ pha */}
                         <td style={{ textAlign: 'center' }}>
-                          <div className="inline-flex flex-col items-center gap-1">
-                            <span className="text-[10px] font-bold tabular-nums text-stone-700">
-                              {barista.label} ly đã pha
+                          <div className="order-barista-meter">
+                            <span className="barista-label tabular-nums">
+                              {barista.label} ly xong
                             </span>
-                            <div className="table-barista-bar-track" aria-hidden="true">
+                            <div className="barista-bar-track">
                               <div
-                                className={`table-barista-bar-fill ${barista.isComplete ? 'done' : ''}`}
+                                className={`barista-bar-fill ${barista.isComplete ? 'done' : ''}`}
                                 style={{ width: `${barista.percentage}%` }}
                               />
                             </div>
@@ -529,43 +547,96 @@ const AdminOrders = ({ orders = [], loading = false, onUpdateStatus }) => {
 
                         {/* Cột 5: Thanh toán */}
                         <td>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          <div className="order-payment-type">
+                            {order.paymentMethod === 'QR_TRANSFER' ? 'VietQR' : 'Tiền mặt'}
+                          </div>
+                          <span className={`order-paid-badge ${
                             isPaid
-                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                              : 'bg-amber-50 text-amber-800 border border-amber-200'
+                              ? 'paid'
+                              : (order.paymentMethod === 'QR_TRANSFER' ? 'qr-waiting' : 'unpaid')
                           }`}>
-                            {isPaid ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                            {isPaid ? 'Đã nhận tiền' : (order.paymentMethod === 'QR_TRANSFER' ? 'Chờ nhận QR' : 'Chưa thu tiền')}
                           </span>
                         </td>
 
                         {/* Cột 6: Tổng tiền */}
                         <td style={{ textAlign: 'right' }}>
-                          <span className="font-mono text-xs font-black text-stone-900 tabular-nums">
+                          <div className="order-total-price font-mono tabular-nums">
                             {formatPrice(order.totalPrice)}
-                          </span>
+                          </div>
+                          {order.voucherCode && (
+                            <div className="order-voucher-tag" title={`Đã giảm ${formatPrice(order.discountAmount || 0)}`}>
+                              <Tag size={9} /> {order.voucherCode}
+                            </div>
+                          )}
                         </td>
 
                         {/* Cột 7: Trạng thái */}
-                        <td>
-                          <span className={`status-badge ${cfg.badgeCls}`}>
-                            {cfg.label}
+                        <td style={{ textAlign: 'center' }}>
+                          <span className={`status-badge-modern ${cfg.badgeCls}`}>
+                            <span className={`status-dot ${cfg.dotCls}`} />
+                            <span>{cfg.label}</span>
                           </span>
                         </td>
 
-                        {/* Cột 8: Thao tác */}
-                        <td style={{ textAlign: 'right', paddingRight: '1.25rem' }}>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedOrder(order);
-                            }}
-                            className="accessible-action-btn"
-                            aria-label={`Xem chi tiết đơn hàng số ${order.id}`}
-                            title="Xem chi tiết đơn"
-                          >
-                            <Eye size={14} aria-hidden="true" />
-                          </button>
+                        {/* Cột 8: Thao tác nhanh */}
+                        <td style={{ textAlign: 'right' }}>
+                          <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                            {/* Quick Next Status button */}
+                            {normStatus === 'NEW' && (
+                              <button
+                                type="button"
+                                disabled={isUpdating}
+                                onClick={(e) => handleQuickNextStatus(e, order)}
+                                className="order-btn-next-step"
+                                title="Duyệt đơn và chuyển pha chế"
+                              >
+                                {isUpdating ? '...' : 'Duyệt'}
+                              </button>
+                            )}
+                            {normStatus === 'PROCESSING' && (
+                              <button
+                                type="button"
+                                disabled={isUpdating}
+                                onClick={(e) => handleQuickNextStatus(e, order)}
+                                className="order-btn-next-step btn-teal"
+                                title="Sẵn sàng / Đang giao"
+                              >
+                                {isUpdating ? '...' : 'Giao'}
+                              </button>
+                            )}
+                            {normStatus === 'SHIPPING' && (
+                              <button
+                                type="button"
+                                disabled={isUpdating}
+                                onClick={(e) => handleQuickNextStatus(e, order)}
+                                className="order-btn-next-step btn-emerald"
+                                title="Hoàn thành đơn"
+                              >
+                                {isUpdating ? '...' : 'Xong'}
+                              </button>
+                            )}
+
+                            {/* In bill */}
+                            <button
+                              type="button"
+                              onClick={() => setPrintOrder(order)}
+                              className="order-action-icon-btn text-amber-700 hover:bg-amber-50"
+                              title="In bill"
+                            >
+                              <Printer size={14} />
+                            </button>
+
+                            {/* Chi tiết */}
+                            <button
+                              type="button"
+                              onClick={() => setSelectedOrder(order)}
+                              className="order-action-icon-btn text-stone-700 hover:bg-stone-100"
+                              title="Xem chi tiết đơn"
+                            >
+                              <Eye size={14} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -575,101 +646,68 @@ const AdminOrders = ({ orders = [], loading = false, onUpdateStatus }) => {
             </div>
 
             {/* Mobile Cards View */}
-            <div className="space-y-3 p-4 lg:hidden">
+            <div className="orders-mobile-list lg:hidden">
               {pageData.map((order) => {
                 const normStatus = normalizeStatus(order.orderStatus);
                 const cfg = STATUS_CFG[normStatus] || STATUS_CFG.NEW;
                 const ch = getChannel(order.shippingAddress);
                 const custInfo = getOrderCustomerInfo(order);
                 const barista = computeBaristaProgress(order.items);
-                const isPaid = normStatus === 'COMPLETED' || ch.isPos;
+                const isPaid = order.paymentStatus === 'PAID' || normStatus === 'COMPLETED' || ch.isPos;
 
                 return (
-                  <article
-                    key={`mob-${order.id}`}
-                    tabIndex={0}
-                    role="button"
+                  <div
+                    key={`m-${order.id}`}
                     onClick={() => setSelectedOrder(order)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        setSelectedOrder(order);
-                      }
-                    }}
-                    className={`order-table-row p-3.5 bg-white rounded-xl border border-stone-200 shadow-xs ${cfg.rowBorderCls}`}
-                    aria-label={`Đơn hàng số ${order.id}`}
+                    className={`order-mobile-card ${cfg.rowBorderCls}`}
                   >
-                    <div className="flex items-center justify-between border-b border-stone-100 pb-2.5 mb-2.5">
+                    <div className="mobile-card-top">
+                      <div className="flex items-center gap-2">
+                        <span className="order-id-badge">#{String(order.id).padStart(4, '0')}</span>
+                        <span className="text-[11px] text-stone-500">{formatTimeAgo(order.createdAt)}</span>
+                      </div>
+                      <span className={`status-badge-modern ${cfg.badgeCls}`}>{cfg.label}</span>
+                    </div>
+
+                    <div className="mobile-card-middle">
                       <div>
-                        <span className="font-mono text-xs font-black text-purple-900 tabular-nums">
-                          #{String(order.id).padStart(4, '0')}
-                        </span>
-                        <span className="ml-2 text-[11px] text-stone-500">{formatTimeAgo(order.createdAt)}</span>
+                        <div className="font-bold text-xs text-stone-900">{custInfo.title}</div>
+                        <div className="text-[11px] text-stone-500 truncate">{custInfo.subtitle}</div>
                       </div>
-                      <span className={`status-badge ${cfg.badgeCls}`}>{cfg.label}</span>
+                      <span className={`channel-tag ${ch.isPos ? 'pos' : 'online'}`}>
+                        {ch.isPos ? 'Tại quầy' : 'Online'}
+                      </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs mb-2">
-                      <div className="min-w-0 pr-2">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <span
-                            className={`px-1.5 py-0.2 rounded text-[9px] font-bold border ${
-                              custInfo.isPos
-                                ? 'bg-amber-100 text-amber-900 border-amber-200'
-                                : 'bg-purple-100 text-purple-900 border-purple-200'
-                            }`}
-                          >
-                            {custInfo.badge}
-                          </span>
-                          <span className="font-bold text-stone-900 truncate">
-                            {custInfo.title}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-stone-500 truncate">{custInfo.subtitle}</p>
+                    <div className="mobile-card-foot">
+                      <div className="text-[11px] text-stone-500">
+                        {getItemCount(order)} món · {barista.label} ly xong
                       </div>
-                      <span className={`channel-pill ${ch.isPos ? 'pos' : 'online'}`}>
-                        {ch.label}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-[11px] mb-2">
-                      <span className="text-stone-500 tabular-nums">{barista.label} ly đã pha</span>
-                      <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
-                        isPaid ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800'
-                      }`}>
-                        {isPaid ? 'Đã thanh toán' : 'Chưa thanh toán'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2 border-t border-stone-100 text-xs">
-                      <span className="text-[11px] text-stone-500 tabular-nums">
-                        {getItemCount(order)} món
-                      </span>
-                      <span className="font-mono font-bold text-stone-900 tabular-nums">
+                      <div className="font-mono font-black text-sm text-stone-900">
                         {formatPrice(order.totalPrice)}
-                      </span>
+                      </div>
                     </div>
-                  </article>
+                  </div>
                 );
               })}
             </div>
 
-            {/* Pagination Controls */}
-            <div className="px-6 py-4 bg-stone-50/70 border-t border-stone-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-              <span className="font-medium text-stone-500 tabular-nums">
-                Hiển thị {filteredOrders.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1}–
+            {/* Pagination */}
+            <div className="orders-pagination">
+              <span className="pagination-info">
+                Hiển thị {(safePage - 1) * PAGE_SIZE + 1}–
                 {Math.min(safePage * PAGE_SIZE, filteredOrders.length)} / {filteredOrders.length} đơn hàng
               </span>
 
-              <div className="flex items-center gap-1.5" role="navigation" aria-label="Phân trang danh sách đơn hàng">
+              <div className="pagination-nav">
                 <button
                   type="button"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={safePage === 1}
-                  className="p-1.5 rounded-lg border border-stone-200 text-stone-600 hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                  aria-label="Chuyển đến trang trước"
+                  className="pagination-btn"
+                  title="Trang trước"
                 >
-                  <ChevronLeft size={16} aria-hidden="true" />
+                  <ChevronLeft size={16} />
                 </button>
 
                 {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
@@ -684,12 +722,7 @@ const AdminOrders = ({ orders = [], loading = false, onUpdateStatus }) => {
                       key={p}
                       type="button"
                       onClick={() => setPage(p)}
-                      aria-current={p === safePage ? 'page' : undefined}
-                      className={`w-7 h-7 text-xs font-bold rounded-lg transition-colors cursor-pointer tabular-nums ${
-                        p === safePage
-                          ? 'bg-[#5C4174] text-white shadow-xs'
-                          : 'text-stone-700 hover:bg-white border border-stone-200'
-                      }`}
+                      className={`pagination-num ${p === safePage ? 'active' : ''}`}
                     >
                       {p}
                     </button>
@@ -700,10 +733,10 @@ const AdminOrders = ({ orders = [], loading = false, onUpdateStatus }) => {
                   type="button"
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={safePage === totalPages}
-                  className="p-1.5 rounded-lg border border-stone-200 text-stone-600 hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                  aria-label="Chuyển đến trang tiếp theo"
+                  className="pagination-btn"
+                  title="Trang sau"
                 >
-                  <ChevronRight size={16} aria-hidden="true" />
+                  <ChevronRight size={16} />
                 </button>
               </div>
             </div>
@@ -722,6 +755,15 @@ const AdminOrders = ({ orders = [], loading = false, onUpdateStatus }) => {
             }
             setSelectedOrder((prev) => (prev ? { ...prev, orderStatus: newStatus } : null));
           }}
+        />
+      )}
+
+      {/* ── 7. Print Bill Modal ── */}
+      {printOrder && (
+        <PrintBillModal
+          isOpen={Boolean(printOrder)}
+          onClose={() => setPrintOrder(null)}
+          order={printOrder}
         />
       )}
     </div>

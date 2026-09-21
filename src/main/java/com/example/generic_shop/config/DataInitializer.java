@@ -26,6 +26,7 @@ public class DataInitializer implements CommandLineRunner {
     private final IngredientRepository ingredientRepository;
     private final RecipeItemRepository recipeItemRepository;
     private final com.example.generic_shop.repository.CategoryRepository categoryRepository;
+    private final com.example.generic_shop.repository.VoucherRepository voucherRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -41,6 +42,9 @@ public class DataInitializer implements CommandLineRunner {
 
         // 4. Seed Products & Recipes (Sản phẩm & Công thức pha chế)
         seedProductsAndRecipes(ingMap);
+
+        // 5. Seed Vouchers (Mã giảm giá)
+        seedVouchers();
     }
 
     private void seedCategories() {
@@ -312,6 +316,54 @@ public class DataInitializer implements CommandLineRunner {
             }
         }
         System.out.println(">>> Synchronized all Recipes with correct units (g, ml, chai, kg).");
+    }
+
+    private void seedVouchers() {
+        if (voucherRepository.count() == 0) {
+            // 1. MINTEA20: Giảm 20%, tối đa 10k, đơn tối thiểu 30k
+            com.example.generic_shop.entity.Voucher v1 = new com.example.generic_shop.entity.Voucher();
+            v1.setCode("MINTEA20");
+            v1.setDiscountType("PERCENT");
+            v1.setDiscountValue(20.0);
+            v1.setMinOrderValue(30000.0);
+            v1.setMaxDiscountAmount(10000.0);
+            v1.setMaxUsage(500);
+            v1.setUsedCount(0);
+            v1.setActive(true);
+            v1.setExpiryDate(java.time.LocalDate.now().plusMonths(6));
+            v1.setDescription("Giảm 20% tối đa 10.000₫ cho đơn từ 30.000₫");
+            voucherRepository.save(v1);
+
+            // 2. CHAOBAN: Giảm cố định 10.000₫, đơn tối thiểu 40k
+            com.example.generic_shop.entity.Voucher v2 = new com.example.generic_shop.entity.Voucher();
+            v2.setCode("CHAOBAN");
+            v2.setDiscountType("FIXED");
+            v2.setDiscountValue(10000.0);
+            v2.setMinOrderValue(40000.0);
+            v2.setMaxDiscountAmount(null);
+            v2.setMaxUsage(300);
+            v2.setUsedCount(0);
+            v2.setActive(true);
+            v2.setExpiryDate(java.time.LocalDate.now().plusMonths(6));
+            v2.setDescription("Tặng 10.000₫ cho đơn hàng từ 40.000₫");
+            voucherRepository.save(v2);
+
+            // 3. FREESHIP: Giảm cố định 15.000₫, đơn tối thiểu 50k
+            com.example.generic_shop.entity.Voucher v3 = new com.example.generic_shop.entity.Voucher();
+            v3.setCode("FREESHIP");
+            v3.setDiscountType("FIXED");
+            v3.setDiscountValue(15000.0);
+            v3.setMinOrderValue(50000.0);
+            v3.setMaxDiscountAmount(null);
+            v3.setMaxUsage(200);
+            v3.setUsedCount(0);
+            v3.setActive(true);
+            v3.setExpiryDate(java.time.LocalDate.now().plusMonths(6));
+            v3.setDescription("Giảm 15.000₫ phí giao hàng cho đơn từ 50.000₫");
+            voucherRepository.save(v3);
+
+            System.out.println(">>> Seeded default Vouchers (MINTEA20, CHAOBAN, FREESHIP)");
+        }
     }
 
     private static class ProductSeedSpec {

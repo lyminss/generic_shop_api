@@ -1224,3 +1224,84 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── Image Upload Tabs & Button ── */
+.aodm-img-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.aodm-img-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid var(--border-color, #334155);
+  background: var(--bg-surface, #1e293b);
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.aodm-img-tab:hover {
+  background: var(--bg-hover, #334155);
+  color: var(--text-primary, #f8fafc);
+}
+
+.aodm-img-tab.active {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.aodm-upload-area {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.aodm-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1rem;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px dashed rgba(245, 158, 11, 0.5);
+  border-radius: var(--radius-md, 8px);
+  color: #f59e0b;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.aodm-upload-btn:hover:not(:disabled) {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: #f59e0b;
+}
+
+.aodm-upload-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.aodm-upload-success {
+  font-size: 0.78rem;
+  color: #10b981;
+  margin: 0;
+}
+
+.aodm-upload-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted, #64748b);
+  margin: 0;
+}
+

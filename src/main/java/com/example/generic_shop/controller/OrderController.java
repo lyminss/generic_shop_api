@@ -46,6 +46,12 @@ public class OrderController {
         return orderService.updateOrderStatus(id, status);
     }
 
+    /** Thu ngân / Admin xác nhận đã nhận tiền chuyển khoản QR */
+    @PutMapping("/{id}/confirm-payment")
+    public ResponseEntity<?> confirmPayment(@PathVariable Long id) {
+        return orderService.confirmPayment(id);
+    }
+
     /** Barista đánh dấu 1 món trong đơn đã pha xong */
     @PutMapping("/items/{itemId}/ready")
     public ResponseEntity<?> markItemReady(@PathVariable Long itemId) {

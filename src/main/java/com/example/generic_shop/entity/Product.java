@@ -17,6 +17,7 @@ import java.util.Date;
 public class Product extends BaseEntity {
     private String name;
     private String description;
+    @Column(columnDefinition = "TEXT")
     private String image;
     private long price;
     private int stockQuantity;

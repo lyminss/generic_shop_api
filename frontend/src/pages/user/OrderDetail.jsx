@@ -6,8 +6,9 @@ import { formatPrice } from '../../utils/format';
 import {
   ArrowLeft, Clock, MapPin, AlertCircle, Package,
   CheckCircle2, Coffee, Bike, Sparkles, Receipt,
-  CreditCard, ShoppingBag, X, Loader2
+  CreditCard, ShoppingBag, X, Loader2, Printer, Tag
 } from 'lucide-react';
+import PrintBillModal from '../../components/common/PrintBillModal';
 import './OrderDetail.css';
 
 const ORDER_STEPS = [
@@ -36,6 +37,7 @@ const OrderDetail = () => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [showPrintBill, setShowPrintBill] = useState(false);
   const toast = useToast();
 
   const fetchOrderDetail = async () => {
@@ -223,7 +225,33 @@ const OrderDetail = () => {
             <div className="od-summary">
               <div className="od-summary-row">
                 <span>Tạm tính</span>
-                <span>{formatPrice(order.totalPrice)}</span>
+                <span>{formatPrice(order.originalPrice || order.totalPrice)}</span>
+              </div>
+              {order.discountAmount > 0 && (
+                <div className="od-summary-row" style={{ color: '#ef4444' }}>
+                  <span>Voucher giảm {order.voucherCode ? `(${order.voucherCode})` : ''}</span>
+                  <span>-{formatPrice(order.discountAmount)}</span>
+                </div>
+              )}
+              <div className="od-summary-row">
+                <span>Hình thức</span>
+                <span style={{ fontWeight: 600 }}>
+                  {order.paymentMethod === 'QR_TRANSFER' ? 'Chuyển khoản QR' : 'Tiền mặt'}
+                </span>
+              </div>
+              <div className="od-summary-row">
+                <span>Trạng thái tiền</span>
+                <span style={{
+                  fontWeight: 700,
+                  fontSize: '0.8rem',
+                  color: order.paymentStatus === 'PAID' ? '#10b981' : (order.paymentStatus === 'WAITING_CONFIRMATION' ? '#d97706' : '#6b7280')
+                }}>
+                  {order.paymentStatus === 'PAID'
+                    ? '✔ Đã xác nhận tiền'
+                    : (order.paymentStatus === 'WAITING_CONFIRMATION'
+                      ? '⏳ Chờ thu ngân kiểm tra tiền'
+                      : 'Chưa thanh toán')}
+                </span>
               </div>
               <div className="od-summary-row">
                 <span>Phí giao hàng</span>
@@ -234,7 +262,47 @@ const OrderDetail = () => {
                 <span>Tổng thanh toán</span>
                 <span>{formatPrice(order.totalPrice)}</span>
               </div>
+
+              {order.paymentMethod === 'QR_TRANSFER' && order.paymentStatus === 'WAITING_CONFIRMATION' && (
+                <div style={{
+                  marginTop: '0.65rem',
+                  padding: '0.6rem 0.75rem',
+                  background: '#fffbeb',
+                  border: '1px solid #fef3c7',
+                  borderRadius: '8px',
+                  fontSize: '0.75rem',
+                  color: '#92400e',
+                  lineHeight: 1.4
+                }}>
+                  ⏳ <strong>Đang chờ kiểm tra tiền:</strong> Quán đang đối soát số dư tài khoản ngân hàng. Món sẽ được pha chế ngay sau khi tiền vào tài khoản!
+                </div>
+              )}
             </div>
+
+            <button
+              type="button"
+              className="od-print-btn"
+              onClick={() => setShowPrintBill(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.4rem',
+                width: '100%',
+                padding: '0.65rem 1rem',
+                marginTop: '0.75rem',
+                borderRadius: '9999px',
+                border: '1px solid #f59e0b',
+                background: 'rgba(245, 158, 11, 0.1)',
+                color: '#f59e0b',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Printer size={16} /> In hóa đơn
+            </button>
 
             {order.orderStatus === 'NEW' && (
               <button
@@ -260,6 +328,14 @@ const OrderDetail = () => {
 
         </div>
       </div>
+
+      {showPrintBill && (
+        <PrintBillModal
+          isOpen={showPrintBill}
+          onClose={() => setShowPrintBill(false)}
+          order={order}
+        />
+      )}
     </div>
   );
 };

@@ -10,6 +10,12 @@ public class PosOrderRequest {
     private String note;
     private List<PosOrderItemDTO> items;
 
+    /** CASH | QR_TRANSFER */
+    private String paymentMethod;
+
+    /** Mã voucher (nếu có) */
+    private String voucherCode;
+
     @Data
     public static class PosOrderItemDTO {
         private Long productId;

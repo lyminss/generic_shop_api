@@ -10,6 +10,7 @@ import com.example.generic_shop.enums.OrderStatus;
 import com.example.generic_shop.repository.*;
 import com.example.generic_shop.service.CartService;
 import com.example.generic_shop.service.OrderService;
+import com.example.generic_shop.service.VoucherService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -32,6 +33,7 @@ public class OrderServiceImpl implements OrderService {
     private final IngredientRepository ingredientRepository;
     private final InventoryTransactionRepository inventoryTransactionRepository;
     private final OrderItemRepository orderItemRepository;
+    private final VoucherService voucherService;
 
     @Transactional
     @Override
@@ -59,25 +61,45 @@ public class OrderServiceImpl implements OrderService {
         order.setCustomer(user);
         order.setOrderStatus(OrderStatus.NEW);
         order.setShippingAddress(request.get("shippingAddress"));
+        String pMethod = request.getOrDefault("paymentMethod", "CASH");
+        order.setPaymentMethod(pMethod);
+        if ("QR_TRANSFER".equalsIgnoreCase(pMethod)) {
+            order.setPaymentStatus("WAITING_CONFIRMATION");
+        } else {
+            order.setPaymentStatus("UNPAID");
+        }
 
-        double totalPrice = 0;
+        double subtotal = 0;
         List<OrderItem> orderItems = new ArrayList<>();
         for (CartItem cartItem : cart.getItems()) {
             OrderItem oi = new OrderItem();
             oi.setOrder(order);
             oi.setProduct(cartItem.getProduct());
             oi.setQuantity(cartItem.getQuantity());
-            double itemPrice = (cartItem.getCustomPrice() != null) 
-                    ? cartItem.getCustomPrice() 
+            double itemPrice = (cartItem.getCustomPrice() != null)
+                    ? cartItem.getCustomPrice()
                     : (double) cartItem.getProduct().getPrice();
             oi.setPrice((long) itemPrice);
             oi.setOptions(cartItem.getOptions());
             oi.setPreparedStatus(ItemPreparedStatus.PENDING);
-            totalPrice += cartItem.getQuantity() * itemPrice;
+            subtotal += cartItem.getQuantity() * itemPrice;
             orderItems.add(oi);
         }
         order.setItems(orderItems);
-        order.setTotalPrice(totalPrice);
+
+        // Apply voucher
+        String voucherCode = request.get("voucherCode");
+        double discount = voucherService.calculateDiscount(voucherCode, subtotal);
+        order.setOriginalPrice(subtotal);
+        order.setDiscountAmount(discount);
+        order.setVoucherCode((discount > 0 && voucherCode != null) ? voucherCode.trim().toUpperCase() : null);
+        order.setTotalPrice(subtotal - discount);
+
+        // Tăng usedCount nếu dùng voucher
+        if (discount > 0 && voucherCode != null && !voucherCode.isBlank()) {
+            incrementVoucherUsage(voucherCode);
+        }
+
         orderRepository.save(order);
 
         // Không trừ kho ở đây — kho sẽ bị trừ khi Barista đánh dấu READY từng item
@@ -111,8 +133,10 @@ public class OrderServiceImpl implements OrderService {
         order.setOrderStatus(OrderStatus.NEW);
         String address = request.getShippingAddress();
         order.setShippingAddress((address == null || address.isBlank()) ? "Đơn tại quầy POS" : address);
+        order.setPaymentMethod(request.getPaymentMethod() != null ? request.getPaymentMethod() : "CASH");
+        order.setPaymentStatus("PAID");
 
-        double totalPrice = 0;
+        double subtotal = 0;
         List<OrderItem> orderItems = new ArrayList<>();
         for (PosOrderRequest.PosOrderItemDTO itemDto : request.getItems()) {
             Product product = productRepository.findById(itemDto.getProductId()).get();
@@ -124,11 +148,23 @@ public class OrderServiceImpl implements OrderService {
             oi.setPrice((long) itemPrice);
             oi.setOptions(itemDto.getOptions());
             oi.setPreparedStatus(ItemPreparedStatus.PENDING);
-            totalPrice += itemDto.getQuantity() * itemPrice;
+            subtotal += itemDto.getQuantity() * itemPrice;
             orderItems.add(oi);
         }
         order.setItems(orderItems);
-        order.setTotalPrice(totalPrice);
+
+        // Apply voucher
+        String voucherCode = request.getVoucherCode();
+        double discount = voucherService.calculateDiscount(voucherCode, subtotal);
+        order.setOriginalPrice(subtotal);
+        order.setDiscountAmount(discount);
+        order.setVoucherCode((discount > 0 && voucherCode != null) ? voucherCode.trim().toUpperCase() : null);
+        order.setTotalPrice(subtotal - discount);
+
+        if (discount > 0 && voucherCode != null && !voucherCode.isBlank()) {
+            incrementVoucherUsage(voucherCode);
+        }
+
         orderRepository.save(order);
         // Không trừ kho ở đây — kho sẽ bị trừ khi Barista đánh dấu READY từng item
 
@@ -360,10 +396,26 @@ public class OrderServiceImpl implements OrderService {
     }
 
 
+    private void incrementVoucherUsage(String code) {
+        try {
+            com.example.generic_shop.entity.Voucher v =
+                ((VoucherServiceImpl) voucherService).findVoucherByCode(code);
+            if (v != null) {
+                v.setUsedCount(v.getUsedCount() + 1);
+                ((VoucherServiceImpl) voucherService).saveVoucher(v);
+            }
+        } catch (Exception ignored) {}
+    }
+
     private OrderDTO toDTO(Order order) {
         OrderDTO dto = new OrderDTO();
         dto.setId(order.getId());
         dto.setTotalPrice(order.getTotalPrice());
+        dto.setOriginalPrice(order.getOriginalPrice());
+        dto.setDiscountAmount(order.getDiscountAmount());
+        dto.setVoucherCode(order.getVoucherCode());
+        dto.setPaymentMethod(order.getPaymentMethod());
+        dto.setPaymentStatus(order.getPaymentStatus());
         dto.setOrderStatus(order.getOrderStatus());
         dto.setShippingAddress(order.getShippingAddress());
         dto.setCreatedAt(order.getCreatedAt());
@@ -402,5 +454,16 @@ public class OrderServiceImpl implements OrderService {
         }
         return dto;
     }
+
+    @Transactional
+    @Override
+    public ResponseEntity<?> confirmPayment(Long id) {
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Đơn hàng không tồn tại: " + id));
+        order.setPaymentStatus("PAID");
+        orderRepository.save(order);
+        return ResponseEntity.ok(toDTO(order));
+    }
 }
+
 

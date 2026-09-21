@@ -12,5 +12,6 @@ public interface OrderService {
     ResponseEntity<?> getMyOrders();
     ResponseEntity<?> getAllOrders();
     ResponseEntity<?> updateOrderStatus(Long id, OrderStatus status);
+    ResponseEntity<?> confirmPayment(Long id);
 }
 

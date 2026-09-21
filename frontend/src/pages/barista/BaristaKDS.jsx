@@ -84,6 +84,12 @@ const BaristaKDS = () => {
 
   // Barista marks 1 item as READY
   const handleMarkItemReady = async (itemId, orderId) => {
+    const parentOrder = orders.find((o) => o.id === orderId);
+    if (parentOrder && parentOrder.paymentMethod === 'QR_TRANSFER' && parentOrder.paymentStatus !== 'PAID') {
+      toast.error(`⚠️ Đơn #${orderId} chưa được Thu ngân xác nhận tiền QR! Vui lòng chờ tiền vào tài khoản.`);
+      return;
+    }
+
     setMarkingItem(itemId);
     try {
       const res = await orderService.markItemReady(itemId);
@@ -102,6 +108,11 @@ const BaristaKDS = () => {
 
   // Barista marks ALL items in a ticket as READY in 1 click
   const handleMarkAllReady = async (order) => {
+    if (order && order.paymentMethod === 'QR_TRANSFER' && order.paymentStatus !== 'PAID') {
+      toast.error(`⚠️ Đơn #${order.id} chưa được Thu ngân xác nhận tiền QR! Vui lòng chờ tiền vào tài khoản.`);
+      return;
+    }
+
     const pendingItems = order.items?.filter(i => i.preparedStatus !== 'READY') || [];
     if (pendingItems.length === 0) return;
 
@@ -410,6 +421,25 @@ const BaristaKDS = () => {
                         📍 {ord.shippingAddress || 'Khách tại quầy POS'}
                       </span>
                     </div>
+
+                    {/* Unpaid QR Transfer Warning Banner */}
+                    {ord.paymentMethod === 'QR_TRANSFER' && ord.paymentStatus !== 'PAID' && (
+                      <div style={{
+                        background: 'rgba(239, 68, 68, 0.18)',
+                        border: '1px solid rgba(239, 68, 68, 0.5)',
+                        color: '#f87171',
+                        padding: '0.45rem 0.65rem',
+                        borderRadius: '8px',
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        marginBottom: '0.65rem'
+                      }}>
+                        <AlertTriangle size={15} /> Chờ thu ngân xác nhận tiền QR (Chưa pha)
+                      </div>
+                    )}
 
                     {/* Progress bar */}
                     <div className="ticket-progress-container">

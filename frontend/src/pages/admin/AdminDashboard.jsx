@@ -10,6 +10,7 @@ import AdminOrders from './AdminOrders';
 import AdminUsers from './AdminUsers';
 import AdminCategories from './AdminCategories';
 import InventoryManagement from './InventoryManagement';
+import AdminVouchers from './AdminVouchers';
 import AdminProductModal from './components/AdminProductModal';
 import './AdminDashboard.css';
 
@@ -19,6 +20,7 @@ const getTabFromPath = (pathname) => {
   if (pathname.includes('/inventory')) return 'inventory';
   if (pathname.includes('/orders')) return 'orders';
   if (pathname.includes('/users')) return 'users';
+  if (pathname.includes('/vouchers')) return 'vouchers';
   return 'dashboard';
 };
 
@@ -290,6 +292,11 @@ const AdminDashboard = () => {
         <div className="animate-fade-in">
           <InventoryManagement />
         </div>
+      )}
+
+      {/* Tab 6: Vouchers */}
+      {activeTab === 'vouchers' && (
+        <AdminVouchers />
       )}
 
       {/* Quick Add Product Modal from Overview */}

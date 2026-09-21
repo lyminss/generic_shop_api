@@ -187,13 +187,18 @@ const AdminCategoryModal = ({
                 )}
               </div>
               <div className="aodm-media-input-wrap">
-                <input
-                  type="url"
-                  placeholder="Dán đường dẫn ảnh đại diện nhóm (https://...)"
-                  className="aodm-input"
-                  value={formData.image}
-                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                />
+                <div>
+                  <input
+                    type="url"
+                    placeholder="Dán link ảnh (Cloudinary, Unsplash... https://...)"
+                    className="aodm-input"
+                    value={formData.image}
+                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                  />
+                  <div style={{ fontSize: '11px', color: '#78716c', marginTop: '4px' }}>
+                    💡 Hỗ trợ dán link ảnh từ Cloudinary hoặc các dịch vụ lưu trữ ảnh khác.
+                  </div>
+                </div>
               </div>
             </div>
 

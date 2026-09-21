@@ -113,8 +113,19 @@ export const orderService = {
   getAllOrders: () => api.get('/orders'),
   getOrderById: (id) => api.get(`/orders/${id}`),
   updateOrderStatus: (id, status) => api.put(`/orders/${id}?status=${status}`),
+  confirmPayment: (id) => api.put(`/orders/${id}/confirm-payment`),
   cancelOrder: (id) => api.put(`/orders/${id}?status=CANCEL`),
   markItemReady: (itemId) => api.put(`/orders/items/${itemId}/ready`),
+};
+
+// Voucher endpoints
+export const voucherService = {
+  getAll: () => api.get('/vouchers'),
+  getPublic: () => api.get('/vouchers/public'),
+  create: (data) => api.post('/vouchers', data),
+  validate: (code, orderTotal) => api.get(`/vouchers/validate?code=${encodeURIComponent(code)}&orderTotal=${orderTotal}`),
+  toggle: (id) => api.patch(`/vouchers/${id}/toggle`),
+  delete: (id) => api.delete(`/vouchers/${id}`),
 };
 
 

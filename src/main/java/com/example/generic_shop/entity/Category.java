@@ -23,6 +23,7 @@ public class Category extends BaseEntity {
     @Column(length = 1000)
     private String description;
 
+    @Column(columnDefinition = "TEXT")
     private String image;
 
     @Column(nullable = false)

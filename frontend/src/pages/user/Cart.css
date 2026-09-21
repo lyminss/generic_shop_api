@@ -297,3 +297,167 @@
   }
 }
 
+/* ── Payment Method ── */
+.payment-method-box {
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--border-subtle);
+}
+.payment-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--brand-primary);
+  margin-bottom: 0.5rem;
+}
+.payment-method-box .fulfillment-toggle { margin-bottom: 0; }
+
+/* ── Voucher ── */
+.voucher-box {
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--border-subtle);
+}
+.voucher-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #059669;
+  margin-bottom: 0.5rem;
+}
+.voucher-input-row { display: flex; gap: 0.5rem; }
+.voucher-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  outline: none;
+  background: #fff;
+  transition: border-color 0.2s;
+}
+.voucher-input:focus { border-color: #059669; }
+.voucher-apply-btn {
+  padding: 0.5rem 0.9rem;
+  background: #059669;
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex; align-items: center;
+}
+.voucher-apply-btn:hover:not(:disabled) { background: #047857; }
+.voucher-apply-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.voucher-applied {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #ecfdf5;
+  border: 1.5px solid #a7f3d0;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+}
+.voucher-code-tag {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #065f46;
+  background: #d1fae5;
+  padding: 0.1rem 0.5rem;
+  border-radius: 4px;
+  margin-right: 0.4rem;
+}
+.voucher-discount-text { font-size: 0.9rem; font-weight: 800; color: #059669; }
+.voucher-remove-btn {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  display: flex; align-items: center;
+  padding: 2px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.voucher-remove-btn:hover { color: #ef4444; }
+.discount-row span { color: #059669 !important; font-weight: 700; }
+.discount-amount { color: #059669 !important; font-weight: 800 !important; }
+
+/* ── QR Modal ── */
+.qr-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: fadeIn 0.2s ease;
+}
+.qr-modal-panel {
+  background: #fff;
+  border-radius: 1.25rem;
+  padding: 2rem;
+  max-width: 380px;
+  width: 100%;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.25);
+  animation: slideUp 0.25s ease;
+}
+.qr-modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
+.qr-modal-header h3 { font-size: 1.25rem; font-weight: 800; color: #111; }
+.qr-modal-header button {
+  background: #f3f4f6; border: none; border-radius: 50%;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.qr-modal-subtitle { font-size: 0.95rem; color: #4b5563; margin-bottom: 1.25rem; }
+.qr-amount { font-size: 1.3rem; color: #047857; font-weight: 800; }
+.qr-code-wrap { display: flex; justify-content: center; margin-bottom: 1rem; }
+.qr-code-img {
+  width: 220px; height: 220px;
+  border-radius: 0.75rem;
+  border: 3px solid #e5e7eb;
+  object-fit: contain;
+}
+.qr-bank-info {
+  background: #f9fafb; border-radius: 0.75rem;
+  padding: 0.75rem 1rem; margin-bottom: 1rem;
+  font-size: 0.85rem; color: #374151;
+  display: flex; flex-direction: column; gap: 0.25rem;
+}
+.qr-modal-note { font-size: 0.8rem; color: #6b7280; text-align: center; margin-bottom: 1.25rem; }
+.qr-modal-actions { display: flex; gap: 0.75rem; }
+.qr-btn-cancel {
+  flex: 1; padding: 0.7rem;
+  border: 1.5px solid #e5e7eb; border-radius: 0.75rem;
+  background: #fff; font-weight: 700; cursor: pointer; transition: background 0.15s;
+}
+.qr-btn-cancel:hover { background: #f9fafb; }
+.qr-btn-confirm {
+  flex: 2; padding: 0.7rem; font-size: 0.95rem;
+  display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+}
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

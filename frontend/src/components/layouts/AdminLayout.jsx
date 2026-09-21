@@ -18,6 +18,7 @@ import {
   Users,
   BarChart3,
   Settings,
+  Ticket,
 } from 'lucide-react';
 import './SidebarLayout.css';
 
@@ -35,6 +36,7 @@ const adminNavItems = [
       { icon: <UtensilsCrossed size={18} />, label: 'Quản lý Món ăn', to: '/admin/products' },
       { icon: <Layers size={18} />, label: 'Quản lý Danh mục', to: '/admin/categories' },
       { icon: <ClipboardList size={18} />, label: 'Quản lý Đơn hàng', to: '/admin/orders' },
+      { icon: <Ticket size={18} />, label: 'Mã Giảm Giá (Voucher)', to: '/admin/vouchers' },
       { icon: <Users size={18} />, label: 'Quản lý Thành viên', to: '/admin/users' },
     ],
   },
