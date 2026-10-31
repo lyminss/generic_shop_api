@@ -2,14 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { productService, orderService } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
-import { formatPrice, formatTimeAgo } from '../../utils/format';
-import { TableSkeleton, CardSkeleton, EmptyState, ErrorState } from '../../components/common/StateViews';
+import { formatPrice } from '../../utils/format';
+import { TableSkeleton, CardSkeleton, EmptyState } from '../../components/common/StateViews';
 import PosPaymentModal from './components/PosPaymentModal';
 import {
-  BellRing, Plus, Minus, Trash2,
-  CheckCircle, Clock, Search, ShoppingCart,
-  Printer, Check, XCircle, RefreshCw,
-  CreditCard, Banknote,
+  Plus, Minus, Trash2,
+  CheckCircle, Search, ShoppingCart,
+  Check, XCircle, RefreshCw,
+  CreditCard,
 } from 'lucide-react';
 import './StaffDashboard.css';
 
@@ -140,6 +140,7 @@ const StaffDashboard = () => {
         shippingAddress,
         customerName: customerName || 'Khách vãng lai',
         note: tableNote,
+        paymentMethod: paymentDetails.methodCode || (paymentDetails.paymentMethod?.includes('QR') ? 'QR_TRANSFER' : 'CASH'),
         items: cartItems.map(item => ({
           productId: item.product.id,
           quantity: item.quantity

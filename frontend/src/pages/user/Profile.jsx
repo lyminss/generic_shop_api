@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { authService, addressService } from '../../services/api';
@@ -37,6 +37,16 @@ const Profile = () => {
   const [status, setStatus] = useState({ type: '', message: '' });
   const [loading, setLoading] = useState(false);
 
+  const fetchAddresses = useCallback(async () => {
+    if (!user) return;
+    try {
+      const res = await addressService.getMyAddresses();
+      setAddresses(res.data);
+    } catch {
+      console.error("Failed to fetch addresses");
+    }
+  }, [user]);
+
   useEffect(() => {
     if (user) {
       setProfileData({
@@ -48,7 +58,7 @@ const Profile = () => {
     } else {
       setAddresses([]);
     }
-  }, [user]);
+  }, [user, fetchAddresses]);
 
   // Sync state tab with query parameter
   useEffect(() => {
@@ -61,16 +71,6 @@ const Profile = () => {
   const handleTabChange = (tabName) => {
     setActiveTab(tabName);
     setSearchParams({ tab: tabName });
-  };
-
-  const fetchAddresses = async () => {
-    if (!user) return;
-    try {
-      const res = await addressService.getMyAddresses();
-      setAddresses(res.data);
-    } catch (err) {
-      console.error("Failed to fetch addresses");
-    }
   };
 
   const showStatus = (type, message) => {

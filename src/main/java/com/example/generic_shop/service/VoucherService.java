@@ -11,4 +11,7 @@ public interface VoucherService {
     ResponseEntity<?> toggleVoucher(Long id);
     ResponseEntity<?> deleteVoucher(Long id);
     double calculateDiscount(String code, double orderTotal);
+    void incrementVoucherUsage(String code);
+    void decrementVoucherUsage(String code);
+    com.example.generic_shop.entity.Voucher findVoucherByCode(String code);
 }

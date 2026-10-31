@@ -3,10 +3,8 @@ import { createPortal } from 'react-dom';
 import {
   Banknote,
   QrCode,
-  CheckCircle,
   X,
   AlertCircle,
-  ArrowRight,
   Printer,
   Check,
   Receipt,
@@ -80,6 +78,7 @@ const PosPaymentModal = ({
     if (!isReadyToSubmit || submitting) return;
 
     const paymentDetails = {
+      methodCode: paymentMethod === 'CASH' ? 'CASH' : 'QR_TRANSFER',
       paymentMethod: paymentMethod === 'CASH' ? 'TIỀN MẶT' : 'CHUYỂN KHOẢN QR',
       amountPaid: paymentMethod === 'CASH' ? cashGivenNum : totalPrice,
       changeDue: paymentMethod === 'CASH' ? changeDue : 0,

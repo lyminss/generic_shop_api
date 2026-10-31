@@ -123,12 +123,32 @@ public class VoucherServiceImpl implements VoucherService {
         return computeDiscount(v, orderTotal);
     }
 
-    /** Package helper: tìm voucher entity theo code (dùng bởi OrderServiceImpl) */
+    @Override
     public Voucher findVoucherByCode(String code) {
+        if (code == null || code.isBlank()) return null;
         return voucherRepository.findByCodeIgnoreCase(code.trim()).orElse(null);
     }
 
-    /** Package helper: save voucher entity */
+    @Override
+    public void incrementVoucherUsage(String code) {
+        if (code == null || code.isBlank()) return;
+        voucherRepository.findByCodeIgnoreCase(code.trim()).ifPresent(v -> {
+            v.setUsedCount((v.getUsedCount() != null ? v.getUsedCount() : 0) + 1);
+            voucherRepository.save(v);
+        });
+    }
+
+    @Override
+    public void decrementVoucherUsage(String code) {
+        if (code == null || code.isBlank()) return;
+        voucherRepository.findByCodeIgnoreCase(code.trim()).ifPresent(v -> {
+            if (v.getUsedCount() != null && v.getUsedCount() > 0) {
+                v.setUsedCount(v.getUsedCount() - 1);
+                voucherRepository.save(v);
+            }
+        });
+    }
+
     public Voucher saveVoucher(Voucher v) {
         return voucherRepository.save(v);
     }

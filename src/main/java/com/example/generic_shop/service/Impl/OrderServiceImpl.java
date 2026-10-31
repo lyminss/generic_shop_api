@@ -97,7 +97,7 @@ public class OrderServiceImpl implements OrderService {
 
         // Tăng usedCount nếu dùng voucher
         if (discount > 0 && voucherCode != null && !voucherCode.isBlank()) {
-            incrementVoucherUsage(voucherCode);
+            voucherService.incrementVoucherUsage(voucherCode);
         }
 
         orderRepository.save(order);
@@ -139,7 +139,8 @@ public class OrderServiceImpl implements OrderService {
         double subtotal = 0;
         List<OrderItem> orderItems = new ArrayList<>();
         for (PosOrderRequest.PosOrderItemDTO itemDto : request.getItems()) {
-            Product product = productRepository.findById(itemDto.getProductId()).get();
+            Product product = productRepository.findById(itemDto.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Món không tồn tại ID: " + itemDto.getProductId()));
             OrderItem oi = new OrderItem();
             oi.setOrder(order);
             oi.setProduct(product);
@@ -162,7 +163,7 @@ public class OrderServiceImpl implements OrderService {
         order.setTotalPrice(subtotal - discount);
 
         if (discount > 0 && voucherCode != null && !voucherCode.isBlank()) {
-            incrementVoucherUsage(voucherCode);
+            voucherService.incrementVoucherUsage(voucherCode);
         }
 
         orderRepository.save(order);
@@ -225,6 +226,9 @@ public class OrderServiceImpl implements OrderService {
 
         if (status == OrderStatus.CANCEL) {
             restoreStockAndIngredients(order);
+            if (order.getVoucherCode() != null && !order.getVoucherCode().isBlank()) {
+                voucherService.decrementVoucherUsage(order.getVoucherCode());
+            }
         }
 
         order.setOrderStatus(status);
@@ -395,17 +399,6 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
-
-    private void incrementVoucherUsage(String code) {
-        try {
-            com.example.generic_shop.entity.Voucher v =
-                ((VoucherServiceImpl) voucherService).findVoucherByCode(code);
-            if (v != null) {
-                v.setUsedCount(v.getUsedCount() + 1);
-                ((VoucherServiceImpl) voucherService).saveVoucher(v);
-            }
-        } catch (Exception ignored) {}
-    }
 
     private OrderDTO toDTO(Order order) {
         OrderDTO dto = new OrderDTO();

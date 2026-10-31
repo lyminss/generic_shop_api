@@ -378,28 +378,6 @@ const InventoryManagement = () => {
     }
   };
 
-  // ----------------------------------------------------
-  // STOCK RECEIPT HANDLERS
-  // ----------------------------------------------------
-  const handleAddReceiptRow = () => {
-    setReceiptForm({
-      ...receiptForm,
-      items: [...receiptForm.items, { ingredientId: ingredients[0]?.id || '', quantity: 1, unitPrice: 0 }]
-    });
-  };
-
-  const handleRemoveReceiptRow = (idx) => {
-    const next = [...receiptForm.items];
-    next.splice(idx, 1);
-    setReceiptForm({ ...receiptForm, items: next });
-  };
-
-  const handleReceiptRowChange = (idx, field, val) => {
-    const next = [...receiptForm.items];
-    next[idx][field] = val;
-    setReceiptForm({ ...receiptForm, items: next });
-  };
-
   const [submittingReceipt, setSubmittingReceipt] = useState(false);
 
   const handleSaveReceiptModal = async (payload) => {
@@ -517,12 +495,10 @@ const InventoryManagement = () => {
   }));
 
   const expiredCount = computedIngredients.filter(i => i._info.isExpired).length;
-  const urgentCount = computedIngredients.filter(i => i._info.isUrgent).length;
   const expiringSoonCount = computedIngredients.filter(i => i._info.isUrgent || i._info.isWarning).length;
   const outOfStockCount = computedIngredients.filter(i => i._info.isOutOfStock).length;
   const lowStockCount = computedIngredients.filter(i => i._info.isLow && !i._info.isOutOfStock).length;
   const safeCount = computedIngredients.filter(i => i._info.isSafe).length;
-  const totalStockValue = ingredients.reduce((sum, i) => sum + (i.currentStock * i.costPrice), 0);
 
   const filteredIngredients = computedIngredients
     .filter(ing => {

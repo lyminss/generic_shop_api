@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X,
@@ -7,15 +7,11 @@ import {
   AlertTriangle,
   CheckCircle2,
   Boxes,
-  TrendingUp,
   Cpu,
   RefreshCw,
   Layers,
-  ArrowRight,
   Play,
   RotateCcw,
-  Clock,
-  HelpCircle,
 } from 'lucide-react';
 import { capacityService, productService } from '../../../services/api';
 import { useToast } from '../../../context/ToastContext';
@@ -33,7 +29,7 @@ const ProductionCapacityModal = ({ isOpen, onClose }) => {
   const [simulating, setSimulating] = useState(false);
   const [simulationResult, setSimulationResult] = useState(null);
 
-  const fetchCapacity = async () => {
+  const fetchCapacity = useCallback(async () => {
     setLoading(true);
     try {
       const [resCap, resProd] = await Promise.all([
@@ -42,12 +38,12 @@ const ProductionCapacityModal = ({ isOpen, onClose }) => {
       ]);
       setData(resCap.data);
       setProducts(resProd.data || []);
-    } catch (err) {
+    } catch {
       toast.error('Không thể tải phân tích công suất kho');
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     if (isOpen) {
@@ -55,7 +51,7 @@ const ProductionCapacityModal = ({ isOpen, onClose }) => {
       setSimulationResult(null);
       setSimulationItems({});
     }
-  }, [isOpen]);
+  }, [isOpen, fetchCapacity]);
 
   if (!isOpen) return null;
 
