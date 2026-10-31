@@ -8,25 +8,21 @@ import {
   ChevronRight,
   RotateCcw,
   Receipt,
-  Filter,
   PackageCheck,
   Clock,
   Truck,
   CheckCircle2,
-  Sparkles,
   User,
   UserCheck,
   Printer,
   Copy,
   Check,
   Coffee,
-  Calendar,
-  CreditCard,
   Tag,
   RefreshCw,
   X,
 } from 'lucide-react';
-import { formatPrice, formatTimeAgo, formatDateTime } from '../../utils/format';
+import { formatPrice, formatTimeAgo } from '../../utils/format';
 import {
   ORDER_STATUS_CONFIG,
   normalizeOrderStatus,
@@ -128,7 +124,11 @@ const AdminOrders = ({ orders = [], loading = false, onUpdateStatus }) => {
       }
 
       if (paymentFilter) {
-        const isPaid = o.paymentStatus === 'PAID' || normalizeStatus(o.orderStatus) === 'COMPLETED' || getChannel(o.shippingAddress).isPos;
+        const isPaid = (
+          o.paymentStatus === 'PAID' ||
+          normalizeStatus(o.orderStatus) === 'COMPLETED' ||
+          (getChannel(o.shippingAddress).isPos && o.paymentMethod !== 'QR_TRANSFER')
+        );
         if (paymentFilter === 'PAID' && !isPaid) return false;
         if (paymentFilter === 'UNPAID' && isPaid) return false;
         if (paymentFilter === 'QR_WAITING' && (isPaid || o.paymentMethod !== 'QR_TRANSFER')) return false;
@@ -197,6 +197,9 @@ const AdminOrders = ({ orders = [], loading = false, onUpdateStatus }) => {
     setUpdatingId(order.id);
     try {
       await onUpdateStatus(order.id, next);
+      toast?.success(`Đã cập nhật đơn #${order.id} sang "${STATUS_CFG[next]?.label || next}"`);
+    } catch {
+      toast?.error('Không thể cập nhật trạng thái đơn hàng');
     } finally {
       setUpdatingId(null);
     }
@@ -465,7 +468,11 @@ const AdminOrders = ({ orders = [], loading = false, onUpdateStatus }) => {
                     const ch = getChannel(order.shippingAddress);
                     const custInfo = getOrderCustomerInfo(order);
                     const barista = computeBaristaProgress(order.items);
-                    const isPaid = order.paymentStatus === 'PAID' || normStatus === 'COMPLETED' || ch.isPos;
+                    const isPaid = (
+                      order.paymentStatus === 'PAID' ||
+                      normStatus === 'COMPLETED' ||
+                      (ch.isPos && order.paymentMethod !== 'QR_TRANSFER')
+                    );
                     const isUpdating = updatingId === order.id;
 
                     return (
@@ -555,7 +562,9 @@ const AdminOrders = ({ orders = [], loading = false, onUpdateStatus }) => {
                               ? 'paid'
                               : (order.paymentMethod === 'QR_TRANSFER' ? 'qr-waiting' : 'unpaid')
                           }`}>
-                            {isPaid ? 'Đã nhận tiền' : (order.paymentMethod === 'QR_TRANSFER' ? 'Chờ nhận QR' : 'Chưa thu tiền')}
+                            {isPaid
+                              ? 'Đã nhận tiền'
+                              : (order.paymentMethod === 'QR_TRANSFER' ? 'Chờ duyệt' : 'Chưa thu tiền')}
                           </span>
                         </td>
 
@@ -653,7 +662,11 @@ const AdminOrders = ({ orders = [], loading = false, onUpdateStatus }) => {
                 const ch = getChannel(order.shippingAddress);
                 const custInfo = getOrderCustomerInfo(order);
                 const barista = computeBaristaProgress(order.items);
-                const isPaid = order.paymentStatus === 'PAID' || normStatus === 'COMPLETED' || ch.isPos;
+                const isPaid = (
+                  order.paymentStatus === 'PAID' ||
+                  normStatus === 'COMPLETED' ||
+                  (ch.isPos && order.paymentMethod !== 'QR_TRANSFER')
+                );
 
                 return (
                   <div
@@ -674,9 +687,18 @@ const AdminOrders = ({ orders = [], loading = false, onUpdateStatus }) => {
                         <div className="font-bold text-xs text-stone-900">{custInfo.title}</div>
                         <div className="text-[11px] text-stone-500 truncate">{custInfo.subtitle}</div>
                       </div>
-                      <span className={`channel-tag ${ch.isPos ? 'pos' : 'online'}`}>
-                        {ch.isPos ? 'Tại quầy' : 'Online'}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                        <span className={`channel-tag ${ch.isPos ? 'pos' : 'online'}`}>
+                          {ch.isPos ? 'Tại quầy' : 'Online'}
+                        </span>
+                        <span className={`payment-badge ${
+                          isPaid
+                            ? 'paid'
+                            : (order.paymentMethod === 'QR_TRANSFER' ? 'qr-waiting' : 'unpaid')
+                        }`}>
+                          {isPaid ? 'Đã thu' : (order.paymentMethod === 'QR_TRANSFER' ? 'Chờ duyệt' : 'Chưa thu')}
+                        </span>
+                      </div>
                     </div>
 
                     <div className="mobile-card-foot">

@@ -16,10 +16,8 @@ import {
   Printer,
   Tag,
   Copy,
-  ChevronRight,
   Phone,
   Sparkles,
-  ArrowRight,
   Check,
 } from 'lucide-react';
 import { formatPrice, formatDateTime, formatTimeAgo } from '../../../utils/format';
@@ -32,6 +30,7 @@ import {
   getOrderCustomerInfo,
 } from '../../../utils/orderHelpers';
 import { useToast } from '../../../context/ToastContext';
+import './AdminOrderDetailModal.css';
 
 const STATUS_CFG = ORDER_STATUS_CONFIG;
 const normalizeStatus = normalizeOrderStatus;
@@ -39,23 +38,20 @@ const getChannel = getOrderChannel;
 
 const getBaristaStatusInfo = (status) => {
   const s = String(status || '').toUpperCase();
-  if (s === 'READY' || s === 'COMPLETED') {
-    return { label: 'Đã pha xong', badgeCls: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle2 };
-  }
-  if (s === 'PREPARING') {
-    return { label: 'Đang pha chế', badgeCls: 'bg-purple-50 text-purple-700 border-purple-200', icon: Coffee };
-  }
-  if (s === 'CANCEL' || s === 'CANCELLED') {
-    return { label: 'Đã hủy', badgeCls: 'bg-rose-50 text-rose-700 border-rose-200', icon: Ban };
-  }
-  return { label: 'Chờ pha', badgeCls: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock };
+  if (s === 'READY' || s === 'COMPLETED')
+    return { label: 'Đã pha xong', cls: 'barista-badge--done', icon: CheckCircle2 };
+  if (s === 'PREPARING')
+    return { label: 'Đang pha chế', cls: 'barista-badge--brewing', icon: Coffee };
+  if (s === 'CANCEL' || s === 'CANCELLED')
+    return { label: 'Đã hủy', cls: 'barista-badge--cancel', icon: Ban };
+  return { label: 'Chờ pha', cls: 'barista-badge--pending', icon: Clock };
 };
 
 const ORDER_STEPS = [
-  { key: 'NEW', label: 'Tiếp nhận', sub: 'Chờ duyệt' },
-  { key: 'PROCESSING', label: 'Pha chế', sub: 'Barista thực hiện' },
-  { key: 'SHIPPING', label: 'Giao hàng', sub: 'Đang giao / Sẵn sàng' },
-  { key: 'COMPLETED', label: 'Hoàn tất', sub: 'Đã nhận & thanh toán' },
+  { key: 'NEW',        label: 'Tiếp nhận',  sub: 'Chờ duyệt' },
+  { key: 'PROCESSING', label: 'Pha chế',     sub: 'Barista thực hiện' },
+  { key: 'SHIPPING',   label: 'Giao hàng',  sub: 'Đang giao' },
+  { key: 'COMPLETED',  label: 'Hoàn tất',   sub: 'Đã nhận tiền' },
 ];
 
 const AdminOrderDetailModal = ({ order, onClose, onUpdateStatus }) => {
@@ -75,7 +71,7 @@ const AdminOrderDetailModal = ({ order, onClose, onUpdateStatus }) => {
   };
 
   const handleConfirmPayment = async () => {
-    if (!window.confirm(`Xác nhận quán đã nhận đủ số tiền ${formatPrice(order.totalPrice)} cho đơn #${order.id}?`)) return;
+    if (!window.confirm(`Xác nhận đã nhận đủ ${formatPrice(order.totalPrice)} cho đơn #${order.id}?`)) return;
     setProcessing(true);
     try {
       await orderService.confirmPayment(order.id);
@@ -89,31 +85,23 @@ const AdminOrderDetailModal = ({ order, onClose, onUpdateStatus }) => {
     }
   };
 
-  // Keyboard Escape & Body Scroll Lock
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const onKey = (e) => {
       if (e.key === 'Escape') {
-        if (showPrintBill) {
-          setShowPrintBill(false);
-        } else if (lightboxPhoto) {
-          setLightboxPhoto(null);
-        } else {
-          onClose();
-        }
+        if (showPrintBill) setShowPrintBill(false);
+        else if (lightboxPhoto) setLightboxPhoto(null);
+        else onClose();
       }
     };
-
-    document.addEventListener('keydown', handleKeyDown);
-    const prevBodyOverflow = document.body.style.overflow;
+    document.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = prevBodyOverflow;
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
     };
   }, [lightboxPhoto, showPrintBill, onClose]);
 
-  // Barista Progress
   const barista = useMemo(() => {
     if (!order) return { done: 0, total: 0, percentage: 0, isComplete: false, label: '0/0' };
     const items = order.items ?? [];
@@ -121,397 +109,330 @@ const AdminOrderDetailModal = ({ order, onClose, onUpdateStatus }) => {
     const done = items
       .filter((i) => i.preparedStatus === 'READY' || i.preparedStatus === 'COMPLETED')
       .reduce((s, i) => s + (i.quantity || 1), 0);
-
     const percentage = total > 0 ? Math.round((done / total) * 100) : 0;
-    const isComplete = total > 0 && done === total;
-    return { done, total, percentage, isComplete, label: `${done}/${total}` };
+    return { done, total, percentage, isComplete: total > 0 && done === total, label: `${done}/${total}` };
   }, [order]);
 
   if (!order) return null;
 
-  const normStatus = normalizeStatus(order.orderStatus);
-  const statusCfg = STATUS_CFG[normStatus] || STATUS_CFG.NEW;
-  const channel = getChannel(order.shippingAddress);
-  const custInfo = getOrderCustomerInfo(order);
-  const ChannelIcon = channel.icon;
+  const normStatus   = normalizeStatus(order.orderStatus);
+  const statusCfg    = STATUS_CFG[normStatus] || STATUS_CFG.NEW;
+  const channel      = getChannel(order.shippingAddress);
+  const custInfo     = getOrderCustomerInfo(order);
+  const ChannelIcon  = channel.icon;
+  const isCompleted  = normStatus === 'COMPLETED';
+  const isCancelled  = normStatus === 'CANCEL';
+  const isPaid       = (
+    order.paymentStatus === 'PAID' ||
+    isCompleted ||
+    (channel.isPos && order.paymentMethod !== 'QR_TRANSFER')
+  );
+  const hasVoucher   = Boolean(order.voucherCode);
+  const originalAmt  = order.originalPrice || (order.totalPrice + (order.discountAmount || 0));
 
-  const isCompleted = normStatus === 'COMPLETED';
-  const isCancelled = normStatus === 'CANCEL';
-  const isPaid = order.paymentStatus === 'PAID' || isCompleted || channel.isPos;
+  const STEP_INDEX_MAP = { NEW: 0, PROCESSING: 1, SHIPPING: 2, COMPLETED: 3 };
+  const currentStepIndex = isCancelled ? -1 : (STEP_INDEX_MAP[normStatus] ?? 0);
 
-  // Status step index (0: NEW, 1: PROCESSING, 2: SHIPPING, 3: COMPLETED)
-  const currentStepIndex = useMemo(() => {
-    if (isCancelled) return -1;
-    switch (normStatus) {
-      case 'NEW': return 0;
-      case 'PROCESSING': return 1;
-      case 'SHIPPING': return 2;
-      case 'COMPLETED': return 3;
-      default: return 0;
-    }
-  }, [normStatus, isCancelled]);
-
-  // Handle Status Update
   const handleUpdate = async (nextStatus) => {
-    if (nextStatus === 'CANCEL') {
-      setShowCancelForm(true);
-      return;
-    }
+    if (nextStatus === 'CANCEL') { setShowCancelForm(true); return; }
     if (!onUpdateStatus) return;
     setProcessing(true);
-    try {
-      await onUpdateStatus(order.id, nextStatus);
-    } finally {
-      setProcessing(false);
-    }
+    try { await onUpdateStatus(order.id, nextStatus); }
+    finally { setProcessing(false); }
   };
 
-  const handleConfirmCancel = async (reasonText) => {
-    const finalReason = reasonText || cancelReason;
-    if (!finalReason.trim() && !window.confirm('Bạn có chắc chắn muốn hủy đơn hàng này không?')) return;
+  const handleConfirmCancel = async () => {
+    if (!cancelReason.trim() && !window.confirm('Chắc chắn hủy đơn hàng này?')) return;
     if (!onUpdateStatus) return;
     setProcessing(true);
     try {
       await onUpdateStatus(order.id, 'CANCEL');
       setShowCancelForm(false);
       toast?.info(`Đã hủy đơn hàng #${order.id}`);
-    } finally {
-      setProcessing(false);
-    }
+    } finally { setProcessing(false); }
   };
 
-  // Workflow Next Actions
   const getNextActions = () => {
     if (isCancelled || isCompleted) return [];
-
-    if (normStatus === 'NEW') {
-      return [
-        { label: 'Duyệt & Chuyển pha chế', value: 'PROCESSING', icon: Coffee, cls: 'bg-[#5C4174] hover:bg-[#48335c] text-white shadow-md' },
-      ];
-    }
-
-    if (normStatus === 'PROCESSING') {
-      return [
-        { label: 'Sẵn sàng giao / Giao hàng', value: 'SHIPPING', icon: Truck, cls: 'bg-teal-600 hover:bg-teal-700 text-white shadow-md' },
-      ];
-    }
-
-    if (normStatus === 'SHIPPING') {
-      return [
-        { label: 'Hoàn thành đơn hàng', value: 'COMPLETED', icon: CheckCircle2, cls: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md' },
-      ];
-    }
-
+    if (normStatus === 'NEW')        return [{ label: 'Duyệt & Pha chế', value: 'PROCESSING', icon: Coffee,       cls: 'odm-action--purple' }];
+    if (normStatus === 'PROCESSING') return [{ label: 'Giao hàng',        value: 'SHIPPING',   icon: Truck,        cls: 'odm-action--teal'   }];
+    if (normStatus === 'SHIPPING')   return [{ label: 'Hoàn thành',       value: 'COMPLETED',  icon: CheckCircle2, cls: 'odm-action--emerald' }];
     return [];
   };
-
   const actions = getNextActions();
 
   return createPortal(
     <>
-      <div
-        className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 bg-stone-900/60 backdrop-blur-sm overflow-y-auto animate-fade-in"
-        onClick={onClose}
-        role="presentation"
-      >
+      {/* ── Backdrop ── */}
+      <div className="odm-backdrop" onClick={onClose} role="presentation">
         <div
-          className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-stone-200 overflow-hidden my-auto flex flex-col max-h-[92vh]"
+          className="odm-shell"
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"
+          aria-label={`Chi tiết đơn hàng #${order.id}`}
         >
-          {/* ── 1. Modal Header ── */}
-          <div className="flex items-center justify-between px-6 py-4 bg-stone-50 border-b border-stone-200 flex-shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-purple-100 text-[#5C4174] flex items-center justify-center font-black flex-shrink-0 shadow-xs">
-                <Receipt size={20} />
+          {/* ══ HEADER ══ */}
+          <header className="odm-header">
+            <div className="odm-header-left">
+              <div className="odm-header-icon">
+                <Receipt size={18} />
               </div>
               <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-base font-black text-stone-900 font-mono tracking-tight">
-                    Đơn hàng #{String(order.id).padStart(4, '0')}
+                <div className="odm-header-title-row">
+                  <span className="odm-order-id">
+                    Đơn #{String(order.id).padStart(4, '0')}
                   </span>
                   <button
                     type="button"
                     onClick={handleCopyId}
-                    className="p-1 rounded-md text-stone-400 hover:text-stone-700 hover:bg-stone-200 transition-colors"
+                    className="odm-copy-btn"
                     title="Sao chép mã đơn"
                   >
-                    {copiedId ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                    {copiedId ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
                   </button>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${statusCfg.badgeCls}`}>
-                    <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${statusCfg.dotCls}`} />
+                  <span className={`odm-status-pill ${statusCfg.badgeCls}`}>
+                    <span className={`odm-status-dot ${statusCfg.dotCls}`} />
                     {statusCfg.label}
                   </span>
-                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                    channel.isPos ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-teal-100 text-teal-900 border border-teal-200'
-                  }`}>
-                    <ChannelIcon size={12} />
-                    <span>{channel.label}</span>
+                  <span className={`odm-channel-pill ${channel.isPos ? 'pos' : 'online'}`}>
+                    <ChannelIcon size={11} />
+                    {channel.label}
                   </span>
                 </div>
-                <p className="text-xs text-stone-500 mt-0.5 flex items-center gap-1">
-                  <Clock size={12} className="text-stone-400" />
+                <p className="odm-header-meta">
+                  <Clock size={11} />
                   <span>{formatDateTime(order.createdAt)}</span>
-                  <span>·</span>
-                  <span className="text-stone-700 font-medium">({formatTimeAgo(order.createdAt)})</span>
+                  <span className="odm-dot-sep">·</span>
+                  <span className="odm-time-ago">{formatTimeAgo(order.createdAt)}</span>
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="odm-header-right">
               <button
                 type="button"
                 onClick={() => setShowPrintBill(true)}
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-100 text-xs font-bold text-stone-700 transition-colors shadow-xs"
-                title="In hóa đơn"
+                className="odm-btn-ghost"
               >
-                <Printer size={15} className="text-amber-600" />
+                <Printer size={14} className="text-amber-600" />
                 <span>In bill</span>
               </button>
               <button
                 type="button"
                 onClick={onClose}
-                className="p-2 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-200 transition-colors"
+                className="odm-btn-close"
                 aria-label="Đóng"
               >
-                <X size={18} />
+                <X size={17} />
               </button>
             </div>
-          </div>
+          </header>
 
-          {/* ── 2. Modal Body (Scrollable) ── */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-5">
-            {/* Workflow Progress Stepper (Timeline) */}
+          {/* ══ BODY ══ */}
+          <div className="odm-body">
+
+            {/* — 1. Stepper — */}
             {!isCancelled ? (
-              <div className="bg-stone-50 border border-stone-200 rounded-xl p-4">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-stone-500 mb-3 flex items-center gap-1.5">
-                  <Sparkles size={13} className="text-purple-600" />
-                  <span>Tiến trình xử lý đơn hàng</span>
+              <div className="odm-stepper-wrap">
+                <div className="odm-stepper-label">
+                  <Sparkles size={12} />
+                  Tiến trình xử lý đơn hàng
                 </div>
-                <div className="grid grid-cols-4 gap-2 relative">
+                <div className="odm-stepper">
                   {ORDER_STEPS.map((step, idx) => {
-                    const isDone = currentStepIndex > idx;
+                    const isDone    = currentStepIndex > idx;
                     const isCurrent = currentStepIndex === idx;
                     return (
-                      <div key={step.key} className="flex flex-col items-center text-center relative z-10">
-                        <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs mb-1.5 transition-all ${
-                            isDone
-                              ? 'bg-emerald-600 text-white shadow-xs'
-                              : isCurrent
-                              ? 'bg-[#5C4174] text-white ring-4 ring-purple-100 font-extrabold shadow-sm scale-105'
-                              : 'bg-stone-200 text-stone-500'
-                          }`}
-                        >
-                          {isDone ? <Check size={14} /> : idx + 1}
+                      <div key={step.key} className="odm-step">
+                        {/* connector line before (skip first) */}
+                        {idx > 0 && (
+                          <div className={`odm-step-line ${isDone ? 'done' : ''}`} />
+                        )}
+                        <div className={`odm-step-node ${isDone ? 'done' : isCurrent ? 'current' : 'idle'}`}>
+                          {isDone ? <Check size={13} /> : idx + 1}
                         </div>
-                        <span className={`text-xs font-bold leading-tight ${isCurrent ? 'text-[#5C4174]' : isDone ? 'text-stone-800' : 'text-stone-400'}`}>
+                        <span className={`odm-step-name ${isCurrent ? 'current' : isDone ? 'done' : 'idle'}`}>
                           {step.label}
                         </span>
-                        <span className="text-[10px] text-stone-500 mt-0.5 hidden sm:inline">
-                          {step.sub}
-                        </span>
+                        <span className="odm-step-sub">{step.sub}</span>
                       </div>
                     );
                   })}
                 </div>
               </div>
             ) : (
-              <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-3 text-rose-800 text-xs">
-                <Ban size={18} className="text-rose-600 flex-shrink-0" />
+              <div className="odm-cancelled-banner">
+                <Ban size={16} className="flex-shrink-0" />
                 <div>
-                  <strong className="font-bold">Đơn hàng này đã bị hủy.</strong>
-                  <p className="text-[11px] text-rose-600 mt-0.5">Không còn hiệu lực pha chế hoặc giao dịch.</p>
+                  <strong>Đơn hàng đã bị hủy</strong>
+                  <p>Không còn hiệu lực pha chế hoặc giao dịch.</p>
                 </div>
               </div>
             )}
 
-            {/* 3 Quick Information Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-              {/* Card 1: Khách hàng */}
-              <div className="p-3.5 bg-white rounded-xl border border-stone-200 shadow-xs flex items-start gap-3">
-                <div className="w-9 h-9 rounded-lg bg-purple-50 text-[#5C4174] flex items-center justify-center flex-shrink-0 mt-0.5">
-                  {custInfo.isPos ? <UserCheck size={18} /> : <User size={18} />}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
-                    {custInfo.isPos ? 'Nhân viên tạo đơn' : 'Khách hàng'}
-                  </span>
-                  <p className="text-xs font-black text-stone-900 truncate mt-0.5" title={custInfo.title}>
-                    {custInfo.title}
-                  </p>
-                  <p className="text-[11px] text-stone-500 truncate mt-0.5 flex items-center gap-1">
-                    {order.customerPhone ? <><Phone size={10} /> {order.customerPhone}</> : custInfo.subtitle}
-                  </p>
-                </div>
+            {/* — 2. Info Cards (3 cols) — */}
+            <div className="odm-info-grid">
+              {/* Card: Khách hàng */}
+              <div className="odm-info-card odm-info-card--purple">
+                <span className="odm-info-card__eyebrow">
+                  {custInfo.isPos ? 'Nhân viên tạo đơn' : 'Khách hàng'}
+                </span>
+                <p className="odm-info-card__value" title={custInfo.title}>
+                  {custInfo.isPos ? <UserCheck size={13} className="inline mr-1 opacity-60" /> : <User size={13} className="inline mr-1 opacity-60" />}
+                  {custInfo.title}
+                </p>
+                <p className="odm-info-card__sub">
+                  {order.customerPhone
+                    ? <><Phone size={10} className="inline mr-0.5" />{order.customerPhone}</>
+                    : custInfo.subtitle}
+                </p>
               </div>
 
-              {/* Card 2: Nhận hàng / Địa chỉ */}
-              <div className="p-3.5 bg-white rounded-xl border border-stone-200 shadow-xs flex items-start gap-3">
-                <div className="w-9 h-9 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <MapPin size={18} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
-                    {channel.isPos ? 'Vị trí tại quầy' : 'Địa chỉ giao hàng'}
-                  </span>
-                  <p className="text-xs font-black text-stone-900 line-clamp-2 mt-0.5" title={order.shippingAddress}>
-                    {channel.isPos ? 'Dùng tại quầy / Mang về' : (order.shippingAddress || 'Nhận tại quầy')}
-                  </p>
-                  <p className="text-[11px] text-stone-500 mt-0.5">
-                    {channel.isPos ? 'Bán trực tiếp POS' : 'Giao hàng tận nơi'}
-                  </p>
-                </div>
+              {/* Card: Địa chỉ */}
+              <div className="odm-info-card odm-info-card--teal">
+                <span className="odm-info-card__eyebrow">
+                  {channel.isPos ? 'Vị trí' : 'Giao đến'}
+                </span>
+                <p className="odm-info-card__value">
+                  <MapPin size={13} className="inline mr-1 opacity-60" />
+                  {channel.isPos ? 'Tại quầy / Mang về' : (order.shippingAddress || 'Nhận tại quầy')}
+                </p>
+                <p className="odm-info-card__sub">
+                  {channel.isPos ? 'Bán trực tiếp POS' : 'Giao hàng tận nơi'}
+                </p>
               </div>
 
-              {/* Card 3: Thanh toán & Voucher */}
-              <div className="p-3.5 bg-white rounded-xl border border-stone-200 shadow-xs flex items-start gap-3">
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                  isPaid ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-                }`}>
-                  <CreditCard size={18} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Thanh toán</span>
-                  <p className="text-xs font-black text-stone-900 mt-0.5">
-                    {order.paymentMethod === 'QR_TRANSFER' ? 'Chuyển khoản VietQR' : 'Tiền mặt (CASH)'}
-                  </p>
-                  <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                      isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900 border border-amber-300'
-                    }`}>
-                      {isPaid ? '✔ Đã nhận tiền' : '⚠️ Chờ thanh toán'}
-                    </span>
-                    {order.voucherCode && (
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
-                        <Tag size={9} /> {order.voucherCode}
-                      </span>
-                    )}
-                  </div>
-                </div>
+              {/* Card: Thanh toán */}
+              <div className={`odm-info-card ${isPaid ? 'odm-info-card--emerald' : 'odm-info-card--amber'}`}>
+                <span className="odm-info-card__eyebrow">Thanh toán</span>
+                <p className="odm-info-card__value">
+                  <CreditCard size={13} className="inline mr-1 opacity-60" />
+                  {order.paymentMethod === 'QR_TRANSFER' ? 'Chuyển khoản VietQR' : 'Tiền mặt'}
+                </p>
+                <p className="odm-info-card__sub">
+                  {isPaid
+                    ? <span className="odm-paid-chip paid">✔ Đã nhận tiền</span>
+                    : <span className="odm-paid-chip unpaid">
+                        ⚠ {order.paymentMethod === 'QR_TRANSFER' ? 'Chờ duyệt' : 'Chưa thu tiền'}
+                      </span>}
+                </p>
               </div>
             </div>
 
-            {/* QR Payment Alert Banner */}
-            {order.paymentMethod === 'QR_TRANSFER' && order.paymentStatus !== 'PAID' && (
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <CreditCard className="text-amber-700 flex-shrink-0" size={20} />
-                  <div>
-                    <strong className="text-xs font-bold text-amber-900">Đơn hàng thanh toán qua VietQR</strong>
-                    <p className="text-[11px] text-amber-700 mt-0.5">
-                      Vui lòng kiểm tra ứng dụng ngân hàng xem tiền đã về tài khoản chưa trước khi bàn giao món.
+            {/* — 3. Voucher Banner (chỉ hiện khi có) — */}
+            {hasVoucher && (
+              <div className="odm-voucher-banner">
+                <div className="odm-voucher-icon"><Tag size={16} /></div>
+                <div className="odm-voucher-body">
+                  <span className="odm-voucher-eyebrow">Mã giảm giá đã dùng</span>
+                  <div className="odm-voucher-row">
+                    <span className="odm-voucher-code">{order.voucherCode}</span>
+                    {order.discountAmount > 0 && (
+                      <span className="odm-voucher-saving">
+                        Tiết kiệm {formatPrice(order.discountAmount)}
+                      </span>
+                    )}
+                  </div>
+                  {order.discountAmount > 0 && (
+                    <p className="odm-voucher-detail">
+                      Giá gốc {formatPrice(originalAmt)} → Sau giảm {formatPrice(order.totalPrice)}
                     </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* — 4. QR Alert — */}
+            {order.paymentMethod === 'QR_TRANSFER' && order.paymentStatus !== 'PAID' && (
+              <div className="odm-qr-alert">
+                <div className="odm-qr-alert__text">
+                  <CreditCard size={16} className="flex-shrink-0 text-amber-700" />
+                  <div>
+                    <strong>Thanh toán qua VietQR</strong>
+                    <p>Kiểm tra ngân hàng xem tiền đã về chưa trước khi bàn giao món.</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   disabled={processing}
                   onClick={handleConfirmPayment}
-                  className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-colors cursor-pointer flex-shrink-0"
+                  className="odm-qr-confirm-btn"
                 >
                   ✓ Xác nhận đã nhận tiền
                 </button>
               </div>
             )}
 
-            {/* Barista Progress Meter */}
-            <div className="p-4 bg-white border border-stone-200 rounded-xl shadow-xs">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Coffee size={16} className="text-[#5C4174]" />
-                  <span className="text-xs font-black text-stone-900 uppercase tracking-wider">
-                    Tiến độ pha chế ({barista.label} ly hoàn thành)
-                  </span>
+            {/* — 5. Barista Progress — */}
+            <div className="odm-barista-card">
+              <div className="odm-barista-header">
+                <div className="odm-barista-title">
+                  <Coffee size={15} />
+                  <span>Tiến độ pha chế</span>
+                  <span className="odm-barista-count">{barista.label} ly xong</span>
                 </div>
-                <span className={`text-xs font-black tabular-nums ${barista.isComplete ? 'text-emerald-600' : 'text-[#5C4174]'}`}>
+                <span className={`odm-barista-pct ${barista.isComplete ? 'complete' : ''}`}>
                   {barista.percentage}%
                 </span>
               </div>
-              <div className="w-full h-2.5 bg-stone-100 rounded-full overflow-hidden">
+              <div className="odm-progress-track">
                 <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    barista.isComplete ? 'bg-emerald-500' : 'bg-gradient-to-r from-[#5C4174] to-teal-500'
-                  }`}
+                  className={`odm-progress-fill ${barista.isComplete ? 'complete' : ''}`}
                   style={{ width: `${barista.percentage}%` }}
                 />
               </div>
             </div>
 
-            {/* Drink Items Table */}
-            <div className="border border-stone-200 rounded-xl overflow-hidden shadow-xs">
-              <div className="bg-stone-50 px-4 py-2.5 border-b border-stone-200 flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-stone-600">
-                  Danh sách món ({order.items?.length || 0} loại)
-                </span>
-                <span className="text-xs text-stone-500 font-medium">
-                  Tổng {barista.total} ly
-                </span>
+            {/* — 6. Items Table — */}
+            <div className="odm-items-wrap">
+              <div className="odm-items-header">
+                <span>Danh sách món — {order.items?.length || 0} loại</span>
+                <span>Tổng {barista.total} ly</span>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+              <div className="odm-items-scroll">
+                <table className="odm-items-table">
                   <thead>
-                    <tr className="border-b border-stone-100 bg-stone-50/50 text-[11px] font-bold text-stone-500 uppercase tracking-wider">
-                      <th className="py-2.5 px-4">Tên món & Ghi chú</th>
-                      <th className="py-2.5 px-3 text-center">SL</th>
-                      <th className="py-2.5 px-4 text-right">Đơn giá</th>
-                      <th className="py-2.5 px-4 text-right">Thành tiền</th>
-                      <th className="py-2.5 px-4 text-center">Trạng thái pha</th>
+                    <tr>
+                      <th>Tên món & Ghi chú</th>
+                      <th className="text-center">SL</th>
+                      <th className="text-right">Đơn giá</th>
+                      <th className="text-right">Thành tiền</th>
+                      <th className="text-center">Trạng thái pha</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-stone-100 text-xs">
+                  <tbody>
                     {order.items?.map((item, idx) => {
-                      const itemStatus = getBaristaStatusInfo(item.preparedStatus);
-                      const StatusIcon = itemStatus.icon;
-
+                      const st = getBaristaStatusInfo(item.preparedStatus);
+                      const SI = st.icon;
                       return (
-                        <tr key={item.id ?? idx} className="hover:bg-stone-50/70 transition-colors">
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-3">
+                        <tr key={item.id ?? idx}>
+                          <td>
+                            <div className="odm-item-cell">
                               <div
-                                className="w-11 h-11 rounded-lg bg-stone-100 overflow-hidden flex items-center justify-center flex-shrink-0 cursor-pointer border border-stone-200"
-                                onClick={() => {
-                                  if (item.productImage) setLightboxPhoto(item.productImage);
-                                }}
-                                title="Bấm để xem ảnh phóng to"
+                                className="odm-item-thumb"
+                                onClick={() => item.productImage && setLightboxPhoto(item.productImage)}
+                                title={item.productImage ? 'Bấm để phóng to' : undefined}
                               >
-                                {item.productImage ? (
-                                  <img
-                                    src={item.productImage}
-                                    alt={item.productName}
-                                    className="w-full h-full object-cover"
-                                    loading="lazy"
-                                  />
-                                ) : (
-                                  <span className="text-base">🧋</span>
-                                )}
+                                {item.productImage
+                                  ? <img src={item.productImage} alt={item.productName} loading="lazy" />
+                                  : <span>🧋</span>}
                               </div>
-                              <div className="min-w-0">
-                                <p className="font-bold text-stone-900 truncate">
-                                  {item.productName}
-                                </p>
+                              <div>
+                                <p className="odm-item-name">{item.productName}</p>
                                 {item.notes && (
-                                  <p className="text-[11px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md mt-1 w-fit border border-amber-200 font-medium">
-                                    📝 {item.notes}
-                                  </p>
+                                  <p className="odm-item-note">📝 {item.notes}</p>
                                 )}
                               </div>
                             </div>
                           </td>
-                          <td className="py-3 px-3 text-center font-mono font-bold text-stone-800">
-                            {item.quantity}
-                          </td>
-                          <td className="py-3 px-4 text-right font-mono text-stone-600">
-                            {formatPrice(item.price)}
-                          </td>
-                          <td className="py-3 px-4 text-right font-mono font-bold text-stone-900">
-                            {formatPrice(item.subtotal || item.price * item.quantity)}
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${itemStatus.badgeCls}`}>
-                              <StatusIcon size={12} />
-                              <span>{itemStatus.label}</span>
+                          <td className="text-center odm-item-qty">{item.quantity}</td>
+                          <td className="text-right odm-item-price">{formatPrice(item.price)}</td>
+                          <td className="text-right odm-item-subtotal">{formatPrice(item.subtotal || item.price * item.quantity)}</td>
+                          <td className="text-center">
+                            <span className={`odm-barista-badge ${st.cls}`}>
+                              <SI size={11} />
+                              {st.label}
                             </span>
                           </td>
                         </tr>
@@ -522,53 +443,61 @@ const AdminOrderDetailModal = ({ order, onClose, onUpdateStatus }) => {
               </div>
             </div>
 
-            {/* Financial Summary */}
-            <div className="flex justify-end">
-              <div className="w-full sm:w-72 bg-stone-50 border border-stone-200 rounded-xl p-4 space-y-2 text-xs">
-                <div className="flex justify-between text-stone-600">
-                  <span>Tiền món:</span>
-                  <span className="font-mono font-semibold">
-                    {formatPrice(order.originalPrice || order.totalPrice + (order.discountAmount || 0))}
-                  </span>
-                </div>
-                {order.discountAmount > 0 && (
-                  <div className="flex justify-between text-rose-600 font-medium">
-                    <span>Voucher ({order.voucherCode || 'Ưu đãi'}):</span>
-                    <span className="font-mono font-bold">-{formatPrice(order.discountAmount)}</span>
+            {/* — 7. Financial Summary — */}
+            <div className="odm-summary-wrap">
+              <div className="odm-summary-box">
+                <div className="odm-summary-title">Tóm tắt thanh toán</div>
+                <div className="odm-summary-rows">
+                  <div className="odm-summary-row">
+                    <span>Tiền món{hasVoucher ? ' (chưa giảm)' : ''}:</span>
+                    <span className="odm-summary-mono">{formatPrice(originalAmt)}</span>
                   </div>
-                )}
-                <div className="flex justify-between text-stone-600">
-                  <span>Phí giao hàng:</span>
-                  <span className="font-semibold text-emerald-700">Freeship</span>
+                  <div className="odm-summary-row">
+                    <span>Phí giao hàng:</span>
+                    <span className="odm-summary-free">Freeship ✓</span>
+                  </div>
+                  {order.discountAmount > 0 && (
+                    <div className="odm-summary-row odm-summary-row--discount">
+                      <span>
+                        Giảm giá
+                        {order.voucherCode && (
+                          <code className="odm-inline-code">{order.voucherCode}</code>
+                        )}:
+                      </span>
+                      <span className="odm-summary-mono">−{formatPrice(order.discountAmount)}</span>
+                    </div>
+                  )}
+                  {hasVoucher && !order.discountAmount && (
+                    <div className="odm-summary-row odm-summary-row--voucher-only">
+                      <span><Tag size={10} className="inline mr-1" />{order.voucherCode}</span>
+                      <span className="text-stone-400 text-[10px]">Đã áp dụng</span>
+                    </div>
+                  )}
                 </div>
-                <div className="border-t border-stone-200 pt-2 flex justify-between items-baseline">
-                  <span className="font-bold text-stone-900 text-sm">Tổng cộng:</span>
-                  <span className="font-mono font-black text-lg text-emerald-700">
-                    {formatPrice(order.totalPrice)}
-                  </span>
+                <div className="odm-summary-total">
+                  <span>Tổng cộng</span>
+                  <span className="odm-summary-total-amt">{formatPrice(order.totalPrice)}</span>
                 </div>
               </div>
             </div>
 
-            {/* Inline Cancel Form */}
+            {/* — 8. Cancel Form — */}
             {showCancelForm && (
-              <div className="p-4 rounded-xl border border-rose-200 bg-rose-50/80 space-y-3 animate-fade-in">
-                <div className="flex items-center gap-2 text-rose-800 text-xs font-bold uppercase tracking-wider">
-                  <AlertTriangle size={15} />
-                  <span>Xác nhận hủy đơn hàng #{order.id}</span>
+              <div className="odm-cancel-form">
+                <div className="odm-cancel-form__title">
+                  <AlertTriangle size={14} />
+                  Xác nhận hủy đơn #{order.id}
                 </div>
-                <p className="text-xs text-rose-700">
-                  Vui lòng chọn hoặc nhập lý do hủy đơn:
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {['Khách yêu cầu hủy', 'Hết nguyên liệu pha chế', 'Không liên hệ được với khách', 'Thay đổi món khác'].map((reason) => (
+                <p className="odm-cancel-form__hint">Chọn nhanh lý do hoặc nhập tự do:</p>
+                <div className="odm-cancel-chips">
+                  {['Khách yêu cầu hủy', 'Hết nguyên liệu', 'Không liên hệ được khách', 'Thay đổi món'].map((r) => (
                     <button
-                      key={reason}
+                      key={r}
                       type="button"
-                      onClick={() => setCancelReason(reason)}
-                      className="px-2.5 py-1 bg-white border border-rose-200 text-rose-800 rounded-lg text-xs hover:bg-rose-100 transition-colors cursor-pointer"
+                      onClick={() => setCancelReason(r)}
+                      className={`odm-cancel-chip ${cancelReason === r ? 'selected' : ''}`}
                     >
-                      {reason}
+                      {r}
                     </button>
                   ))}
                 </div>
@@ -577,21 +506,21 @@ const AdminOrderDetailModal = ({ order, onClose, onUpdateStatus }) => {
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
                   placeholder="Nhập lý do hủy chi tiết..."
-                  className="w-full p-2.5 bg-white border border-rose-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-rose-500"
+                  className="odm-cancel-textarea"
                 />
-                <div className="flex justify-end gap-2">
+                <div className="odm-cancel-actions">
                   <button
                     type="button"
                     onClick={() => setShowCancelForm(false)}
-                    className="px-3.5 py-1.5 rounded-lg border border-stone-300 bg-white text-xs font-bold text-stone-700 hover:bg-stone-100"
+                    className="odm-btn-ghost"
                   >
-                    Đóng
+                    Hủy bỏ
                   </button>
                   <button
                     type="button"
                     disabled={processing}
-                    onClick={() => handleConfirmCancel(cancelReason)}
-                    className="px-4 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 disabled:opacity-50"
+                    onClick={handleConfirmCancel}
+                    className="odm-cancel-confirm-btn"
                   >
                     {processing ? 'Đang hủy...' : 'Xác nhận hủy đơn'}
                   </button>
@@ -600,87 +529,75 @@ const AdminOrderDetailModal = ({ order, onClose, onUpdateStatus }) => {
             )}
           </div>
 
-          {/* ── 3. Modal Footer ── */}
-          <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 bg-stone-50 border-t border-stone-200 flex-shrink-0">
-            <div className="flex items-center gap-2">
+          {/* ══ FOOTER ══ */}
+          <footer className="odm-footer">
+            <div className="odm-footer-left">
               <button
                 type="button"
                 onClick={() => setShowPrintBill(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-stone-300 bg-white hover:bg-stone-100 text-xs font-bold text-stone-800 shadow-xs transition-colors cursor-pointer"
+                className="odm-btn-ghost"
               >
-                <Printer size={15} className="text-amber-600" />
-                <span>In hóa đơn</span>
+                <Printer size={14} className="text-amber-600" />
+                In hóa đơn
               </button>
-
               {!isCancelled && !isCompleted && !showCancelForm && (
                 <button
                   type="button"
                   onClick={() => setShowCancelForm(true)}
-                  className="px-3 py-2 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-bold transition-colors cursor-pointer"
+                  className="odm-btn-danger-ghost"
                 >
-                  <Ban size={14} className="inline mr-1" />
-                  <span>Hủy đơn</span>
+                  <Ban size={13} />
+                  Hủy đơn
                 </button>
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="odm-footer-right">
               {actions.map((act) => {
-                const ActionIcon = act.icon;
+                const AI = act.icon;
                 return (
                   <button
                     key={act.value}
                     type="button"
                     disabled={processing}
                     onClick={() => handleUpdate(act.value)}
-                    className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50 ${act.cls}`}
+                    className={`odm-action-btn ${act.cls}`}
                   >
-                    <ActionIcon size={15} />
-                    <span>{processing ? 'Đang xử lý...' : act.label}</span>
+                    <AI size={14} />
+                    {processing ? 'Đang xử lý...' : act.label}
                   </button>
                 );
               })}
-
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-xl border border-stone-300 bg-white hover:bg-stone-100 text-xs font-bold text-stone-700 transition-colors cursor-pointer"
+                className="odm-btn-ghost"
               >
                 Đóng
               </button>
             </div>
-          </div>
+          </footer>
         </div>
       </div>
 
-      {/* Print Bill Modal */}
       {showPrintBill && (
-        <PrintBillModal
-          isOpen={showPrintBill}
-          onClose={() => setShowPrintBill(false)}
-          order={order}
-        />
+        <PrintBillModal isOpen order={order} onClose={() => setShowPrintBill(false)} />
       )}
 
-      {/* Image Lightbox */}
       {lightboxPhoto && (
         <div
-          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in"
+          className="odm-lightbox"
           onClick={() => setLightboxPhoto(null)}
         >
-          <div className="relative max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="odm-lightbox-inner" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               onClick={() => setLightboxPhoto(null)}
-              className="absolute -top-10 right-0 p-1.5 text-white/80 hover:text-white rounded-full bg-white/10 hover:bg-white/20"
+              className="odm-lightbox-close"
             >
               <X size={20} />
             </button>
-            <img
-              src={lightboxPhoto}
-              alt="Ảnh phóng to"
-              className="w-full rounded-2xl shadow-2xl object-contain max-h-[80vh]"
-            />
+            <img src={lightboxPhoto} alt="Ảnh phóng to" className="odm-lightbox-img" />
           </div>
         </div>
       )}

@@ -1,0 +1,10 @@
+target/
+frontend/
+.git/
+.gitignore
+.idea/
+.agent/
+backend.log
+*.log
+*.cmd
+*.iml

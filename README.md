@@ -112,6 +112,39 @@ npm run lint
 | **Cài đặt thư viện Frontend** | Thư mục `frontend/` | `npm install` | `npm install` |
 | **Chạy Frontend (Dev)** | Thư mục `frontend/` | `npm run dev` | `npm run dev` |
 | **Build Frontend** | Thư mục `frontend/` | `npm run build` | `npm run build` |
+| **Chạy toàn bộ bằng Docker** | Thư mục gốc `.` | `docker compose up -d --build` | `docker compose up -d --build` |
+| **Dừng hệ thống Docker** | Thư mục gốc `.` | `docker compose down` | `docker compose down` |
+
+---
+
+## 🐳 Chạy Dự Án Bằng Docker (Khuyên Dùng)
+
+Bạn có thể chạy toàn bộ dự án (Database MySQL, Backend Spring Boot, Frontend React) chỉ với 1 câu lệnh duy nhất mà không cần cài đặt JDK, Node.js hay MySQL trên máy:
+
+### 1. Khởi động tất cả các dịch vụ:
+```bash
+docker compose up -d --build
+```
+
+### 2. Xem log hoạt động:
+```bash
+# Xem log backend
+docker compose logs -f backend
+
+# Xem log database
+docker compose logs -f db
+```
+
+### 3. Địa chỉ truy cập:
+- **Frontend:** [http://localhost:3000](http://localhost:3000)
+- **Backend API:** [http://localhost:8081/api](http://localhost:8081/api)
+- **Database MySQL (truy cập từ ngoài máy host):** Cổng `3307` (Tài khoản: `root`, Mật khẩu: `rootpassword`, DB: `generic_shop`)
+
+### 4. Dừng hệ thống:
+```bash
+docker compose down
+```
+*(Nếu muốn xóa cả dữ liệu database đã lưu trong volume: `docker compose down -v`)*
 
 ---
 
