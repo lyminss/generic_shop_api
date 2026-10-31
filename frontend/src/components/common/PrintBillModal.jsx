@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Printer, X, CheckCircle, CupSoda } from 'lucide-react';
+import { Printer, X, CheckCircle } from 'lucide-react';
 import { formatPrice, formatDateTime } from '../../utils/format';
 import './PrintBillModal.css';
 
