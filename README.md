@@ -33,6 +33,24 @@ Dự án ứng dụng bán hàng Generic Shop bao gồm **Backend (Spring Boot)*
 
 ## 🚀 Hướng Dẫn Chạy Dự Án
 
+### Khởi Chạy Nhanh Cả Backend + Frontend Chung
+
+Chỉ với **1 câu lệnh duy nhất** tại thư mục gốc:
+
+```bash
+npm run project
+```
+
+Lệnh này sẽ tự động:
+- Khởi chạy **Backend** (Spring Boot qua Maven Wrapper trên cổng `8081`).
+- Khởi chạy **Frontend** (React + Vite trên cổng `5173`).
+- Gán nhãn màu sắc `[Backend]` (cyan) và `[Frontend]` (magenta) trên cùng 1 terminal để dễ theo dõi log.
+- Tự động dọn dẹp và dừng đồng thời cả 2 tiến trình khi nhấn **`Ctrl + C`**.
+
+---
+
+### Chạy Riêng Lẻ Từng Phần (Thủ công)
+
 ### 1. Chạy Backend (Spring Boot)
 
 Mở terminal tại **thư mục gốc của dự án** (`generic_shop`):
@@ -106,6 +124,7 @@ npm run lint
 
 | Tác vụ | Thư mục thực thi | Lệnh Windows | Lệnh Linux/Mac |
 | :--- | :--- | :--- | :--- |
+| **Chạy Cả Dự Án (Fullstack)** | Thư mục gốc `.` | `npm run project` | `npm run project` |
 | **Chạy Backend (Dev)** | Thư mục gốc `.` | `.\mvnw.cmd spring-boot:run` | `./mvnw spring-boot:run` |
 | **Build Backend JAR** | Thư mục gốc `.` | `.\mvnw.cmd clean package -DskipTests` | `./mvnw clean package -DskipTests` |
 | **Chạy Backend JAR** | Thư mục gốc `.` | `java -jar target/generic_shop-0.0.1-SNAPSHOT.jar` | `java -jar target/generic_shop-0.0.1-SNAPSHOT.jar` |
