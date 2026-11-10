@@ -6,7 +6,7 @@ Dự án ứng dụng bán hàng Generic Shop bao gồm **Backend (Spring Boot)*
 
 ## 📋 Yêu Cầu Hệ Thống (Prerequisites)
 
-- **Java**: JDK 17 trở lên
+- **Java**: JDK 23 trở lên
 - **Node.js**: Phiên bản 18.x trở lên & **npm**
 - **Cơ sở dữ liệu**: MySQL Server (cổng mặc định `3306`)
 - **Maven**: (Tùy chọn, dự án đã tích hợp sẵn Maven Wrapper `mvnw`)
